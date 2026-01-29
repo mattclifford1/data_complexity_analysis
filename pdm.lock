@@ -548,6 +548,24 @@ files = [
 ]
 
 [[package]]
+name = "opentsne"
+version = "1.0.4"
+requires_python = ">=3.9"
+summary = "Extensible, parallel implementations of t-SNE"
+groups = ["dev"]
+dependencies = [
+    "numpy>=1.16.6",
+    "scikit-learn>=0.20",
+    "scipy",
+]
+files = [
+    {file = "opentsne-1.0.4-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:9c594f6224f6b4cf98988651aabe68e0ffd408822559f1450ee870f8e496a233"},
+    {file = "opentsne-1.0.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0d3bd0e2bc9f557ce75ab4b19038480364a60fc9ffcd2362838ff854bc2a0331"},
+    {file = "opentsne-1.0.4-cp313-cp313-win_amd64.whl", hash = "sha256:f681ed5957e99af9500538384bfc15b50697f99c7cd057cfe8863d50248cc228"},
+    {file = "opentsne-1.0.4.tar.gz", hash = "sha256:e90bf612be94fcbe06e3cab9531a58e4824661f38dd7c2e934569820d15c82ab"},
+]
+
+[[package]]
 name = "packaging"
 version = "25.0"
 requires_python = ">=3.8"
@@ -858,6 +876,7 @@ groups = ["dev"]
 dependencies = [
     "matplotlib>=3.10.7",
     "numpy>=2.3.5",
+    "opentsne>=1.0.4",
     "pandas>=2.3.3",
     "scikit-learn>=1.7.2",
     "scipy>=1.16.3",
