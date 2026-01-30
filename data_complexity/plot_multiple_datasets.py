@@ -106,8 +106,9 @@ if __name__ == "__main__":
 
     # get different Gaussian blobs datasets
     metrics_by_dataset = {}
-    for variance in [0.05, 0.1, 0.2, 0.3, 0.5]:
-        cov_matrix = [[variance, 0], [0, variance]]
+    for variance in [1, 2, 4, 5, 100]:
+        cov_matrix = [[[variance, 0], [0, variance]],
+                       [[variance, 0], [0, variance]]]
         dataset_name = f'Gaussian_var_{variance}'
         dataset = get_dataset("Gaussian",
                               cov=cov_matrix,
@@ -115,6 +116,7 @@ if __name__ == "__main__":
         complexity = complexity_metrics(dataset=dataset.get_data_dict())
         all_metrics = complexity.get_all_metrics_scalar()
         metrics_by_dataset[dataset_name] = all_metrics
+        dataset.plot_dataset(terminal_plot=True)
 
 
     plot_metrics(metrics_by_dataset, 
