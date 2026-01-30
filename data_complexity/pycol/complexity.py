@@ -2887,7 +2887,8 @@ class Complexity:
 
         avg = np.zeros(len(self.classes))
         for b in b_list:
-            avg[b[1]]+=1
+            cls_inx = np.where(self.classes == b[1])[0][0]
+            avg[cls_inx] += 1
         
         avg = np.divide(avg,self.class_count)
 
