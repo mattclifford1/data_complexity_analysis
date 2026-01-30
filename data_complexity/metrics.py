@@ -104,6 +104,7 @@ if __name__ == "__main__":
     from data_loaders import get_dataset
     dataset = get_dataset("Wine")
     print(f"Dataset loaded: {dataset.name}\n")
+    dataset.plot_dataset(terminal_plot=True)
 
     complexity = complexity_metrics(dataset=dataset.get_data_dict())
     all_metrics = complexity.get_all_metrics_scalar()
