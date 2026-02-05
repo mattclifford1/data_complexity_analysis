@@ -95,31 +95,33 @@ pdm run python data_complexity/experiments/synthetic/gaussian/exp_separation.py
 
 ```
 experiments/
+├── ml_evaluation.py                    # ML model training utilities
+├── exp_complexity_vs_ml.py             # Correlate complexity with ML accuracy (Gaussian variance)
+├── exp_separation_vs_ml.py             # Correlate complexity with ML accuracy (class separation)
+├── exp_moons_vs_ml.py                  # Correlate complexity with ML accuracy (moons noise)
+├── exp_comprehensive_correlation.py    # Combined analysis across all dataset types
 ├── synthetic/
-│   ├── exp_compare_generators.py   # Compare all synthetic types
-│   ├── gaussian/
-│   │   ├── exp_separation.py       # Class mean distance
-│   │   ├── exp_cov_scale.py        # Variance magnitude
-│   │   ├── exp_cov_types.py        # Covariance structure
-│   │   ├── exp_correlation.py      # Feature correlation
-│   │   ├── exp_imbalance.py        # Class ratio (1:1 to 9:1)
-│   │   └── exp_asymmetric_cov.py   # Per-class variance
-│   ├── moons/
-│   │   ├── exp_noise.py            # Noise level
-│   │   └── exp_samples.py          # Sample size
-│   ├── circles/
-│   │   └── exp_noise.py            # Noise level
-│   ├── blobs/
-│   │   └── exp_features.py         # Dimensionality
-│   └── xor/
-│       └── exp_samples.py          # Sample size
+│   ├── exp_compare_generators.py       # Compare all synthetic types
+│   ├── gaussian/                       # Gaussian parameter studies
+│   ├── moons/                          # Moons noise and sample studies
+│   ├── circles/                        # Circles noise studies
+│   ├── blobs/                          # Blobs dimensionality studies
+│   └── xor/                            # XOR sample studies
 └── real/
-    ├── exp_compare_datasets.py     # Compare UCI datasets
-    ├── exp_scaling.py              # Feature scaling effects
-    └── exp_dim_reduction.py        # PCA reduction effects
+    ├── exp_compare_datasets.py         # Compare UCI datasets
+    ├── exp_scaling.py                  # Feature scaling effects
+    └── exp_dim_reduction.py            # PCA reduction effects
 ```
 
-Each script has a `run_experiment()` function returning metrics dict, usable programmatically.
+### Complexity vs ML Performance
+
+Experiments correlating complexity metrics with classifier accuracy:
+
+```bash
+pdm run python data_complexity/experiments/exp_complexity_vs_ml.py
+```
+
+These train LogReg, KNN, DecisionTree, SVM, RandomForest via cross-validation and compute Pearson correlations between each complexity metric and best accuracy. Outputs correlation bar charts and scatter plots.
 
 ## coding style
 always wise clear and consise code.
