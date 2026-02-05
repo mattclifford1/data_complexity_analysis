@@ -70,3 +70,16 @@ overlap = comp.deg_overlap()
 - **Instance Overlap (13):** R-value, Raug, degOver, N3, SI, N4, kDN, D3, CM, wCM, dwCM, Borderline Examples, IPoints
 - **Structural Overlap (9):** N1, T1, Clust, ONB, LSCAvg, DBC, N2, NSG, ICSV
 - **Multiresolution Overlap (5):** MRCA, C1, C2, Purity, Neighbourhood Separability
+
+## Testing
+
+```bash
+pdm run pytest tests/ -v           # Run all tests
+pdm run pytest tests/ -v -k "feature"  # Run tests matching "feature"
+```
+
+Tests are in `tests/` (not `pycol/` which is external code):
+
+- **`conftest.py`** - Fixtures providing test datasets (linearly separable, moons, high overlap, multiclass, high-dimensional)
+- **`test_metrics.py`** - Tests for `complexity_metrics` wrapper class
+- **`test_abstract_metrics.py`** - Tests for `abstract_metric` base class
