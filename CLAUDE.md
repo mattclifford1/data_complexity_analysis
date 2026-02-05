@@ -138,39 +138,119 @@ models = get_default_models()  # Returns list of 10 model instances
 
 Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics.
 
-```bash
-pdm run python data_complexity/experiments/synthetic/gaussian/exp_separation.py
-```
-
 ```
 experiments/
-├── ml_models.py                        # Abstract ML model classes
-├── ml_evaluation.py                    # Functional wrapper (backwards compat)
-├── exp_complexity_vs_ml.py             # Correlate complexity with ML accuracy (Gaussian variance)
-├── exp_separation_vs_ml.py             # Correlate complexity with ML accuracy (class separation)
-├── exp_moons_vs_ml.py                  # Correlate complexity with ML accuracy (moons noise)
-├── exp_comprehensive_correlation.py    # Combined analysis across all dataset types
-├── results/                            # Output directory for CSVs and plots
-│   ├── comprehensive/
-│   ├── gaussian_variance/
-│   ├── gaussian_separation/
-│   └── moons_noise/
-├── synthetic/
-│   ├── exp_compare_generators.py       # Compare all synthetic types
-│   ├── gaussian/                       # Gaussian parameter studies
-│   ├── moons/                          # Moons noise and sample studies
-│   ├── circles/                        # Circles noise studies
-│   ├── blobs/                          # Blobs dimensionality studies
-│   └── xor/                            # XOR sample studies
-└── real/
-    ├── exp_compare_datasets.py         # Compare UCI datasets
-    ├── exp_scaling.py                  # Feature scaling effects
-    └── exp_dim_reduction.py            # PCA reduction effects
+├── experiment.py           # Generic experiment framework
+├── experiment_configs.py   # Pre-defined experiment configurations
+├── plotting.py             # Reusable plotting functions
+├── ml_models.py            # Abstract ML model classes
+├── ml_evaluation.py        # Functional wrapper (backwards compat)
+├── exp_complexity_vs_ml.py # Legacy: Gaussian variance experiment
+├── exp_separation_vs_ml.py # Legacy: Class separation experiment
+├── exp_moons_vs_ml.py      # Legacy: Moons noise experiment
+├── exp_comprehensive_correlation.py  # Combined analysis
+├── results/                # Output directory for CSVs and plots
+├── synthetic/              # Synthetic dataset studies
+└── real/                   # Real dataset studies
 ```
 
-### Complexity vs ML Performance
+### Experiment Framework
 
-Experiments correlating complexity metrics with classifier accuracy:
+The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments.
+
+#### Quick Start
+
+```python
+from data_complexity.experiments.experiment import Experiment
+from data_complexity.experiments.experiment_configs import gaussian_variance_config
+
+# Run a pre-defined experiment
+exp = Experiment(gaussian_variance_config())
+exp.run()
+exp.compute_correlations()
+exp.print_summary()
+exp.save()
+```
+
+#### Pre-defined Configurations
+
+```python
+from data_complexity.experiments.experiment_configs import (
+    gaussian_variance_config,    # Vary Gaussian covariance scale
+    gaussian_separation_config,  # Vary class separation distance
+    gaussian_correlation_config, # Vary feature correlation
+    moons_noise_config,          # Vary moons noise level
+    circles_noise_config,        # Vary circles noise level
+    blobs_features_config,       # Vary dimensionality
+    get_config,                  # Get config by name
+    list_configs,                # List all available configs
+    run_experiment,              # Run a named experiment
+    run_all_experiments,         # Run all experiments
+)
+
+# Run by name
+from data_complexity.experiments.experiment_configs import run_experiment
+exp = run_experiment("gaussian_variance")
+
+# List available configs
+print(list_configs())
+# ['gaussian_variance', 'gaussian_separation', 'gaussian_correlation',
+#  'moons_noise', 'circles_noise', 'blobs_features']
+```
+
+#### Custom Experiments
+
+```python
+from data_complexity.experiments.experiment import (
+    Experiment,
+    ExperimentConfig,
+    DatasetSpec,
+    ParameterSpec,
+    PlotType,
+)
+
+# Define custom experiment
+config = ExperimentConfig(
+    dataset=DatasetSpec(
+        dataset_type="Gaussian",
+        fixed_params={"cov_type": "spherical"},
+        num_samples=500,
+    ),
+    vary_parameter=ParameterSpec(
+        name="class_separation",
+        values=[1.0, 2.0, 3.0, 4.0, 5.0],
+        label_format="sep={value}",
+    ),
+    cv_folds=5,
+    ml_metrics=["accuracy", "f1"],
+    correlation_target="best_accuracy",
+    plots=[PlotType.CORRELATIONS, PlotType.SUMMARY],
+    name="my_custom_experiment",
+)
+
+exp = Experiment(config)
+exp.run(verbose=True)
+correlations = exp.compute_correlations()
+exp.save()  # Saves to experiments/results/my_custom_experiment/
+```
+
+#### Experiment Results
+
+Results are stored in pandas DataFrames:
+
+```python
+# After running
+exp.results.complexity_df  # Complexity metrics per parameter value
+exp.results.ml_df          # ML performance per parameter value
+exp.results.correlations_df  # Correlation results
+
+# Load previous results
+exp.load_results(Path("experiments/results/gaussian_variance/"))
+```
+
+### Legacy Experiments
+
+The original experiment scripts still work for backwards compatibility:
 
 ```bash
 pdm run python data_complexity/experiments/exp_complexity_vs_ml.py
