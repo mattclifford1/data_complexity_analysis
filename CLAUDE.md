@@ -23,6 +23,7 @@ data_complexity/
 ├── metrics.py              # Main wrapper class (complexity_metrics)
 ├── abstract_metrics.py     # Base class for custom metrics
 ├── plot_multiple_datasets.py  # Visualization utilities
+├── experiments/            # Parameter study scripts
 └── pycol/
     ├── complexity.py       # Core implementation (~3000 lines, 50+ measures)
     ├── dataset/            # Test datasets (ARFF, CSV, pickle)
@@ -83,3 +84,25 @@ Tests are in `tests/` (not `pycol/` which is external code):
 - **`conftest.py`** - Fixtures providing test datasets (linearly separable, moons, high overlap, multiclass, high-dimensional)
 - **`test_metrics.py`** - Tests for `complexity_metrics` wrapper class
 - **`test_abstract_metrics.py`** - Tests for `abstract_metric` base class
+
+## Experiments
+
+Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics using the Gaussian generator from `toy_datasets`:
+
+```bash
+pdm run python data_complexity/experiments/exp_gaussian_separation.py
+```
+
+| Experiment | Parameter | Description |
+|------------|-----------|-------------|
+| `exp_gaussian_separation.py` | `class_separation` | Distance between class means |
+| `exp_gaussian_cov_scale.py` | `cov_scale` | Variance magnitude (higher → more overlap) |
+| `exp_gaussian_cov_types.py` | `cov_type` | Shape: spherical, diagonal, symmetric, random |
+| `exp_gaussian_correlation.py` | `cov_correlation` | Feature correlation in symmetric covariance |
+| `exp_gaussian_imbalance.py` | `num_samples` | Class ratio effects (1:1 to 9:1) |
+| `exp_gaussian_asymmetric_cov.py` | `cov_scale` per class | Different variances per class |
+
+Each script has a `run_experiment()` function returning metrics dict, usable programmatically.
+
+## coding style
+always wise clear and consise code.
