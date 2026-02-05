@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Python library for analyzing data complexity metrics in classification datasets. Implements PyCol (Python Class Overlap Library) which measures complexity through four categories: Feature Overlap, Instance Overlap, Structural Overlap, and Multiresolution Overlap.
+
+## Commands
+
+```bash
+# Install dependencies
+pdm sync
+
+# Run scripts
+pdm run python <script>
+
+# Add packages
+pdm add <package-name>
+```
+
+Python version: 3.13 (strictly enforced)
+
+## Architecture
+
+```
+data_complexity/
+├── metrics.py              # Main wrapper class (complexity_metrics)
+├── abstract_metrics.py     # Base class for custom metrics
+├── plot_multiple_datasets.py  # Visualization utilities
+└── pycol/
+    ├── complexity.py       # Core implementation (~3000 lines, 50+ measures)
+    ├── dataset/            # Test datasets (ARFF, CSV, pickle)
+    └── use_cases/          # Example implementations
+```
+
+### Core Pattern
+
+```python
+from data_complexity.metrics import complexity_metrics
+
+# Dataset as dict with NumPy arrays
+dataset = {'X': X, 'y': y}
+complexity = complexity_metrics(dataset=dataset)
+
+# Get all metrics
+all_metrics = complexity.get_all_metrics_scalar()
+
+# Or by category
+feature = complexity.feature_overlap_scalar()
+instance = complexity.instance_overlap_scalar()
+structural = complexity.structural_overlap_scalar()
+multiresolution = complexity.multiresolution_overlap_full()
+```
+
+### Direct PyCol Usage
+
+```python
+from data_complexity.pycol import Complexity
+
+# From arrays
+comp = Complexity(dataset={'X': X, 'y': y}, file_type="array")
+
+# From file
+comp = Complexity("path/to/dataset.arff", file_type="arff")
+
+# Individual measures
+f1 = comp.F1()
+overlap = comp.deg_overlap()
+```
+
+## Metric Categories
+
+- **Feature Overlap (6):** F1, F1v, F2, F3, F4, IN
+- **Instance Overlap (13):** R-value, Raug, degOver, N3, SI, N4, kDN, D3, CM, wCM, dwCM, Borderline Examples, IPoints
+- **Structural Overlap (9):** N1, T1, Clust, ONB, LSCAvg, DBC, N2, NSG, ICSV
+- **Multiresolution Overlap (5):** MRCA, C1, C2, Purity, Neighbourhood Separability
