@@ -1,5 +1,5 @@
 from sklearn.datasets import make_classification, make_moons
-from pycol import Complexity
+from data_complexity.pycol import Complexity
 
 # X, y = make_classification(
 #     n_samples=200,

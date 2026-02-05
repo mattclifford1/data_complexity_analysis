@@ -17,4 +17,10 @@ distribution = false
 [tool.pdm.dev-dependencies]
 dev = [
     "-e file:///${PROJECT_ROOT}/../toy_datasets#egg=toy-datasets",
+    "-e file:///${PROJECT_ROOT}/#egg=data-complexity",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
 ]

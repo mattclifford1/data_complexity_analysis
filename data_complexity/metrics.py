@@ -2,7 +2,7 @@
 '''
 All complexity metrics and visualisation methods
 '''
-from pycol import Complexity
+from data_complexity.pycol import Complexity
 
 
 class complexity_metrics:
@@ -22,7 +22,7 @@ class complexity_metrics:
 
     def get_all_metrics_scalar(self):
         all_metrics = {}
-        all_metrics.update(self.feature_overlap_scalar(viz=False))
+        all_metrics.update(self.feature_overlap_scalar())
         all_metrics.update(self.instance_overlap_scalar())
         all_metrics.update(self.structural_overlap_scalar())
         return all_metrics
@@ -37,7 +37,7 @@ class complexity_metrics:
     
 
     '''FEATURE OVERLAP MEASURES'''
-    def feature_overlap_scalar(self, viz=True):
+    def feature_overlap_scalar(self):
         feature_overlap, f_names = self.pycol_complexity.feature_overlap(viz=False)
         metrics = {}
         for measure, value in zip(f_names, feature_overlap):

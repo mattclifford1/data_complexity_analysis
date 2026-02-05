@@ -1,9 +1,9 @@
-import data_loaders
 import math
 import matplotlib.pyplot as plt
+import data_loaders
 from data_loaders import get_dataset
 from data_loaders.terminal_plots import terminal_show
-from metrics import complexity_metrics
+from data_complexity.metrics import complexity_metrics
 
     
 
@@ -78,12 +78,12 @@ def plot_metrics(metrics_by_dataset,
         ax.axis("off")
 
     fig.suptitle("Complexity Metrics by Dataset", y=0.99)
-    fig.tight_layout(pad=0.8, w_pad=0.6, h_pad=0.8)
 
 
     if terminal_plot:
         terminal_show()
     else:
+        fig.tight_layout(pad=0.8, w_pad=0.6, h_pad=0.8)
         plt.tight_layout()
         plt.show()
 

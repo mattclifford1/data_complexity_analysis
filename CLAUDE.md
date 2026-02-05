@@ -6,20 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python library for analyzing data complexity metrics in classification datasets. Implements PyCol (Python Class Overlap Library) which measures complexity through four categories: Feature Overlap, Instance Overlap, Structural Overlap, and Multiresolution Overlap.
 
-## Commands
+## Development Environment
 
-```bash
-# Install dependencies
-pdm sync
+Always use PDM (Python Dependency Manager) for environment and dependency management.
 
-# Run scripts
-pdm run python <script>
-
-# Add packages
-pdm add <package-name>
-```
-
-Python version: 3.13 (strictly enforced)
+- `pdm install` - Install dependencies and create virtual environment
+- `pdm install -G dev` - Install with dev dependencies
+- `pdm add <package>` - Add a new dependency
+- `pdm run <command>` - Run command in the PDM environment
+- `pdm add -e path/to/package --dev` - Install a package in development mode
 
 ## Architecture
 
