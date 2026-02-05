@@ -87,22 +87,42 @@ Tests are in `tests/` (not `pycol/` which is external code):
 
 ## Experiments
 
-Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics using the Gaussian generator from `toy_datasets`:
+Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics.
 
 ```bash
-pdm run python data_complexity/experiments/exp_gaussian_separation.py
+pdm run python data_complexity/experiments/synthetic/gaussian/exp_separation.py
 ```
 
-| Experiment | Parameter | Description |
-|------------|-----------|-------------|
-| `exp_gaussian_separation.py` | `class_separation` | Distance between class means |
-| `exp_gaussian_cov_scale.py` | `cov_scale` | Variance magnitude (higher → more overlap) |
-| `exp_gaussian_cov_types.py` | `cov_type` | Shape: spherical, diagonal, symmetric, random |
-| `exp_gaussian_correlation.py` | `cov_correlation` | Feature correlation in symmetric covariance |
-| `exp_gaussian_imbalance.py` | `num_samples` | Class ratio effects (1:1 to 9:1) |
-| `exp_gaussian_asymmetric_cov.py` | `cov_scale` per class | Different variances per class |
+```
+experiments/
+├── synthetic/
+│   ├── exp_compare_generators.py   # Compare all synthetic types
+│   ├── gaussian/
+│   │   ├── exp_separation.py       # Class mean distance
+│   │   ├── exp_cov_scale.py        # Variance magnitude
+│   │   ├── exp_cov_types.py        # Covariance structure
+│   │   ├── exp_correlation.py      # Feature correlation
+│   │   ├── exp_imbalance.py        # Class ratio (1:1 to 9:1)
+│   │   └── exp_asymmetric_cov.py   # Per-class variance
+│   ├── moons/
+│   │   ├── exp_noise.py            # Noise level
+│   │   └── exp_samples.py          # Sample size
+│   ├── circles/
+│   │   └── exp_noise.py            # Noise level
+│   ├── blobs/
+│   │   └── exp_features.py         # Dimensionality
+│   └── xor/
+│       └── exp_samples.py          # Sample size
+└── real/
+    ├── exp_compare_datasets.py     # Compare UCI datasets
+    ├── exp_scaling.py              # Feature scaling effects
+    └── exp_dim_reduction.py        # PCA reduction effects
+```
 
 Each script has a `run_experiment()` function returning metrics dict, usable programmatically.
 
 ## coding style
 always wise clear and consise code.
+
+## documentation
+always document features in the readme and docstrings. Use type hints for clarity.
