@@ -290,13 +290,19 @@ if __name__ == "__main__":
         sig = "**" if vals["p"] < 0.01 else "*" if vals["p"] < 0.05 else ""
         print(f"  {metric:20s}: r={vals['r']:+.3f} (p={vals['p']:.3f}) {sig}")
 
+    # Ensure output directory exists
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"\nOutput directory: {RESULTS_DIR}")
+
     print("\nGenerating plots...")
     plot_correlations(correlations)
-    plt.savefig("complexity_correlations.png", dpi=150, bbox_inches="tight")
-    print("Saved: complexity_correlations.png")
+    plt.savefig(RESULTS_DIR / "correlations.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {RESULTS_DIR / 'correlations.png'}")
 
     plot_summary(results, top_n=6)
-    plt.savefig("complexity_vs_accuracy.png", dpi=150, bbox_inches="tight")
-    print("Saved: complexity_vs_accuracy.png")
+    plt.savefig(RESULTS_DIR / "top_metrics_vs_accuracy.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {RESULTS_DIR / 'top_metrics_vs_accuracy.png'}")
 
-    plt.show()
+    print("\nDone.")
