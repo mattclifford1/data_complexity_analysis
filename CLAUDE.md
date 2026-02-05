@@ -84,6 +84,55 @@ Tests are in `tests/` (not `pycol/` which is external code):
 - **`conftest.py`** - Fixtures providing test datasets (linearly separable, moons, high overlap, multiclass, high-dimensional)
 - **`test_metrics.py`** - Tests for `complexity_metrics` wrapper class
 - **`test_abstract_metrics.py`** - Tests for `abstract_metric` base class
+- **`test_ml_models.py`** - Tests for ML model classes (31 tests)
+
+## ML Model Evaluation
+
+The `experiments/ml_models.py` module provides a class-based interface for ML model evaluation.
+
+### Abstract Base Class
+
+```python
+from data_complexity.experiments.ml_models import (
+    AbstractMLModel,
+    LogisticRegressionModel,
+    SVMModel,
+    evaluate_models,
+)
+
+# Use a single model
+model = LogisticRegressionModel()
+metrics = model.evaluate({"X": X, "y": y}, cv_folds=5)
+print(metrics["accuracy"]["mean"])
+
+# Or evaluate multiple models
+results = evaluate_models({"X": X, "y": y})  # Uses all 10 default models
+```
+
+### Available Model Classes
+
+| Class | Name | Key Parameters |
+|-------|------|----------------|
+| `LogisticRegressionModel` | LogisticRegression | `max_iter` |
+| `KNNModel` | KNN-{n} | `n_neighbors` |
+| `DecisionTreeModel` | DecisionTree | `max_depth` |
+| `SVMModel` | SVM-{kernel} | `kernel`, `C` |
+| `RandomForestModel` | RandomForest | `n_estimators`, `max_depth` |
+| `GradientBoostingModel` | GradientBoosting | `n_estimators`, `max_depth` |
+| `NaiveBayesModel` | NaiveBayes | - |
+| `MLPModel` | MLP | `hidden_layer_sizes`, `max_iter` |
+
+### Factory Functions
+
+```python
+from data_complexity.experiments.ml_models import get_model_by_name, get_default_models
+
+# Get model by name
+model = get_model_by_name("svm", kernel="linear")
+
+# Get all default models
+models = get_default_models()  # Returns list of 10 model instances
+```
 
 ## Experiments
 
@@ -95,11 +144,17 @@ pdm run python data_complexity/experiments/synthetic/gaussian/exp_separation.py
 
 ```
 experiments/
-├── ml_evaluation.py                    # ML model training utilities
+├── ml_models.py                        # Abstract ML model classes
+├── ml_evaluation.py                    # Functional wrapper (backwards compat)
 ├── exp_complexity_vs_ml.py             # Correlate complexity with ML accuracy (Gaussian variance)
 ├── exp_separation_vs_ml.py             # Correlate complexity with ML accuracy (class separation)
 ├── exp_moons_vs_ml.py                  # Correlate complexity with ML accuracy (moons noise)
 ├── exp_comprehensive_correlation.py    # Combined analysis across all dataset types
+├── results/                            # Output directory for CSVs and plots
+│   ├── comprehensive/
+│   ├── gaussian_variance/
+│   ├── gaussian_separation/
+│   └── moons_noise/
 ├── synthetic/
 │   ├── exp_compare_generators.py       # Compare all synthetic types
 │   ├── gaussian/                       # Gaussian parameter studies
@@ -121,7 +176,7 @@ Experiments correlating complexity metrics with classifier accuracy:
 pdm run python data_complexity/experiments/exp_complexity_vs_ml.py
 ```
 
-These train LogReg, KNN, DecisionTree, SVM, RandomForest via cross-validation and compute Pearson correlations between each complexity metric and best accuracy. Outputs correlation bar charts and scatter plots.
+These train 10 classifiers via cross-validation and compute Pearson correlations between each complexity metric and ML accuracy. Outputs are saved to `experiments/results/`.
 
 ## coding style
 always wise clear and consise code.
