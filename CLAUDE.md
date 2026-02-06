@@ -23,7 +23,7 @@ data_complexity/
 ├── metrics.py              # Main wrapper class (complexity_metrics)
 ├── abstract_metrics.py     # Base class for custom metrics
 ├── plot_multiple_datasets.py  # Visualization utilities
-├── experiments/            # Parameter study scripts
+├── model_experiments/      # Parameter study scripts
 └── pycol/
     ├── complexity.py       # Core implementation (~3000 lines, 50+ measures)
     ├── dataset/            # Test datasets (ARFF, CSV, pickle)
@@ -90,18 +90,18 @@ Tests are in `tests/` (not `pycol/` which is external code):
 
 ## ML Model Evaluation
 
-The `experiments/ml/` module provides a modular architecture for ML model evaluation with three main components: models, evaluation strategies, and orchestration.
+The `model_experiments/ml/` module provides a modular architecture for ML model evaluation with three main components: models, evaluation strategies, and orchestration.
 
 ### Quick Start
 
 ```python
-from data_complexity.experiments.ml import evaluate_models, evaluate_single_model
+from data_complexity.model_experiments.ml import evaluate_models, evaluate_single_model
 
 # Evaluate all default models
 results = evaluate_models({"X": X, "y": y})
 
 # Evaluate a single model
-from data_complexity.experiments.ml import LogisticRegressionModel
+from data_complexity.model_experiments.ml import LogisticRegressionModel
 model = LogisticRegressionModel()
 metrics = evaluate_single_model(model, {"X": X, "y": y}, cv_folds=5)
 print(metrics["accuracy"]["mean"])
@@ -110,7 +110,7 @@ print(metrics["accuracy"]["mean"])
 ### Architecture
 
 ```
-experiments/ml/
+model_experiments/ml/
 ├── models.py           # Model classes (AbstractMLModel + 8 concrete models)
 ├── classification_metrics.py       # Metrics for classification (accuracy, F1, precision, recall, balanced accuracy etc.)
 ├── evaluation.py       # Evaluator classes e.g. cross validation
@@ -139,7 +139,7 @@ experiments/ml/
 ### Model Factory Functions
 
 ```python
-from data_complexity.experiments.ml import get_model_by_name, get_default_models
+from data_complexity.model_experiments.ml import get_model_by_name, get_default_models
 
 # Get model by name
 model = get_model_by_name("svm", kernel="linear")
@@ -151,7 +151,7 @@ models = get_default_models()
 ### Evaluation Metrics
 
 ```python
-from data_complexity.experiments.ml import (
+from data_complexity.model_experiments.ml import (
     AccuracyMetric,
     F1Metric,
     PrecisionMetric,
@@ -177,13 +177,13 @@ The `get_metrics_dict` function converts metric instances to sklearn-compatible 
 
 ```python
 # Mix built-in and custom metrics
-from data_complexity.experiments.ml import AccuracyMetric, AccuracyMinorityMetric, GeometricMeanMetric
+from data_complexity.model_experiments.ml import AccuracyMetric, AccuracyMinorityMetric, GeometricMeanMetric
 
 metrics = [AccuracyMetric(), AccuracyMinorityMetric(), GeometricMeanMetric()]
 scoring = get_metrics_dict(metrics)
 # {'accuracy': <callable>, 'minority_accuracy': <callable>, 'geometric_mean': <callable>}
 
-from sklearn.model_selection import cross_validate
+from sklearn.model_validation import cross_validate
 results = cross_validate(model, X, y, cv=5, scoring=scoring)
 # All metrics work correctly
 ```
@@ -193,7 +193,7 @@ results = cross_validate(model, X, y, cv=5, scoring=scoring)
 For convenience, you can create metrics from string names:
 
 ```python
-from data_complexity.experiments.ml import get_metric_by_name, get_metrics_from_names
+from data_complexity.model_experiments.ml import get_metric_by_name, get_metrics_from_names
 
 # Single metric
 metric = get_metric_by_name('accuracy')
@@ -213,7 +213,7 @@ This is particularly useful when configuring experiments that accept metric name
 ### Evaluators
 
 ```python
-from data_complexity.experiments.ml import (
+from data_complexity.model_experiments.ml import (
     CrossValidationEvaluator,
     TrainTestSplitEvaluator,
     get_default_evaluator,
@@ -234,7 +234,7 @@ evaluator = get_default_evaluator(cv_folds=5)
 ### Pipeline Orchestration
 
 ```python
-from data_complexity.experiments.ml import (
+from data_complexity.model_experiments.ml import (
     evaluate_models,
     evaluate_single_model,
     get_best_metric,
@@ -265,10 +265,10 @@ print_evaluation_results(results, "accuracy")
 
 ## Experiments
 
-Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics.
+Experiment scripts in `data_complexity/model_experiments/` study how dataset parameters affect complexity metrics.
 
 ```
-experiments/
+model_experiments/
 ├── experiment.py           # Generic experiment framework
 ├── experiment_configs.py   # Pre-defined experiment configurations
 ├── plotting.py             # Reusable plotting functions
@@ -293,8 +293,8 @@ The generic experiment framework provides a configurable, reusable approach to r
 #### Quick Start
 
 ```python
-from data_complexity.experiments.experiment import Experiment
-from data_complexity.experiments.experiment_configs import gaussian_variance_config
+from data_complexity.model_experiments.experiment import Experiment
+from data_complexity.model_experiments.experiment_configs import gaussian_variance_config
 
 # Run a pre-defined experiment
 exp = Experiment(gaussian_variance_config())
@@ -307,7 +307,7 @@ exp.save()
 #### Pre-defined Configurations
 
 ```python
-from data_complexity.experiments.experiment_configs import (
+from data_complexity.model_experiments.experiment_configs import (
     gaussian_variance_config,    # Vary Gaussian covariance scale
     gaussian_separation_config,  # Vary class separation distance
     gaussian_correlation_config, # Vary feature correlation
@@ -321,7 +321,7 @@ from data_complexity.experiments.experiment_configs import (
 )
 
 # Run by name
-from data_complexity.experiments.experiment_configs import run_experiment
+from data_complexity.model_experiments.experiment_configs import run_experiment
 exp = run_experiment("gaussian_variance")
 
 # List available configs
@@ -333,7 +333,7 @@ print(list_configs())
 #### Custom Experiments
 
 ```python
-from data_complexity.experiments.experiment import (
+from data_complexity.model_experiments.experiment import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
@@ -363,12 +363,12 @@ config = ExperimentConfig(
 exp = Experiment(config)
 exp.run(verbose=True)
 correlations = exp.compute_correlations()
-exp.save()  # Saves to experiments/results/my_custom_experiment/
+exp.save()  # Saves to model_experiments/results/my_custom_experiment/
 ```
 
 #### Experiment Results
 
-Results are organized into subfolders within `experiments/results/{experiment_name}/`:
+Results are organized into subfolders within `model_experiments/results/{experiment_name}/`:
 - `data/` - CSV files (complexity_metrics.csv, ml_performance.csv, correlations.csv)
 - `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png)
 - `datasets/` - Dataset visualization PNGs (one per parameter value)
@@ -382,7 +382,7 @@ exp.results.ml_df          # ML performance per parameter value
 exp.results.correlations_df  # Correlation results
 
 # Load previous results (supports both new hierarchical and legacy flat structure)
-exp.load_results(Path("experiments/results/gaussian_variance/"))
+exp.load_results(Path("model_experiments/results/gaussian_variance/"))
 ```
 
 **Note:** The framework maintains backwards compatibility with results saved in the legacy flat structure, so existing experiment results remain accessible.
@@ -392,10 +392,10 @@ exp.load_results(Path("experiments/results/gaussian_variance/"))
 The original experiment scripts still work for backwards compatibility:
 
 ```bash
-pdm run python data_complexity/experiments/exp_complexity_vs_ml.py
+pdm run python data_complexity/model_experiments/exp_complexity_vs_ml.py
 ```
 
-These train 10 classifiers via cross-validation and compute Pearson correlations between each complexity metric and ML accuracy. Outputs are saved to `experiments/results/`.
+These train 10 classifiers via cross-validation and compute Pearson correlations between each complexity metric and ML accuracy. Outputs are saved to `model_experiments/results/`.
 
 ## coding style
 always wise clear and consise code.

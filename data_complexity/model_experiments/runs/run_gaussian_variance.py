@@ -3,14 +3,14 @@ Example: Run Gaussian variance experiment with custom configuration.
 
 Demonstrates how to configure ML models, metrics, and plot types.
 """
-from data_complexity.experiments.experiment import (
+from data_complexity.model_experiments.experiment import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
     PlotType,
 )
-from data_complexity.experiments.ml import (
+from data_complexity.model_experiments.ml import (
     LogisticRegressionModel,
     SVMModel,
     RandomForestModel,

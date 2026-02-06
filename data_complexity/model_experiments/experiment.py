@@ -15,7 +15,7 @@ import pandas as pd
 from scipy import stats
 
 from data_complexity.metrics import complexity_metrics
-from data_complexity.experiments.ml import (
+from data_complexity.model_experiments.ml import (
     AbstractMLModel,
     get_default_models,
     evaluate_models,
@@ -24,7 +24,7 @@ from data_complexity.experiments.ml import (
     get_metrics_dict,
     get_metrics_from_names,
 )
-from data_complexity.experiments.plotting import (
+from data_complexity.model_experiments.plotting import (
     plot_correlations,
     plot_metric_vs_accuracy,
     plot_summary,
@@ -130,7 +130,7 @@ class ExperimentConfig:
         if self.name is None:
             self.name = self._generate_name()
         if self.save_dir is None:
-            self.save_dir = Path(__file__).parent / "results" / self.name
+            self.save_dir = Path(__file__).parent / "runs" / "results" / self.name
 
     def _generate_name(self) -> str:
         """Generate experiment name from dataset type and varied parameter."""

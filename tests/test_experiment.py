@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from data_complexity.experiments.experiment import (
+from data_complexity.model_experiments.experiment import (
     ParameterSpec,
     DatasetSpec,
     ExperimentConfig,
@@ -13,7 +13,7 @@ from data_complexity.experiments.experiment import (
     Experiment,
     PlotType,
 )
-from data_complexity.experiments.experiment_configs import (
+from data_complexity.model_experiments.experiment_configs import (
     gaussian_variance_config,
     gaussian_separation_config,
     moons_noise_config,
@@ -220,8 +220,8 @@ class TestExperimentRun:
         assert exp.config == simple_config
         assert exp.results is None
 
-    @patch("data_complexity.experiments.experiment.complexity_metrics")
-    @patch("data_complexity.experiments.experiment.evaluate_models")
+    @patch("data_complexity.model_experiments.experiment.complexity_metrics")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models")
     def test_run_with_mocked_data_loaders(
         self, mock_evaluate, mock_complexity, simple_config
     ):
@@ -255,8 +255,8 @@ class TestExperimentRun:
         assert len(results.ml_df) == 2
         assert mock_get_dataset.call_count == 2
 
-    @patch("data_complexity.experiments.experiment.complexity_metrics")
-    @patch("data_complexity.experiments.experiment.evaluate_models")
+    @patch("data_complexity.model_experiments.experiment.complexity_metrics")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models")
     def test_compute_correlations(self, mock_evaluate, mock_complexity, simple_config):
         """Test correlation computation."""
         mock_dataset = MagicMock()
