@@ -2,13 +2,14 @@
 '''
 All complexity metrics and visualisation methods
 '''
+import numpy as np
 from data_complexity.pycol import Complexity
 
 
 class complexity_metrics:
     def __init__(
-            self, 
-            dataset: dict, 
+            self,
+            dataset: dict,
             distance_func="default"
             ):
         '''
@@ -18,13 +19,45 @@ class complexity_metrics:
         self.pycol_complexity = Complexity(
             dataset=dataset, file_type="array", distance_func=distance_func
         )
-        
+
+    def _compute_imbalance_ratio(self):
+        """
+        Calculate the Imbalance Ratio (IR).
+
+        IR = n_majority / n_minority
+
+        For binary classification, this is the ratio of the majority class
+        to the minority class. For multiclass, it's the ratio of the largest
+        class to the smallest class.
+
+        Returns
+        -------
+        float
+            Imbalance ratio (>= 1.0). Returns np.inf if minority class is empty,
+            1.0 if single class.
+        """
+        class_count = self.pycol_complexity.class_count
+
+        # Handle edge case: single class
+        if len(class_count) < 2:
+            return 1.0
+
+        min_count = np.min(class_count)
+        max_count = np.max(class_count)
+
+        # Handle edge case: empty minority class
+        if min_count == 0:
+            return np.inf
+
+        return max_count / min_count
+
 
     def get_all_metrics_scalar(self):
         all_metrics = {}
         all_metrics.update(self.feature_overlap_scalar())
         all_metrics.update(self.instance_overlap_scalar())
         all_metrics.update(self.structural_overlap_scalar())
+        all_metrics.update(self.classical_measures_scalar())
         return all_metrics
     
     def get_all_metrics_full(self):
@@ -33,6 +66,7 @@ class complexity_metrics:
         all_metrics.update(self.instance_overlap_full())
         all_metrics.update(self.structural_overlap_full())
         all_metrics.update(self.multiresolution_overlap_full())
+        all_metrics.update(self.classical_measures_full())
         return all_metrics
     
 
@@ -98,7 +132,42 @@ class complexity_metrics:
             'C1': self.pycol_complexity.C1(),
             'Purity': self.pycol_complexity.purity()
         }
-    
+
+    '''CLASSICAL MEASURES'''
+    def classical_measures_scalar(self):
+        """
+        Classical dataset measures.
+
+        Returns basic dataset statistics that characterize the data distribution
+        but are not complexity measures based on class overlap.
+
+        Returns
+        -------
+        dict
+            Dictionary containing:
+            - 'IR': Imbalance Ratio (majority/minority class ratio)
+        """
+        return {
+            'IR': self._compute_imbalance_ratio()
+        }
+
+    def classical_measures_full(self):
+        """
+        Classical dataset measures (full version).
+
+        For classical measures, the full and scalar versions return the same values
+        since these are dataset-level statistics, not per-feature or per-instance.
+
+        Returns
+        -------
+        dict
+            Dictionary containing:
+            - 'IR': Imbalance Ratio (majority/minority class ratio)
+        """
+        return {
+            'IR': self._compute_imbalance_ratio()
+        }
+
 
 if __name__ == "__main__":
     from data_loaders import get_dataset

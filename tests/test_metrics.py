@@ -263,3 +263,119 @@ class TestMetricConsistency:
             # Can be scalar, array, or list
             assert isinstance(value, (int, float, np.number, np.ndarray, list)), \
                 f"Full metric {key} has unexpected type: {type(value)}"
+
+
+class TestClassicalMeasures:
+    """Tests for classical measures methods."""
+
+    def test_classical_measures_scalar_returns_dict(self, moons_dataset):
+        """Verify classical_measures_scalar returns a dictionary."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.classical_measures_scalar()
+        assert isinstance(result, dict)
+
+    def test_classical_measures_scalar_contains_IR(self, moons_dataset):
+        """Verify classical_measures_scalar contains IR metric."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.classical_measures_scalar()
+        assert 'IR' in result
+
+    def test_classical_measures_full_returns_dict(self, moons_dataset):
+        """Verify classical_measures_full returns a dictionary."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.classical_measures_full()
+        assert isinstance(result, dict)
+
+    def test_classical_measures_full_contains_IR(self, moons_dataset):
+        """Verify classical_measures_full contains IR metric."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.classical_measures_full()
+        assert 'IR' in result
+
+    def test_IR_is_numeric(self, moons_dataset):
+        """Verify IR returns a numeric value."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.classical_measures_scalar()
+        assert isinstance(result['IR'], (int, float, np.number))
+
+    def test_IR_balanced_dataset(self, balanced_binary_dataset):
+        """Verify IR = 1.0 for perfectly balanced dataset."""
+        cm = complexity_metrics(dataset=balanced_binary_dataset)
+        result = cm.classical_measures_scalar()
+        assert result['IR'] == pytest.approx(1.0, rel=0.01)
+
+    def test_IR_imbalanced_dataset(self, imbalanced_binary_dataset):
+        """Verify IR > 1.0 for imbalanced dataset."""
+        cm = complexity_metrics(dataset=imbalanced_binary_dataset)
+        result = cm.classical_measures_scalar()
+        # Should be > 1.0 for imbalanced data, allow variance due to stratification
+        assert result['IR'] >= 1.0
+        assert result['IR'] <= 10.0
+
+    def test_IR_highly_imbalanced(self, highly_imbalanced_dataset):
+        """Verify IR is high for 90/10 imbalanced dataset."""
+        cm = complexity_metrics(dataset=highly_imbalanced_dataset)
+        result = cm.classical_measures_scalar()
+        assert result['IR'] >= 5.0
+
+    def test_IR_multiclass_dataset(self, multiclass_dataset):
+        """Verify IR works with multiclass data (uses max/min)."""
+        cm = complexity_metrics(dataset=multiclass_dataset)
+        result = cm.classical_measures_scalar()
+        assert result['IR'] >= 1.0
+
+    def test_IR_single_class(self, single_class_dataset):
+        """Verify IR = 1.0 for single-class dataset."""
+        cm = complexity_metrics(dataset=single_class_dataset)
+        result = cm.classical_measures_scalar()
+        assert result['IR'] == 1.0
+
+    def test_IR_always_greater_or_equal_one(self, moons_dataset, high_overlap_dataset,
+                                             multiclass_dataset):
+        """Verify IR is always >= 1.0 for valid datasets."""
+        for dataset in [moons_dataset, high_overlap_dataset, multiclass_dataset]:
+            cm = complexity_metrics(dataset=dataset)
+            result = cm.classical_measures_scalar()
+            assert result['IR'] >= 1.0
+
+    def test_scalar_and_full_return_same_IR(self, moons_dataset):
+        """Verify scalar and full versions return identical IR values."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        scalar_result = cm.classical_measures_scalar()
+        full_result = cm.classical_measures_full()
+        assert scalar_result['IR'] == full_result['IR']
+
+
+class TestGetAllMetricsWithClassical:
+    """Tests verifying classical measures integrate with get_all methods."""
+
+    def test_get_all_metrics_scalar_includes_IR(self, moons_dataset):
+        """Verify get_all_metrics_scalar includes IR."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.get_all_metrics_scalar()
+        assert 'IR' in result
+
+    def test_get_all_metrics_full_includes_IR(self, moons_dataset):
+        """Verify get_all_metrics_full includes IR."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.get_all_metrics_full()
+        assert 'IR' in result
+
+    def test_get_all_metrics_contains_all_categories_including_classical(self, moons_dataset):
+        """Verify get_all_metrics_full includes all categories including classical."""
+        cm = complexity_metrics(dataset=moons_dataset)
+        result = cm.get_all_metrics_full()
+
+        # Check for at least one metric from each category
+        feature_metrics = {'F1', 'F1v', 'F2', 'F3', 'F4'}
+        instance_metrics = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM'}
+        structural_metrics = {'N1', 'T1', 'Clust'}
+        multiresolution_metrics = {'MRCA', 'C1', 'Purity'}
+        classical_metrics = {'IR'}
+
+        result_keys = set(result.keys())
+        assert feature_metrics <= result_keys, "Missing feature overlap metrics"
+        assert instance_metrics <= result_keys, "Missing instance overlap metrics"
+        assert structural_metrics <= result_keys, "Missing structural overlap metrics"
+        assert multiresolution_metrics <= result_keys, "Missing multiresolution metrics"
+        assert classical_metrics <= result_keys, "Missing classical measures"

@@ -92,3 +92,70 @@ def high_dimensional_dataset():
         random_state=42
     )
     return {'X': X, 'y': y}
+
+
+@pytest.fixture
+def balanced_binary_dataset():
+    """
+    Perfectly balanced binary classification dataset (50/50).
+
+    Expected IR = 1.0
+    """
+    X, y = make_blobs(
+        n_samples=100,
+        n_features=2,
+        centers=2,
+        cluster_std=1.0,
+        random_state=42
+    )
+    return {'X': X, 'y': y}
+
+
+@pytest.fixture
+def imbalanced_binary_dataset():
+    """
+    Imbalanced binary classification dataset (80/20).
+
+    Expected IR ≈ 4.0
+    """
+    X, y = make_classification(
+        n_samples=100,
+        n_features=2,
+        n_informative=2,
+        n_redundant=0,
+        n_classes=2,
+        weights=[0.8, 0.2],
+        random_state=42
+    )
+    return {'X': X, 'y': y}
+
+
+@pytest.fixture
+def highly_imbalanced_dataset():
+    """
+    Highly imbalanced binary classification dataset (90/10).
+
+    Expected IR ≈ 9.0
+    """
+    X, y = make_classification(
+        n_samples=100,
+        n_features=2,
+        n_informative=2,
+        n_redundant=0,
+        n_classes=2,
+        weights=[0.9, 0.1],
+        random_state=42
+    )
+    return {'X': X, 'y': y}
+
+
+@pytest.fixture
+def single_class_dataset():
+    """
+    Degenerate case: all samples from one class.
+
+    Expected IR = 1.0 (by convention)
+    """
+    X = np.random.randn(50, 2)
+    y = np.zeros(50)
+    return {'X': X, 'y': y}
