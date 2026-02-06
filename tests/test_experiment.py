@@ -334,9 +334,10 @@ class TestSaveLoad:
         exp.results = results
         exp.save(save_dir)
 
-        assert (save_dir / "complexity_metrics.csv").exists()
-        assert (save_dir / "ml_performance.csv").exists()
-        assert (save_dir / "correlations.csv").exists()
+        # Check for new subfolder structure
+        assert (save_dir / "data" / "complexity_metrics.csv").exists()
+        assert (save_dir / "data" / "ml_performance.csv").exists()
+        assert (save_dir / "data" / "correlations.csv").exists()
 
         exp2 = Experiment(config)
         loaded = exp2.load_results(save_dir)
@@ -349,6 +350,53 @@ class TestSaveLoad:
             loaded.ml_df.reset_index(drop=True),
             results.ml_df.reset_index(drop=True),
         )
+
+    def test_load_legacy_flat_structure(self, tmp_path):
+        """Test that load_results can read old flat structure."""
+        # Create old-style flat structure
+        save_dir = tmp_path / "legacy"
+        save_dir.mkdir()
+
+        # Create minimal CSVs in flat structure
+        complexity_df = pd.DataFrame({"F1": [0.5], "param_value": [1.0]})
+        ml_df = pd.DataFrame({"best_accuracy": [0.9], "param_value": [1.0]})
+
+        complexity_df.to_csv(save_dir / "complexity_metrics.csv", index=False)
+        ml_df.to_csv(save_dir / "ml_performance.csv", index=False)
+
+        # Load using new code
+        config = ExperimentConfig(
+            dataset=DatasetSpec(dataset_type="Gaussian"),
+            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            ml_metrics=["accuracy"],
+        )
+        exp = Experiment(config)
+        results = exp.load_results(save_dir)
+
+        # Verify it loaded correctly
+        assert results.complexity_df is not None
+        assert results.ml_df is not None
+        assert len(results.complexity_df) == 1
+        assert len(results.ml_df) == 1
+
+    def test_save_creates_subfolders(self, results_with_data, tmp_path):
+        """Test that save creates proper subfolder structure."""
+        config, results = results_with_data
+        save_dir = tmp_path / "test_subfolders"
+
+        exp = Experiment(config)
+        exp.results = results
+        exp.save(save_dir)
+
+        # Verify subfolder structure
+        assert (save_dir / "data").is_dir()
+        assert (save_dir / "plots").is_dir()
+        assert (save_dir / "datasets").is_dir()
+
+        # Verify files in correct locations
+        assert (save_dir / "data" / "complexity_metrics.csv").exists()
+        assert (save_dir / "data" / "ml_performance.csv").exists()
+        assert (save_dir / "plots" / "correlations.png").exists()
 
 
 class TestPlotting:

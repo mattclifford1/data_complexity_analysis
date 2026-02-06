@@ -28,6 +28,7 @@ from data_complexity.experiments.plotting import (
     plot_metric_vs_accuracy,
     plot_summary,
     plot_correlation_heatmap,
+    plot_model_comparison,
 )
 
 
@@ -450,10 +451,7 @@ class Experiment:
 
             elif pt == PlotType.HEATMAP:
                 all_corr = self.compute_all_correlations()
-                fig = plot_correlation_heatmap(
-                    all_corr,
-                    ml_metric=self.config.correlation_target,
-                )
+                fig = plot_model_comparison(all_corr)
                 figures[pt] = fig
 
         return figures
@@ -475,19 +473,30 @@ class Experiment:
         save_dir = save_dir or self.config.save_dir
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        self.results.complexity_df.to_csv(save_dir / "complexity_metrics.csv", index=False)
-        self.results.ml_df.to_csv(save_dir / "ml_performance.csv", index=False)
+        # Create subfolders for organized results
+        data_dir = save_dir / "data"
+        plots_dir = save_dir / "plots"
+        datasets_dir = save_dir / "datasets"
+
+        data_dir.mkdir(exist_ok=True)
+        plots_dir.mkdir(exist_ok=True)
+        datasets_dir.mkdir(exist_ok=True)
+
+        # Save CSVs to data/ subfolder
+        self.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
+        self.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
 
         if self.results.correlations_df is not None:
-            self.results.correlations_df.to_csv(save_dir / "correlations.csv", index=False)
+            self.results.correlations_df.to_csv(data_dir / "correlations.csv", index=False)
 
+        # Save plots to plots/ subfolder
         figures = self.plot()
         for plot_type, fig in figures.items():
             filename = f"{plot_type.name.lower()}.png"
-            fig.savefig(save_dir / filename, dpi=150, bbox_inches="tight")
+            fig.savefig(plots_dir / filename, dpi=150, bbox_inches="tight")
             plt.close(fig)
 
-        # Save dataset visualizations
+        # Save dataset visualizations to datasets/ subfolder
         for param_value, dataset in self.datasets.items():
             fig, ax = plt.subplots(figsize=(8, 6))
             dataset.plot_dataset(ax=ax)
@@ -495,7 +504,7 @@ class Experiment:
             # Sanitize label for filename (replace = with _)
             safe_label = param_label.replace("=", "_").replace(" ", "_")
             filename = f"dataset_{safe_label}.png"
-            fig.savefig(save_dir / filename, dpi=150, bbox_inches="tight")
+            fig.savefig(datasets_dir / filename, dpi=150, bbox_inches="tight")
             plt.close(fig)
 
         print(f"Saved results to: {save_dir}")
@@ -525,6 +534,37 @@ class Experiment:
                 f"(p={row['p_value']:.3f}) {sig}"
             )
 
+    def _resolve_path(self, save_dir: Path, filename: str, subfolder: Optional[str] = None) -> Path:
+        """
+        Resolve file path, checking new structure first, then falling back to legacy flat structure.
+
+        Parameters
+        ----------
+        save_dir : Path
+            Base directory to search in.
+        filename : str
+            Name of the file to find.
+        subfolder : str, optional
+            Subfolder name (e.g., "data", "plots", "datasets").
+
+        Returns
+        -------
+        Path
+            Resolved path to the file.
+        """
+        if subfolder:
+            new_path = save_dir / subfolder / filename
+            if new_path.exists():
+                return new_path
+
+        # Fall back to flat structure for backwards compatibility
+        old_path = save_dir / filename
+        if old_path.exists():
+            return old_path
+
+        # Return new path (will raise FileNotFoundError if neither exists)
+        return save_dir / subfolder / filename if subfolder else old_path
+
     def load_results(self, save_dir: Optional[Path] = None) -> ExperimentResults:
         """
         Load previously saved results from CSVs.
@@ -541,11 +581,15 @@ class Experiment:
         """
         save_dir = save_dir or self.config.save_dir
 
-        self.results = ExperimentResults(self.config)
-        self.results._complexity_df = pd.read_csv(save_dir / "complexity_metrics.csv")
-        self.results._ml_df = pd.read_csv(save_dir / "ml_performance.csv")
+        # Resolve paths with backwards compatibility for flat structure
+        complexity_path = self._resolve_path(save_dir, "complexity_metrics.csv", "data")
+        ml_path = self._resolve_path(save_dir, "ml_performance.csv", "data")
+        corr_path = self._resolve_path(save_dir, "correlations.csv", "data")
 
-        corr_path = save_dir / "correlations.csv"
+        self.results = ExperimentResults(self.config)
+        self.results._complexity_df = pd.read_csv(complexity_path)
+        self.results._ml_df = pd.read_csv(ml_path)
+
         if corr_path.exists():
             self.results._correlations_df = pd.read_csv(corr_path)
 

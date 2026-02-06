@@ -396,33 +396,39 @@ if __name__ == "__main__":
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     print(f"\nOutput directory: {RESULTS_DIR}")
 
-    # Save data
-    complexity_df.to_csv(RESULTS_DIR / "complexity_metrics.csv", index=False)
-    ml_df.to_csv(RESULTS_DIR / "ml_performance.csv", index=False)
-    all_corr_df.to_csv(RESULTS_DIR / "correlations.csv", index=False)
-    print("Saved CSVs:")
-    print(f"  - {RESULTS_DIR / 'complexity_metrics.csv'}")
-    print(f"  - {RESULTS_DIR / 'ml_performance.csv'}")
-    print(f"  - {RESULTS_DIR / 'correlations.csv'}")
+    # Create subfolders for organized results
+    data_dir = RESULTS_DIR / "data"
+    plots_dir = RESULTS_DIR / "plots"
+    data_dir.mkdir(exist_ok=True)
+    plots_dir.mkdir(exist_ok=True)
 
-    # Generate plots (save only, no display)
+    # Save data to data/ subfolder
+    complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
+    ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
+    all_corr_df.to_csv(data_dir / "correlations.csv", index=False)
+    print("Saved CSVs:")
+    print(f"  - {data_dir / 'complexity_metrics.csv'}")
+    print(f"  - {data_dir / 'ml_performance.csv'}")
+    print(f"  - {data_dir / 'correlations.csv'}")
+
+    # Generate plots to plots/ subfolder (save only, no display)
     print("\nGenerating plots...")
 
     plot_correlation_heatmap(all_corr_df, "best_accuracy", top_n=20)
-    plt.savefig(RESULTS_DIR / "correlations_best_accuracy.png", dpi=150, bbox_inches="tight")
+    plt.savefig(plots_dir / "correlations_best_accuracy.png", dpi=150, bbox_inches="tight")
     plt.close()
 
     plot_correlation_heatmap(all_corr_df, "best_f1", top_n=20)
-    plt.savefig(RESULTS_DIR / "correlations_best_f1.png", dpi=150, bbox_inches="tight")
+    plt.savefig(plots_dir / "correlations_best_f1.png", dpi=150, bbox_inches="tight")
     plt.close()
 
     plot_model_comparison(all_corr_df)
-    plt.savefig(RESULTS_DIR / "model_comparison_heatmap.png", dpi=150, bbox_inches="tight")
+    plt.savefig(plots_dir / "model_comparison_heatmap.png", dpi=150, bbox_inches="tight")
     plt.close()
 
     print("Saved plots:")
-    print(f"  - {RESULTS_DIR / 'correlations_best_accuracy.png'}")
-    print(f"  - {RESULTS_DIR / 'correlations_best_f1.png'}")
-    print(f"  - {RESULTS_DIR / 'model_comparison_heatmap.png'}")
+    print(f"  - {plots_dir / 'correlations_best_accuracy.png'}")
+    print(f"  - {plots_dir / 'correlations_best_f1.png'}")
+    print(f"  - {plots_dir / 'model_comparison_heatmap.png'}")
 
     print("\nDone.")

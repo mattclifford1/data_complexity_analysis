@@ -132,15 +132,19 @@ if __name__ == "__main__":
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     print(f"\nOutput directory: {RESULTS_DIR}")
 
+    # Create subfolders for organized results
+    plots_dir = RESULTS_DIR / "plots"
+    plots_dir.mkdir(exist_ok=True)
+
     print("\nGenerating plots...")
     plot_correlations(correlations, title="Class Separation: Complexity vs Accuracy")
-    plt.savefig(RESULTS_DIR / "correlations.png", dpi=150, bbox_inches="tight")
+    plt.savefig(plots_dir / "correlations.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"Saved: {RESULTS_DIR / 'correlations.png'}")
+    print(f"Saved: {plots_dir / 'correlations.png'}")
 
     plot_summary(results, top_n=6)
-    plt.savefig(RESULTS_DIR / "top_metrics_vs_accuracy.png", dpi=150, bbox_inches="tight")
+    plt.savefig(plots_dir / "top_metrics_vs_accuracy.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"Saved: {RESULTS_DIR / 'top_metrics_vs_accuracy.png'}")
+    print(f"Saved: {plots_dir / 'top_metrics_vs_accuracy.png'}")
 
     print("\nDone.")

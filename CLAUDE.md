@@ -236,6 +236,11 @@ exp.save()  # Saves to experiments/results/my_custom_experiment/
 
 #### Experiment Results
 
+Results are organized into subfolders within `experiments/results/{experiment_name}/`:
+- `data/` - CSV files (complexity_metrics.csv, ml_performance.csv, correlations.csv)
+- `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png)
+- `datasets/` - Dataset visualization PNGs (one per parameter value)
+
 Results are stored in pandas DataFrames:
 
 ```python
@@ -244,9 +249,11 @@ exp.results.complexity_df  # Complexity metrics per parameter value
 exp.results.ml_df          # ML performance per parameter value
 exp.results.correlations_df  # Correlation results
 
-# Load previous results
+# Load previous results (supports both new hierarchical and legacy flat structure)
 exp.load_results(Path("experiments/results/gaussian_variance/"))
 ```
+
+**Note:** The framework maintains backwards compatibility with results saved in the legacy flat structure, so existing experiment results remain accessible.
 
 ### Legacy Experiments
 
