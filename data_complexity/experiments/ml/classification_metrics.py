@@ -353,8 +353,8 @@ def get_default_metrics() -> List[AbstractEvaluationMetric]:
         AccuracyMetric(),
         AccuracyBalancedMetric(),
         F1Metric(),
-        PrecisionMetric(),
-        RecallMetric(),
+        # PrecisionMetric(),
+        # RecallMetric(),
     ]
 
 
