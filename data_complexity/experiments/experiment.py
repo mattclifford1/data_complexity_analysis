@@ -237,6 +237,7 @@ class Experiment:
         self.config = config
         self.results: Optional[ExperimentResults] = None
         self._get_dataset = None
+        self.datasets: Dict[Any, Any] = {}  # Store loaders for visualization
 
     def _load_dataset_loader(self):
         """Lazy load data_loaders to avoid import at module level."""
@@ -279,6 +280,7 @@ class Experiment:
             params["name"] = self.config.vary_parameter.format_label(param_value)
 
             dataset = self._get_dataset(self.config.dataset.dataset_type, **params)
+            self.datasets[param_value] = dataset  # Store for later visualization
             data = dataset.get_data_dict()
             X, y = data["X"], data["y"]
 
@@ -485,6 +487,17 @@ class Experiment:
             fig.savefig(save_dir / filename, dpi=150, bbox_inches="tight")
             plt.close(fig)
 
+        # Save dataset visualizations
+        for param_value, dataset in self.datasets.items():
+            fig, ax = plt.subplots(figsize=(8, 6))
+            dataset.plot_dataset(ax=ax)
+            param_label = self.config.vary_parameter.format_label(param_value)
+            # Sanitize label for filename (replace = with _)
+            safe_label = param_label.replace("=", "_").replace(" ", "_")
+            filename = f"dataset_{safe_label}.png"
+            fig.savefig(save_dir / filename, dpi=150, bbox_inches="tight")
+            plt.close(fig)
+
         print(f"Saved results to: {save_dir}")
 
     def print_summary(self, top_n: int = 10) -> None:
@@ -535,5 +548,7 @@ class Experiment:
         corr_path = save_dir / "correlations.csv"
         if corr_path.exists():
             self.results._correlations_df = pd.read_csv(corr_path)
+
+        self.datasets = {}  # Clear since we don't have loaders for loaded results
 
         return self.results
