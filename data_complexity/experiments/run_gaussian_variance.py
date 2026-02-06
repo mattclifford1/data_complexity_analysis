@@ -39,7 +39,7 @@ config = ExperimentConfig(
         label_format="scale={value}",
     ),
     models=models,
-    ml_metrics=["accuracy", "f1", "balanced_accuracy"],
+    ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
     plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.HEATMAP],
     correlation_target="best_accuracy",
