@@ -129,10 +129,10 @@ class CrossValidationEvaluator(AbstractEvaluator):
                 }
 
         except Exception as e:
-            print(f"Warning: {model.name} evaluation failed: {e}")
-            results = {
-                metric.name: {"mean": np.nan, "std": np.nan} for metric in metrics
-            }
+            raise ValueError(f"Warning: {model.name} evaluation failed with metrics {list(scoring.keys())}: \nOriginal error: {e}")
+            # results = {
+            #     metric.name: {"mean": np.nan, "std": np.nan} for metric in metrics
+            # }
 
         return results
 

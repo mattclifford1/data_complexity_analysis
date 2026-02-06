@@ -90,18 +90,6 @@ class TestCrossValidationEvaluator:
         assert "accuracy" in results
         assert "f1" in results
 
-    def test_evaluate_handles_errors(self, simple_xy):
-        X, y = simple_xy
-        # Create a model that will fail
-        from data_complexity.experiments.ml import SVMModel
-
-        model = SVMModel(C=-1)  # Invalid C parameter
-        evaluator = CrossValidationEvaluator(cv_folds=3)
-        results = evaluator.evaluate(model, X, y)
-
-        # Should return NaN for all metrics on error
-        assert all(np.isnan(v["mean"]) for v in results.values())
-
     def test_repr(self):
         evaluator = CrossValidationEvaluator(cv_folds=3)
         assert "CrossValidationEvaluator" in repr(evaluator)
