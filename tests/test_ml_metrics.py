@@ -13,6 +13,8 @@ from data_complexity.experiments.ml import (
     RecallMetric,
     get_default_metrics,
     get_metrics_dict,
+    get_metric_by_name,
+    get_metrics_from_names,
     # Models
     LogisticRegressionModel,
     KNNModel,
@@ -209,5 +211,60 @@ class TestMetricFactoryFunctions:
         assert "test_minority_accuracy" in results
         assert len(results["test_accuracy"]) == 3
         assert len(results["test_minority_accuracy"]) == 3
+
+
+class TestMetricFactory:
+    """Tests for metric factory functions."""
+
+    def test_get_metric_by_name_accuracy(self):
+        metric = get_metric_by_name('accuracy')
+        assert isinstance(metric, AccuracyMetric)
+        assert metric.name == 'accuracy'
+
+    def test_get_metric_by_name_f1(self):
+        metric = get_metric_by_name('f1')
+        assert isinstance(metric, F1Metric)
+        assert metric.name == 'f1'
+
+    def test_get_metric_by_name_precision(self):
+        metric = get_metric_by_name('precision')
+        assert isinstance(metric, PrecisionMetric)
+        assert metric.name == 'precision'
+
+    def test_get_metric_by_name_recall(self):
+        metric = get_metric_by_name('recall')
+        assert isinstance(metric, RecallMetric)
+        assert metric.name == 'recall'
+
+    def test_get_metric_by_name_invalid(self):
+        with pytest.raises(ValueError, match="Unknown metric name"):
+            get_metric_by_name('invalid_metric')
+
+    def test_get_metric_by_name_error_message(self):
+        try:
+            get_metric_by_name('foo')
+        except ValueError as e:
+            assert 'foo' in str(e)
+            assert 'Available metrics:' in str(e)
+            assert 'accuracy' in str(e)
+
+    def test_get_metrics_from_names(self):
+        metrics = get_metrics_from_names(['accuracy', 'f1', 'precision'])
+        assert len(metrics) == 3
+        assert isinstance(metrics[0], AccuracyMetric)
+        assert isinstance(metrics[1], F1Metric)
+        assert isinstance(metrics[2], PrecisionMetric)
+
+    def test_get_metrics_from_names_empty(self):
+        metrics = get_metrics_from_names([])
+        assert metrics == []
+
+    def test_get_metrics_from_names_all_requested(self):
+        """Test that all metrics in a typical config can be created."""
+        names = ['accuracy', 'f1', 'precision', 'recall', 'balanced_accuracy']
+        metrics = get_metrics_from_names(names)
+        assert len(metrics) == 5
+        metric_names = [m.name for m in metrics]
+        assert metric_names == names
 
 

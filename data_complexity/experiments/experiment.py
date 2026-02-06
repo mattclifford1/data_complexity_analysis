@@ -22,6 +22,7 @@ from data_complexity.experiments.ml import (
     get_best_metric,
     get_mean_metric,
     get_metrics_dict,
+    get_metrics_from_names,
 )
 from data_complexity.experiments.plotting import (
     plot_correlations,
@@ -288,7 +289,11 @@ class Experiment:
             complexity = complexity_metrics(dataset=data)
             complexity_dict = complexity.get_all_metrics_scalar()
 
-            ml_results = evaluate_models(data, models=models, cv_folds=self.config.cv_folds)
+            # Convert metric names from config to metric objects
+            metrics = get_metrics_from_names(self.config.ml_metrics)
+            ml_results = evaluate_models(
+                data, models=models, metrics=metrics, cv_folds=self.config.cv_folds
+            )
 
             self.results.add_result(param_value, complexity_dict, ml_results)
 

@@ -188,6 +188,28 @@ results = cross_validate(model, X, y, cv=5, scoring=scoring)
 # All metrics work correctly
 ```
 
+#### Metric Factory Functions
+
+For convenience, you can create metrics from string names:
+
+```python
+from data_complexity.experiments.ml import get_metric_by_name, get_metrics_from_names
+
+# Single metric
+metric = get_metric_by_name('accuracy')
+
+# Multiple metrics from names
+metrics = get_metrics_from_names(['accuracy', 'f1', 'precision', 'recall'])
+
+# Available metric names:
+# 'accuracy', 'balanced_accuracy', 'minority_accuracy', 'majority_accuracy',
+# 'geometric_mean', 'geometric_mean_weighted', 'f1', 'f1_weighted',
+# 'precision', 'precision_class_0', 'precision_class_1', 'precision_weighted',
+# 'fscore', 'recall', 'recall_weighted', 'auc', 'roc_auc'
+```
+
+This is particularly useful when configuring experiments that accept metric names as strings.
+
 ### Evaluators
 
 ```python

@@ -42,6 +42,8 @@ from .classification_metrics import (
     RocAucMetric,
     get_default_metrics,
     get_metrics_dict,
+    get_metric_by_name,
+    get_metrics_from_names,
 )
 
 # Evaluators
@@ -97,6 +99,8 @@ __all__ = [
     "RocAucMetric",
     "get_default_metrics",
     "get_metrics_dict",
+    "get_metric_by_name",
+    "get_metrics_from_names",
 
     # Evaluators
     "AbstractEvaluator",

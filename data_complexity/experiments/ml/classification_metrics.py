@@ -416,3 +416,83 @@ def get_metrics_dict(
         metrics = get_default_metrics()
     return {metric.name: metric.get_scorer() for metric in metrics}
 
+
+def get_metric_by_name(name: str) -> AbstractEvaluationMetric:
+    """
+    Get a metric instance by its string name.
+
+    Parameters
+    ----------
+    name : str
+        Metric name (e.g., 'accuracy', 'f1', 'precision', 'recall')
+
+    Returns
+    -------
+    AbstractEvaluationMetric
+        Metric instance
+
+    Raises
+    ------
+    ValueError
+        If metric name is not recognized
+
+    Examples
+    --------
+    >>> metric = get_metric_by_name('accuracy')
+    >>> metric.name
+    'accuracy'
+
+    >>> metrics = [get_metric_by_name(name) for name in ['accuracy', 'f1']]
+    """
+    metric_map = {
+        'accuracy': AccuracyMetric,
+        'balanced_accuracy': AccuracyBalancedMetric,
+        'minority_accuracy': AccuracyMinorityMetric,
+        'majority_accuracy': AccuracyMajorityMetric,
+        'geometric_mean': GeometricMeanMetric,
+        'geometric_mean_weighted': GeometricMeanWeightedMetric,
+        'f1': F1Metric,
+        'f1_weighted': F1WeightedMetric,
+        'precision': PrecisionMetric,
+        'precision_class_0': Precision0Metric,
+        'precision_class_1': Precision1Metric,
+        'precision_weighted': PrecisionWeightedMetric,
+        'fscore': FScoreMetric,
+        'recall': RecallMetric,
+        'recall_weighted': RecallWeightedMetric,
+        'auc': AucMetric,
+        'roc_auc': RocAucMetric,
+    }
+
+    if name not in metric_map:
+        available = ', '.join(sorted(metric_map.keys()))
+        raise ValueError(
+            f"Unknown metric name: '{name}'. "
+            f"Available metrics: {available}"
+        )
+
+    return metric_map[name]()
+
+
+def get_metrics_from_names(names: List[str]) -> List[AbstractEvaluationMetric]:
+    """
+    Convert a list of metric names to metric instances.
+
+    Parameters
+    ----------
+    names : list of str
+        Metric names
+
+    Returns
+    -------
+    list of AbstractEvaluationMetric
+        Metric instances
+
+    Examples
+    --------
+    >>> metrics = get_metrics_from_names(['accuracy', 'f1', 'precision'])
+    >>> [m.name for m in metrics]
+    ['accuracy', 'f1', 'precision']
+    """
+    return [get_metric_by_name(name) for name in names]
+
