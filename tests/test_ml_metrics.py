@@ -7,6 +7,7 @@ from data_complexity.experiments.ml import (
     # Metrics
     AbstractEvaluationMetric,
     AccuracyMetric,
+    AccuracyMinorityMetric,
     F1Metric,
     PrecisionMetric,
     RecallMetric,
@@ -170,9 +171,43 @@ class TestMetricFactoryFunctions:
             assert isinstance(score, float), f"Expected np.float64, got {type(score)} from {metric.name}"
 
     def test_get_metrics_dict_default(self):
+        """Test get_metrics_dict returns appropriate scorer types."""
         metrics_dict = get_metrics_dict()
-        assert metrics_dict["accuracy"] == "accuracy"
-        assert metrics_dict["f1"] == "f1"
-        assert metrics_dict["balanced_accuracy"] == "balanced_accuracy"
+        # All values should be strings or callables
+        for name, scorer in metrics_dict.items():
+            assert isinstance(name, str), f"Expected metric name to be str, got {type(name)}"
+            assert callable(scorer)
+
+    def test_get_metrics_dict_custom_metric(self):
+        """Test custom metrics return callables."""
+        from sklearn.metrics import get_scorer_names
+
+        # Mix built-in and custom metrics
+        metrics = [
+            AccuracyMetric(),  # Built-in
+            AccuracyMinorityMetric(),  # Custom
+        ]
+
+        metrics_dict = get_metrics_dict(metrics)
+
+        assert callable(metrics_dict["minority_accuracy"])
+
+    def test_get_metrics_dict_works_with_cross_validate(self, simple_xy):
+        """Test that returned dict works with sklearn cross_validate."""
+        from sklearn.model_selection import cross_validate
+        from sklearn.linear_model import LogisticRegression
+
+        X, y = simple_xy
+        metrics = [AccuracyMetric(), AccuracyMinorityMetric()]
+        scoring = get_metrics_dict(metrics)
+
+        model = LogisticRegression(max_iter=1000)
+        results = cross_validate(model, X, y, cv=3, scoring=scoring)
+
+        # Check both metrics produced results
+        assert "test_accuracy" in results
+        assert "test_minority_accuracy" in results
+        assert len(results["test_accuracy"]) == 3
+        assert len(results["test_minority_accuracy"]) == 3
 
 

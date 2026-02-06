@@ -402,6 +402,9 @@ class Experiment:
                 }
             )
 
+        if not results:
+            raise ValueError("No valid correlations computed.")
+
         return pd.DataFrame(results).sort_values("abs_correlation", ascending=False)
 
     def plot(

@@ -167,7 +167,25 @@ metrics = get_default_metrics()
 metrics = [AccuracyMetric(), F1Metric()]
 
 # Get sklearn scoring dict
-scoring = get_metrics_dict(metrics)  # {'accuracy': 'accuracy', 'f1': 'f1_weighted'}
+scoring = get_metrics_dict(metrics)  # {'accuracy': 'accuracy', 'f1': 'f1'}
+```
+
+#### How get_metrics_dict Works
+
+The `get_metrics_dict` function converts metric instances to sklearn-compatible scorers:
+- **Custom metrics** (minority_accuracy, geometric_mean, etc.) are automatically wrapped with `make_scorer` we treat all metrics as custom for simplicity and consistency.
+
+```python
+# Mix built-in and custom metrics
+from data_complexity.experiments.ml import AccuracyMetric, AccuracyMinorityMetric, GeometricMeanMetric
+
+metrics = [AccuracyMetric(), AccuracyMinorityMetric(), GeometricMeanMetric()]
+scoring = get_metrics_dict(metrics)
+# {'accuracy': <callable>, 'minority_accuracy': <callable>, 'geometric_mean': <callable>}
+
+from sklearn.model_selection import cross_validate
+results = cross_validate(model, X, y, cv=5, scoring=scoring)
+# All metrics work correctly
 ```
 
 ### Evaluators

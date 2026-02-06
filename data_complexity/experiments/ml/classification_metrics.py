@@ -5,7 +5,7 @@ Provides abstract base classes and concrete implementations for:
 - Evaluation metrics (accuracy, F1, precision, recall, balanced accuracy)
 """
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from sklearn.metrics import (
     accuracy_score,
     auc,
@@ -18,6 +18,7 @@ from sklearn.metrics import (
     precision_recall_fscore_support
 )
 from imblearn.metrics import geometric_mean_score
+from sklearn.metrics import get_scorer_names, make_scorer
 
 
 # ============================================================================
@@ -65,6 +66,33 @@ class AbstractEvaluationMetric(ABC):
     def __call__(self, y_true, y_pred) -> float:
         """Allow metric to be called directly."""
         return self.compute(y_true, y_pred)
+    
+    @property
+    def greater_is_better(self) -> bool:
+        """Indicate whether higher metric values are better."""
+        return True
+
+    def get_scorer(self):
+        """
+        Return an sklearn-compatible scorer for this metric.
+
+        Returns either a string (for built-in sklearn metrics) or a callable
+        scorer (for custom metrics). Custom metrics are wrapped with make_scorer
+        to convert from (y_true, y_pred) signature to (estimator, X, y) signature.
+
+        Returns
+        -------
+        str or callable
+            If sklearn_name is a built-in scorer, returns the string name.
+            Otherwise, returns a make_scorer wrapped callable.
+        """
+        # Check if this is a built-in sklearn metric
+        # if self.sklearn_name in get_scorer_names():
+        #     return self.sklearn_name
+
+        # Custom metric: wrap with make_scorer
+        # greater_is_better=True for all our metrics (accuracy-like)
+        return make_scorer(self.compute, greater_is_better=self.greater_is_better)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name='{self.name}')"
@@ -207,8 +235,8 @@ class PrecisionMetric(AbstractEvaluationMetric):
 
     def compute(self, y_true, y_pred) -> float:
         prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred)
-        # prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, average="weighted")
-        return prec
+        # Return class 1 precision (positive class) as scalar
+        return float(prec[1])
 
     
 class Precision0Metric(AbstractEvaluationMetric):
@@ -269,8 +297,8 @@ class FScoreMetric(AbstractEvaluationMetric):
 
     def compute(self, y_true, y_pred) -> float:
         prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred)
-        # prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, average="weighted")
-        return fscor
+        # Return class 1 F-score (positive class) as scalar
+        return float(fscor[1])
     
 
 class RecallMetric(AbstractEvaluationMetric):
@@ -286,8 +314,8 @@ class RecallMetric(AbstractEvaluationMetric):
 
     def compute(self, y_true, y_pred) -> float:
         prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred)
-        # prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, average="weighted")
-        return recal
+        # Return class 1 recall (positive class) as scalar
+        return float(recal[1])
 
 
 class RecallWeightedMetric(AbstractEvaluationMetric):
@@ -358,9 +386,14 @@ def get_default_metrics() -> List[AbstractEvaluationMetric]:
     ]
 
 
-def get_metrics_dict(metrics: Optional[List[AbstractEvaluationMetric]] = None) -> Dict[str, str]:
+def get_metrics_dict(
+    metrics: Optional[List[AbstractEvaluationMetric]] = None
+) -> Dict[str, Any]:
     """
     Convert metrics list to sklearn scoring dict.
+
+    Returns a dictionary suitable for sklearn's cross_validate scoring parameter.
+    For custom metrics, returns make_scorer wrapped callables.
 
     Parameters
     ----------
@@ -370,9 +403,16 @@ def get_metrics_dict(metrics: Optional[List[AbstractEvaluationMetric]] = None) -
     Returns
     -------
     dict
-        Metric name -> sklearn scoring name mapping.
+        Metric name -> scorer (str or callable) mapping.
+
+    Examples
+    --------
+    >>> custom_metrics = [AccuracyMetric(), AccuracyMinorityMetric()]
+    >>> scoring = get_metrics_dict(custom_metrics)
+    >>> scoring  # doctest: +SKIP
+    {'accuracy': 'accuracy', 'minority_accuracy': <callable>}
     """
     if metrics is None:
         metrics = get_default_metrics()
-    return {metric.name: metric.sklearn_name for metric in metrics}
+    return {metric.name: metric.get_scorer() for metric in metrics}
 
