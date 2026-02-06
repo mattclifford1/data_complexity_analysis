@@ -1,8 +1,7 @@
 """
-Evaluation metrics and evaluator classes for ML model assessment.
+Evaluation classes for ML model assessment.
 
 Provides abstract base classes and concrete implementations for:
-- Evaluation metrics (accuracy, F1, precision, recall, balanced accuracy)
 - Evaluators (cross-validation, train-test split)
 """
 from abc import ABC, abstractmethod

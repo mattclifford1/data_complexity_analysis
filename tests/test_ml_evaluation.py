@@ -10,7 +10,6 @@ from data_complexity.experiments.ml import (
     F1Metric,
     PrecisionMetric,
     RecallMetric,
-    BalancedAccuracyMetric,
     get_default_metrics,
     get_metrics_dict,
     # Evaluators
@@ -128,7 +127,7 @@ class TestF1Metric:
 
     def test_sklearn_name(self):
         metric = F1Metric()
-        assert metric.sklearn_name == "f1_weighted"
+        assert metric.sklearn_name == "f1"
 
     def test_compute(self):
         metric = F1Metric()
@@ -146,7 +145,7 @@ class TestPrecisionMetric:
 
     def test_sklearn_name(self):
         metric = PrecisionMetric()
-        assert metric.sklearn_name == "precision_weighted"
+        assert metric.sklearn_name == "precision"
 
 
 class TestRecallMetric:
@@ -158,19 +157,7 @@ class TestRecallMetric:
 
     def test_sklearn_name(self):
         metric = RecallMetric()
-        assert metric.sklearn_name == "recall_weighted"
-
-
-class TestBalancedAccuracyMetric:
-    """Tests for BalancedAccuracyMetric."""
-
-    def test_name(self):
-        metric = BalancedAccuracyMetric()
-        assert metric.name == "balanced_accuracy"
-
-    def test_sklearn_name(self):
-        metric = BalancedAccuracyMetric()
-        assert metric.sklearn_name == "balanced_accuracy"
+        assert metric.sklearn_name == "recall"
 
 
 class TestMetricFactoryFunctions:
@@ -192,9 +179,9 @@ class TestMetricFactoryFunctions:
         metrics_dict = get_metrics_dict()
         assert len(metrics_dict) == 5
         assert metrics_dict["accuracy"] == "accuracy"
-        assert metrics_dict["f1"] == "f1_weighted"
-        assert metrics_dict["precision"] == "precision_weighted"
-        assert metrics_dict["recall"] == "recall_weighted"
+        assert metrics_dict["f1"] == "f1"
+        assert metrics_dict["precision"] == "precision"
+        assert metrics_dict["recall"] == "recall"
         assert metrics_dict["balanced_accuracy"] == "balanced_accuracy"
 
     def test_get_metrics_dict_custom(self):

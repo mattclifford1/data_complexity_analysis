@@ -156,7 +156,6 @@ from data_complexity.experiments.ml import (
     F1Metric,
     PrecisionMetric,
     RecallMetric,
-    BalancedAccuracyMetric,
     get_default_metrics,
     get_metrics_dict,
 )
