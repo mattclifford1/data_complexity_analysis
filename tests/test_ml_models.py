@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from sklearn.datasets import make_classification
 
-from data_complexity.experiments.ml_models import (
+from data_complexity.experiments.ml import (
     AbstractMLModel,
     LogisticRegressionModel,
     KNNModel,
@@ -13,10 +13,11 @@ from data_complexity.experiments.ml_models import (
     GradientBoostingModel,
     NaiveBayesModel,
     MLPModel,
-    SCORING_METRICS,
+    get_metrics_dict,
     get_default_models,
     get_model_by_name,
     evaluate_models,
+    evaluate_single_model,
     get_best_metric,
     get_mean_metric,
 )
@@ -87,7 +88,7 @@ class TestLogisticRegressionModel:
 
     def test_evaluate(self, simple_data):
         model = LogisticRegressionModel()
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert "f1" in metrics
@@ -104,9 +105,9 @@ class TestLogisticRegressionModel:
 
     def test_get_metric(self, simple_data):
         model = LogisticRegressionModel()
-        model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
-        acc = model.get_metric("accuracy")
+        acc = metrics["accuracy"]["mean"]
         assert 0 <= acc <= 1
 
 
@@ -122,7 +123,7 @@ class TestKNNModel:
 
     def test_evaluate(self, simple_data):
         model = KNNModel(n_neighbors=3)
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -141,7 +142,7 @@ class TestDecisionTreeModel:
 
     def test_evaluate(self, simple_data):
         model = DecisionTreeModel(max_depth=3)
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -159,7 +160,7 @@ class TestSVMModel:
 
     def test_evaluate(self, simple_data):
         model = SVMModel(kernel="rbf")
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -174,7 +175,7 @@ class TestRandomForestModel:
 
     def test_evaluate(self, simple_data):
         model = RandomForestModel(n_estimators=10, max_depth=3)
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -189,7 +190,7 @@ class TestGradientBoostingModel:
 
     def test_evaluate(self, simple_data):
         model = GradientBoostingModel(n_estimators=10, max_depth=2)
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -208,7 +209,7 @@ class TestNaiveBayesModel:
 
     def test_evaluate(self, simple_data):
         model = NaiveBayesModel()
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1
@@ -223,7 +224,7 @@ class TestMLPModel:
 
     def test_evaluate(self, simple_data):
         model = MLPModel(hidden_layer_sizes=(10,), max_iter=100)
-        metrics = model.evaluate(simple_data, cv_folds=3)
+        metrics = evaluate_single_model(model, simple_data, cv_folds=3)
 
         assert "accuracy" in metrics
         assert 0 <= metrics["accuracy"]["mean"] <= 1

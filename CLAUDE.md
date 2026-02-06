@@ -85,29 +85,43 @@ Tests are in `tests/` (not `pycol/` which is external code):
 - **`test_metrics.py`** - Tests for `complexity_metrics` wrapper class
 - **`test_abstract_metrics.py`** - Tests for `abstract_metric` base class
 - **`test_ml_models.py`** - Tests for ML model classes (31 tests)
+- **`test_ml_evaluation.py`** - Tests for evaluation metrics and evaluators (35 tests)
+- **`test_ml_pipeline.py`** - Tests for pipeline orchestration (25 tests)
 
 ## ML Model Evaluation
 
-The `experiments/ml_models.py` module provides a class-based interface for ML model evaluation.
+The `experiments/ml/` module provides a modular architecture for ML model evaluation with three main components: models, evaluation strategies, and orchestration.
 
-### Abstract Base Class
+### Quick Start
 
 ```python
-from data_complexity.experiments.ml_models import (
-    AbstractMLModel,
-    LogisticRegressionModel,
-    SVMModel,
-    evaluate_models,
-)
+from data_complexity.experiments.ml import evaluate_models, evaluate_single_model
 
-# Use a single model
+# Evaluate all default models
+results = evaluate_models({"X": X, "y": y})
+
+# Evaluate a single model
+from data_complexity.experiments.ml import LogisticRegressionModel
 model = LogisticRegressionModel()
-metrics = model.evaluate({"X": X, "y": y}, cv_folds=5)
+metrics = evaluate_single_model(model, {"X": X, "y": y}, cv_folds=5)
 print(metrics["accuracy"]["mean"])
-
-# Or evaluate multiple models
-results = evaluate_models({"X": X, "y": y})  # Uses all 10 default models
 ```
+
+### Architecture
+
+```
+experiments/ml/
+├── models.py           # Model classes (AbstractMLModel + 8 concrete models)
+├── classification_metrics.py       # Metrics for classification (accuracy, F1, precision, recall, balanced accuracy etc.)
+├── evaluation.py       # Evaluator classes e.g. cross validation
+├── model_pipeline.py   # Orchestration functions
+└── __init__.py         # Public API
+```
+
+**Models** are pure sklearn wrappers without evaluation logic.
+**Classification Metrics** define how to score predictions (accuracy, F1, precision, etc.).
+**Evaluators** define how to train and assess models (cross-validation, train-test split).
+**Pipeline** provides high-level convenience functions.
 
 ### Available Model Classes
 
@@ -122,16 +136,92 @@ results = evaluate_models({"X": X, "y": y})  # Uses all 10 default models
 | `NaiveBayesModel` | NaiveBayes | - |
 | `MLPModel` | MLP | `hidden_layer_sizes`, `max_iter` |
 
-### Factory Functions
+### Model Factory Functions
 
 ```python
-from data_complexity.experiments.ml_models import get_model_by_name, get_default_models
+from data_complexity.experiments.ml import get_model_by_name, get_default_models
 
 # Get model by name
 model = get_model_by_name("svm", kernel="linear")
 
-# Get all default models
-models = get_default_models()  # Returns list of 10 model instances
+# Get all default models (10 instances)
+models = get_default_models()
+```
+
+### Evaluation Metrics
+
+```python
+from data_complexity.experiments.ml import (
+    AccuracyMetric,
+    F1Metric,
+    PrecisionMetric,
+    RecallMetric,
+    BalancedAccuracyMetric,
+    get_default_metrics,
+    get_metrics_dict,
+)
+
+# Use default metrics (all 5)
+metrics = get_default_metrics()
+
+# Use custom metrics
+metrics = [AccuracyMetric(), F1Metric()]
+
+# Get sklearn scoring dict
+scoring = get_metrics_dict(metrics)  # {'accuracy': 'accuracy', 'f1': 'f1_weighted'}
+```
+
+### Evaluators
+
+```python
+from data_complexity.experiments.ml import (
+    CrossValidationEvaluator,
+    TrainTestSplitEvaluator,
+    get_default_evaluator,
+)
+
+# Use cross-validation (default)
+evaluator = CrossValidationEvaluator(cv_folds=5)
+results = evaluator.evaluate(model, X, y)
+
+# Use train-test split
+evaluator = TrainTestSplitEvaluator(test_size=0.2)
+results = evaluator.evaluate(model, X, y)
+
+# Get default evaluator
+evaluator = get_default_evaluator(cv_folds=5)
+```
+
+### Pipeline Orchestration
+
+```python
+from data_complexity.experiments.ml import (
+    evaluate_models,
+    evaluate_single_model,
+    get_best_metric,
+    get_mean_metric,
+    get_model_metric,
+    print_evaluation_results,
+)
+
+# Evaluate multiple models with defaults
+results = evaluate_models(data)
+
+# Evaluate with custom components
+results = evaluate_models(
+    data,
+    models=[LogisticRegressionModel(), KNNModel()],
+    metrics=[AccuracyMetric(), F1Metric()],
+    evaluator=CrossValidationEvaluator(cv_folds=3),
+)
+
+# Extract metrics
+best_acc = get_best_metric(results, "accuracy")
+mean_acc = get_mean_metric(results, "accuracy")
+lr_acc = get_model_metric(results, "LogisticRegression", "accuracy")
+
+# Print formatted results
+print_evaluation_results(results, "accuracy")
 ```
 
 ## Experiments
@@ -143,8 +233,11 @@ experiments/
 ├── experiment.py           # Generic experiment framework
 ├── experiment_configs.py   # Pre-defined experiment configurations
 ├── plotting.py             # Reusable plotting functions
-├── ml_models.py            # Abstract ML model classes
-├── ml_evaluation.py        # Functional wrapper (backwards compat)
+├── ml/                     # ML evaluation module
+│   ├── models.py           # Model classes
+│   ├── classification_metrics.py # Classification metrics
+│   ├── model_pipeline.py   # Orchestration functions
+│   └── __init__.py         # Public API
 ├── exp_complexity_vs_ml.py # Legacy: Gaussian variance experiment
 ├── exp_separation_vs_ml.py # Legacy: Class separation experiment
 ├── exp_moons_vs_ml.py      # Legacy: Moons noise experiment

@@ -15,13 +15,13 @@ import pandas as pd
 from scipy import stats
 
 from data_complexity.metrics import complexity_metrics
-from data_complexity.experiments.ml_models import (
+from data_complexity.experiments.ml import (
     AbstractMLModel,
     get_default_models,
     evaluate_models,
     get_best_metric,
     get_mean_metric,
-    SCORING_METRICS,
+    get_metrics_dict,
 )
 from data_complexity.experiments.plotting import (
     plot_correlations,

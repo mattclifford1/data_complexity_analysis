@@ -1,12 +1,10 @@
 """
-ML Model classes for evaluating classifier performance on datasets.
+ML Model classes for classifier evaluation.
 
 Provides an abstract base class and concrete implementations for various
-sklearn classifiers, with a unified interface for training and evaluation.
+sklearn classifiers with a unified interface for training and prediction.
 """
 from abc import ABC, abstractmethod
-import numpy as np
-from sklearn.model_selection import cross_validate, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -18,22 +16,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
 
-# Scoring metrics for evaluation
-SCORING_METRICS = {
-    "accuracy": "accuracy",
-    "f1": "f1_weighted",
-    "precision": "precision_weighted",
-    "recall": "recall_weighted",
-    "balanced_accuracy": "balanced_accuracy",
-}
-
-
 class AbstractMLModel(ABC):
     """
-    Abstract base class for ML model evaluation.
+    Abstract base class for ML models.
 
-    Provides common functionality for training, prediction, and cross-validation
-    evaluation of sklearn classifiers.
+    Provides common functionality for creating, training, and predicting
+    with sklearn classifiers. Models are pure wrappers around sklearn
+    estimators without evaluation logic.
 
     Parameters
     ----------
@@ -50,12 +39,11 @@ class AbstractMLModel(ABC):
         self.scale_features = scale_features
         self.model_params = kwargs
         self._model = None
-        self._metrics = None
         self._is_fitted = False
 
     @property
     @abstractmethod
-    def name(self):
+    def name(self) -> str:
         """Return the model name."""
         pass
 
@@ -122,107 +110,6 @@ class AbstractMLModel(ABC):
             raise RuntimeError("Model must be fitted before prediction.")
         return self.model.predict(X)
 
-    def evaluate(self, data, cv_folds=5, scoring=None):
-        """
-        Evaluate the model using cross-validation.
-
-        Parameters
-        ----------
-        data : dict
-            Data dictionary with 'X' and 'y' keys.
-        cv_folds : int, optional
-            Number of cross-validation folds. Default: 5
-        scoring : dict, optional
-            Scoring metrics. Default: SCORING_METRICS
-
-        Returns
-        -------
-        dict
-            Metric name -> {'mean': float, 'std': float}
-        """
-        X, y = data["X"], data["y"]
-        return self.evaluate_xy(X, y, cv_folds=cv_folds, scoring=scoring)
-
-    def evaluate_xy(self, X, y, cv_folds=5, scoring=None):
-        """
-        Evaluate the model using cross-validation with X, y arrays.
-
-        Parameters
-        ----------
-        X : array-like, shape (n_samples, n_features)
-            Feature matrix.
-        y : array-like, shape (n_samples,)
-            Target labels.
-        cv_folds : int, optional
-            Number of cross-validation folds. Default: 5
-        scoring : dict, optional
-            Scoring metrics. Default: SCORING_METRICS
-
-        Returns
-        -------
-        dict
-            Metric name -> {'mean': float, 'std': float}
-        """
-        if scoring is None:
-            scoring = SCORING_METRICS
-
-        cv = StratifiedKFold(
-            n_splits=cv_folds, shuffle=True, random_state=self.random_state
-        )
-
-        # Create fresh model for cross-validation
-        model = self._create_model()
-
-        try:
-            cv_results = cross_validate(
-                model, X, y, cv=cv, scoring=scoring, return_train_score=False
-            )
-
-            self._metrics = {}
-            for metric_name in scoring.keys():
-                scores = cv_results[f"test_{metric_name}"]
-                self._metrics[metric_name] = {
-                    "mean": scores.mean(),
-                    "std": scores.std(),
-                }
-
-        except Exception as e:
-            print(f"Warning: {self.name} evaluation failed: {e}")
-            self._metrics = {
-                m: {"mean": np.nan, "std": np.nan} for m in scoring.keys()
-            }
-
-        return self._metrics
-
-    def get_metrics(self):
-        """
-        Get the computed evaluation metrics.
-
-        Returns
-        -------
-        dict or None
-            Metric name -> {'mean': float, 'std': float}, or None if not evaluated.
-        """
-        return self._metrics
-
-    def get_metric(self, metric="accuracy"):
-        """
-        Get a specific metric value.
-
-        Parameters
-        ----------
-        metric : str
-            Metric name.
-
-        Returns
-        -------
-        float
-            Mean metric value, or NaN if not available.
-        """
-        if self._metrics is None or metric not in self._metrics:
-            return np.nan
-        return self._metrics[metric]["mean"]
-
     def __repr__(self):
         return f"{self.__class__.__name__}(name='{self.name}')"
 
@@ -249,7 +136,7 @@ class LogisticRegressionModel(AbstractMLModel):
         self.max_iter = max_iter
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "LogisticRegression"
 
     def _create_estimator(self):
@@ -275,7 +162,7 @@ class KNNModel(AbstractMLModel):
         self.n_neighbors = n_neighbors
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"KNN-{self.n_neighbors}"
 
     def _create_estimator(self):
@@ -299,7 +186,7 @@ class DecisionTreeModel(AbstractMLModel):
         self.max_depth = max_depth
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "DecisionTree"
 
     def _create_estimator(self):
@@ -328,7 +215,7 @@ class SVMModel(AbstractMLModel):
         self.C = C
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"SVM-{self.kernel.upper()}"
 
     def _create_estimator(self):
@@ -355,7 +242,7 @@ class RandomForestModel(AbstractMLModel):
         self.max_depth = max_depth
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "RandomForest"
 
     def _create_estimator(self):
@@ -386,7 +273,7 @@ class GradientBoostingModel(AbstractMLModel):
         self.max_depth = max_depth
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "GradientBoosting"
 
     def _create_estimator(self):
@@ -411,7 +298,7 @@ class NaiveBayesModel(AbstractMLModel):
         super().__init__(scale_features=False, **kwargs)
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "NaiveBayes"
 
     def _create_estimator(self):
@@ -438,7 +325,7 @@ class MLPModel(AbstractMLModel):
         self.max_iter = max_iter
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "MLP"
 
     def _create_estimator(self):
@@ -450,7 +337,7 @@ class MLPModel(AbstractMLModel):
 
 
 # ============================================================================
-# Factory and Utility Functions
+# Factory Functions
 # ============================================================================
 
 
@@ -521,106 +408,3 @@ def get_model_by_name(name, **kwargs):
         )
 
     return model_map[name_lower](**kwargs)
-
-
-def evaluate_models(data, models=None, cv_folds=5):
-    """
-    Evaluate multiple models on a dataset.
-
-    Parameters
-    ----------
-    data : dict
-        Data dictionary with 'X' and 'y' keys.
-    models : list of AbstractMLModel, optional
-        Models to evaluate. Default: get_default_models()
-    cv_folds : int, optional
-        Number of cross-validation folds. Default: 5
-
-    Returns
-    -------
-    dict
-        Model name -> metric results dict.
-    """
-    if models is None:
-        models = get_default_models()
-
-    results = {}
-    for model in models:
-        metrics = model.evaluate(data, cv_folds=cv_folds)
-        results[model.name] = metrics
-
-    return results
-
-
-def get_best_metric(results, metric="accuracy"):
-    """
-    Get the best value of a metric across all models.
-
-    Parameters
-    ----------
-    results : dict
-        Output from evaluate_models().
-    metric : str
-        Metric name.
-
-    Returns
-    -------
-    float
-        Best metric value.
-    """
-    values = [
-        r[metric]["mean"]
-        for r in results.values()
-        if metric in r and not np.isnan(r[metric]["mean"])
-    ]
-    return max(values) if values else np.nan
-
-
-def get_mean_metric(results, metric="accuracy"):
-    """
-    Get the mean value of a metric across all models.
-
-    Parameters
-    ----------
-    results : dict
-        Output from evaluate_models().
-    metric : str
-        Metric name.
-
-    Returns
-    -------
-    float
-        Mean metric value.
-    """
-    values = [
-        r[metric]["mean"]
-        for r in results.values()
-        if metric in r and not np.isnan(r[metric]["mean"])
-    ]
-    return np.mean(values) if values else np.nan
-
-
-def print_evaluation_results(results, metric="accuracy"):
-    """
-    Print a formatted table of evaluation results.
-
-    Parameters
-    ----------
-    results : dict
-        Output from evaluate_models().
-    metric : str
-        Metric to display.
-    """
-    print(f"\n{'Model':<20} {metric:>12} {'± std':>10}")
-    print("-" * 44)
-
-    # Sort by metric value
-    sorted_models = sorted(
-        results.items(),
-        key=lambda x: -x[1][metric]["mean"] if not np.isnan(x[1][metric]["mean"]) else float("-inf"),
-    )
-
-    for model_name, metrics in sorted_models:
-        value = metrics[metric]["mean"]
-        std = metrics[metric]["std"]
-        print(f"{model_name:<20} {value:>12.4f} {'±':>3} {std:.4f}")
