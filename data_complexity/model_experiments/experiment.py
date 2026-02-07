@@ -7,7 +7,6 @@ performance. All experiments use train/test splits: complexity is computed
 on both splits independently, and ML models are trained on the training set
 and evaluated on both.
 """
-import copy
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -17,6 +16,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from data_loaders.utils import proportional_split
 from data_complexity.metrics import complexity_metrics
 from data_complexity.model_experiments.ml import (
     AbstractMLModel,
@@ -453,7 +453,6 @@ class Experiment:
             Results container with train/test complexity and ML DataFrames.
         """
         self._load_dataset_loader()
-        from data_loaders.utils import proportional_split
 
         self.results = ExperimentResults(self.config)
 
@@ -490,19 +489,13 @@ class Experiment:
             test_ml_accum: List[Dict] = []
 
             for seed_i in range(cv_folds):
-                # Get fresh copy of data for each seed
-                # IMPORTANT: Must deep copy because proportional_split mutates in place
-                # and get_data_dict() returns a reference, not a copy
-                full_data = copy.deepcopy(dataset.get_data_dict())
-
                 # Use dataset's built-in proportional_split with minority_reduce_scaler
-                # proportional_split mutates full_data to be train and returns test
-                train_data, test_data = proportional_split(
-                    full_data,
-                    train_size=train_size,
-                    seed=42 + seed_i,
-                    minority_reduce_scaler=minority_reduce_scaler,
-                )
+                train_data, test_data = dataset.get_train_test_split(
+                             train_size=train_size,
+                             minority_reduce_scaler=minority_reduce_scaler,
+                             minority_reduce_scaler_test=None,
+                             equal_test=None,
+                             seed=42 + seed_i)
 
                 # Complexity on train and test
                 train_cmplx = complexity_metrics(dataset=train_data).get_all_metrics_scalar()
