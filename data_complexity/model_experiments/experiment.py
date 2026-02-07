@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 from scipy import stats
-from sklearn.model_selection import train_test_split
 
 from data_complexity.metrics import complexity_metrics
 from data_complexity.model_experiments.ml import (
@@ -140,46 +139,6 @@ class ExperimentConfig:
     def _generate_name(self) -> str:
         """Generate experiment name from dataset type and varied parameter."""
         return f"{self.dataset.dataset_type.lower()}_{self.vary_parameter.name}"
-
-
-def _apply_minority_reduction(
-    data: Dict[str, np.ndarray], scaler: float
-) -> Dict[str, np.ndarray]:
-    """
-    Reduce the minority class by a given factor.
-
-    Parameters
-    ----------
-    data : dict
-        Data dict with 'X' and 'y' keys.
-    scaler : float
-        Reduction factor. Minority count becomes majority_count / scaler.
-
-    Returns
-    -------
-    dict
-        New data dict with reduced minority class.
-    """
-    X, y = data["X"], data["y"]
-    classes, counts = np.unique(y, return_counts=True)
-    majority_class = classes[np.argmax(counts)]
-    minority_class = classes[np.argmin(counts)]
-    majority_count = counts[np.argmax(counts)]
-
-    target_minority = int(majority_count / scaler)
-    if target_minority < 1:
-        target_minority = 1
-
-    minority_mask = y == minority_class
-    minority_indices = np.where(minority_mask)[0]
-    majority_indices = np.where(~minority_mask)[0]
-
-    rng = np.random.RandomState(42)
-    keep_indices = rng.choice(minority_indices, size=target_minority, replace=False)
-    all_indices = np.concatenate([majority_indices, keep_indices])
-    all_indices.sort()
-
-    return {"X": X[all_indices], "y": y[all_indices]}
 
 
 def _average_dicts(dicts: List[Dict[str, float]]) -> Dict[str, float]:
@@ -477,9 +436,10 @@ class Experiment:
         Execute the experiment loop with train/test splits.
 
         For each parameter value, generates a dataset, then for each random
-        seed (controlled by ``cv_folds``), splits into train/test, computes
-        complexity on both, and trains ML models on train to evaluate on both.
-        Results are averaged across seeds.
+        seed (controlled by ``cv_folds``), splits into train/test using the
+        dataset's built-in proportional_split(), computes complexity on both,
+        and trains ML models on train to evaluate on both. Results are averaged
+        across seeds.
 
         Parameters
         ----------
@@ -492,6 +452,8 @@ class Experiment:
             Results container with train/test complexity and ML DataFrames.
         """
         self._load_dataset_loader()
+        from data_loaders.utils import proportional_split
+
         self.results = ExperimentResults(self.config)
 
         models = self.config.models or get_default_models()
@@ -508,17 +470,14 @@ class Experiment:
             print()
 
         for param_value in self.config.vary_parameter.values:
-            # Build dataset params (exclude minority_reduce_scaler from dataset creation)
+            # Build dataset params (include all parameters)
             params = dict(self.config.dataset.fixed_params)
-            if self.config.vary_parameter.name != "minority_reduce_scaler":
-                params[self.config.vary_parameter.name] = param_value
+            params[self.config.vary_parameter.name] = param_value
             params["num_samples"] = self.config.dataset.num_samples
             params["name"] = self.config.vary_parameter.format_label(param_value)
 
             dataset = self._get_dataset(self.config.dataset.dataset_type, **params)
             self.datasets[param_value] = dataset
-            full_data = dataset.get_data_dict()
-            X_orig, y_orig = full_data["X"].copy(), full_data["y"].copy()
 
             # Determine minority_reduce_scaler
             minority_reduce_scaler = self._get_minority_reduce_scaler(param_value)
@@ -530,18 +489,17 @@ class Experiment:
             test_ml_accum: List[Dict] = []
 
             for seed_i in range(cv_folds):
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X_orig, y_orig,
-                    test_size=1 - train_size,
-                    stratify=y_orig,
-                    random_state=42 + seed_i,
-                )
-                train_data = {"X": X_train, "y": y_train}
-                test_data = {"X": X_test, "y": y_test}
+                # Get fresh copy of data for each seed
+                full_data = dataset.get_data_dict()
 
-                # Apply minority reduction to training data only
-                if minority_reduce_scaler is not None and minority_reduce_scaler > 1:
-                    train_data = _apply_minority_reduction(train_data, minority_reduce_scaler)
+                # Use dataset's built-in proportional_split with minority_reduce_scaler
+                # proportional_split mutates full_data to be train and returns test
+                train_data, test_data = proportional_split(
+                    full_data,
+                    train_size=train_size,
+                    seed=42 + seed_i,
+                    minority_reduce_scaler=minority_reduce_scaler,
+                )
 
                 # Complexity on train and test
                 train_cmplx = complexity_metrics(dataset=train_data).get_all_metrics_scalar()

@@ -297,7 +297,7 @@ model_experiments/
 
 ### Experiment Framework
 
-The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments. All experiments use **train/test splits**: for each parameter value, data is split into train/test sets, complexity is computed on both, and ML models are trained on train and evaluated on both. Multiple random seeds (`cv_folds`) control reproducibility.
+The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments. All experiments use **train/test splits**: for each parameter value, data is split into train/test sets using the dataset's built-in `proportional_split()` method (which supports `minority_reduce_scaler` for imbalance experiments), complexity is computed on both, and ML models are trained on train and evaluated on both. Multiple random seeds (`cv_folds`) control reproducibility.
 
 #### Quick Start
 

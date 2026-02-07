@@ -12,7 +12,6 @@ from data_complexity.model_experiments.experiment import (
     ExperimentResults,
     Experiment,
     PlotType,
-    _apply_minority_reduction,
     _average_dicts,
     _average_ml_results,
 )
@@ -443,40 +442,6 @@ class TestExperimentRun:
 
         corr_test = exp.compute_correlations(complexity_source="test", ml_source="test")
         assert len(corr_test) > 0
-
-
-class TestMinorityReduction:
-    """Tests for _apply_minority_reduction helper."""
-
-    def test_basic_reduction(self):
-        X = np.random.rand(100, 2)
-        y = np.array([0] * 50 + [1] * 50)
-        data = {"X": X, "y": y}
-
-        reduced = _apply_minority_reduction(data, scaler=2)
-        unique, counts = np.unique(reduced["y"], return_counts=True)
-        assert len(unique) == 2
-        # Majority stays at 50, minority becomes 50/2 = 25
-        assert counts[np.argmax(counts)] == 50
-        assert counts[np.argmin(counts)] == 25
-
-    def test_high_scaler(self):
-        X = np.random.rand(100, 2)
-        y = np.array([0] * 50 + [1] * 50)
-        data = {"X": X, "y": y}
-
-        reduced = _apply_minority_reduction(data, scaler=10)
-        unique, counts = np.unique(reduced["y"], return_counts=True)
-        assert counts[np.argmin(counts)] == 5
-
-    def test_scaler_1_no_change(self):
-        """Scaler of 1 keeps the data balanced (majority/1 = majority)."""
-        X = np.random.rand(100, 2)
-        y = np.array([0] * 50 + [1] * 50)
-        data = {"X": X, "y": y}
-
-        reduced = _apply_minority_reduction(data, scaler=1)
-        assert len(reduced["y"]) == 100
 
 
 class TestAveragingHelpers:
