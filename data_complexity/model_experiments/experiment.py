@@ -750,13 +750,15 @@ class Experiment:
 
     def save(self, save_dir: Optional[Path] = None) -> None:
         """
-        Save results to CSVs and plots to PNGs.
+        Save results to CSVs, plots to PNGs, and experiment metadata to JSON.
 
         Parameters
         ----------
         save_dir : Path, optional
             Directory to save to. Default: config.save_dir
         """
+        import json
+        from datetime import datetime
         import matplotlib.pyplot as plt
 
         if self.results is None:
@@ -773,6 +775,42 @@ class Experiment:
         data_dir.mkdir(exist_ok=True)
         plots_dir.mkdir(exist_ok=True)
         datasets_dir.mkdir(exist_ok=True)
+
+        # Save experiment metadata
+        models = self.config.models or get_default_models()
+        metadata = {
+            "experiment_name": self.config.name,
+            "timestamp": datetime.now().isoformat(),
+            "dataset": {
+                "type": self.config.dataset.dataset_type,
+                "num_samples": self.config.dataset.num_samples,
+                "train_size": self.config.dataset.train_size,
+                "fixed_params": self.config.dataset.fixed_params,
+            },
+            "vary_parameter": {
+                "name": self.config.vary_parameter.name,
+                "values": self.config.vary_parameter.values,
+                "label_format": self.config.vary_parameter.label_format,
+            },
+            "ml_models": [
+                {
+                    "name": model.name,
+                    "class": model.__class__.__name__,
+                    "parameters": {
+                        k: v for k, v in model.__dict__.items()
+                        if not k.startswith("_") and k not in ["model_params"]
+                    },
+                }
+                for model in models
+            ],
+            "ml_metrics": self.config.ml_metrics,
+            "cv_folds": self.config.cv_folds,
+            "correlation_target": self.config.correlation_target,
+            "plots": [pt.name for pt in self.config.plots],
+        }
+
+        with open(save_dir / "experiment_metadata.json", "w") as f:
+            json.dump(metadata, f, indent=2)
 
         # Save backward-compat CSVs (train complexity + test ML)
         self.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
@@ -840,6 +878,10 @@ class Experiment:
             plt.close(fig)
 
         print(f"Saved results to: {save_dir}")
+        print(f"  - Metadata: experiment_metadata.json")
+        print(f"  - Data CSVs: data/")
+        print(f"  - Plots: plots/")
+        print(f"  - Datasets: datasets/")
 
     def print_summary(self, top_n: int = 10) -> None:
         """

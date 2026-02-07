@@ -380,9 +380,19 @@ exp.save()  # Saves to model_experiments/results/my_custom_experiment/
 #### Experiment Results
 
 Results are organized into subfolders within `model_experiments/results/{experiment_name}/`:
+- `experiment_metadata.json` - Complete experiment configuration and parameters
 - `data/` - CSV files (see below)
 - `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png)
 - `datasets/` - Dataset visualization PNGs (one per parameter value)
+
+Metadata file (`experiment_metadata.json`) contains:
+- Experiment name and timestamp
+- Dataset configuration (type, samples, train_size, parameters)
+- Varied parameter specification
+- ML models used (with their parameters)
+- ML metrics computed
+- Number of CV folds
+- Correlation target
 
 CSV files in `data/`:
 - `complexity_metrics.csv` - Train complexity (backward compat alias)

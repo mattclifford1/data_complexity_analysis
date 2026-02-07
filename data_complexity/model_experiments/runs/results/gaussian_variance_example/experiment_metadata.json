@@ -1,0 +1,90 @@
+{
+  "experiment_name": "gaussian_variance_example",
+  "timestamp": "2026-02-07T14:15:27.380040",
+  "dataset": {
+    "type": "Gaussian",
+    "num_samples": 400,
+    "train_size": 0.5,
+    "fixed_params": {
+      "class_separation": 4.0,
+      "cov_type": "spherical"
+    }
+  },
+  "vary_parameter": {
+    "name": "cov_scale",
+    "values": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      3.0,
+      4.0,
+      5.0
+    ],
+    "label_format": "scale={value}"
+  },
+  "ml_models": [
+    {
+      "name": "LogisticRegression",
+      "class": "LogisticRegressionModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "max_iter": 1000
+      }
+    },
+    {
+      "name": "SVM-RBF",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "rbf",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "SVM-LINEAR",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "linear",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "RandomForest",
+      "class": "RandomForestModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false,
+        "n_estimators": 50,
+        "max_depth": 5
+      }
+    },
+    {
+      "name": "KNN-5",
+      "class": "KNNModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "n_neighbors": 5
+      }
+    }
+  ],
+  "ml_metrics": [
+    "accuracy",
+    "f1",
+    "precision",
+    "recall",
+    "balanced_accuracy"
+  ],
+  "cv_folds": 5,
+  "correlation_target": "best_accuracy",
+  "plots": [
+    "CORRELATIONS",
+    "SUMMARY",
+    "HEATMAP"
+  ]
+}

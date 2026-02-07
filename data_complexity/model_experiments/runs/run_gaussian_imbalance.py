@@ -35,7 +35,7 @@ models = [
 config = ExperimentConfig(
     dataset=DatasetSpec(
         dataset_type="Gaussian",
-        fixed_params={"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0},
+        fixed_params={"class_separation": 2.0, "cov_type": "spherical", "cov_scale": 1.0},
         num_samples=400,
         train_size=0.5,
     ),

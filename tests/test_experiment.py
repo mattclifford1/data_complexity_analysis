@@ -685,6 +685,36 @@ class TestSaveLoad:
         assert (save_dir / "data" / "ml_performance.csv").exists()
         assert (save_dir / "plots" / "correlations.png").exists()
 
+    def test_save_creates_metadata_file(self, results_with_data, tmp_path):
+        """Test that save creates experiment metadata JSON file."""
+        import json
+
+        config, results = results_with_data
+        save_dir = tmp_path / "test_metadata"
+
+        exp = Experiment(config)
+        exp.results = results
+        exp.save(save_dir)
+
+        # Check metadata file exists
+        metadata_path = save_dir / "experiment_metadata.json"
+        assert metadata_path.exists()
+
+        # Load and verify metadata content
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+
+        assert metadata["experiment_name"] == config.name
+        assert "timestamp" in metadata
+        assert metadata["dataset"]["type"] == "Gaussian"
+        assert metadata["dataset"]["num_samples"] == 400
+        assert metadata["dataset"]["train_size"] == 0.5
+        assert metadata["vary_parameter"]["name"] == "scale"
+        assert metadata["ml_metrics"] == ["accuracy"]
+        assert metadata["cv_folds"] == 5
+        assert "ml_models" in metadata
+        assert len(metadata["ml_models"]) > 0
+
 
 class TestPlotting:
     """Tests for plotting functionality."""
