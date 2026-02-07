@@ -57,6 +57,7 @@ from .evaluation import (
 # Orchestration functions
 from .model_pipeline import (
     evaluate_models,
+    evaluate_models_train_test,
     evaluate_single_model,
     get_best_metric,
     get_mean_metric,
@@ -110,6 +111,7 @@ __all__ = [
 
     # Pipeline
     "evaluate_models",
+    "evaluate_models_train_test",
     "evaluate_single_model",
     "get_best_metric",
     "get_mean_metric",

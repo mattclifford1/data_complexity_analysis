@@ -80,7 +80,9 @@ def gaussian_imbalance_config() -> ExperimentConfig:
     Configuration for studying Gaussian class imbalance effects.
 
     Varies minority_reduce_scaler from 1 (balanced) to 16 (extreme imbalance).
-    This reduces the minority class by the scaler factor:
+    Imbalance is applied to the training set after the train/test split,
+    so complexity metrics reflect the actual imbalanced training data.
+
     - 1 = balanced (50%-50%)
     - 2 = 67%-33%
     - 4 = 80%-20%
@@ -91,6 +93,7 @@ def gaussian_imbalance_config() -> ExperimentConfig:
         dataset=DatasetSpec(
             dataset_type="Gaussian",
             fixed_params={"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0},
+            train_size=0.5,
         ),
         vary_parameter=ParameterSpec(
             name="minority_reduce_scaler",

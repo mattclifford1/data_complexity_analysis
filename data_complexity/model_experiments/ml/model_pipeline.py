@@ -4,7 +4,7 @@ High-level orchestration API for ML model evaluation.
 Provides convenient functions for evaluating models with various
 metrics and evaluation strategies.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .models import AbstractMLModel, get_default_models
@@ -93,6 +93,67 @@ def evaluate_models(
         results[model.name] = model_results
 
     return results
+
+
+def evaluate_models_train_test(
+    train_data: Dict,
+    test_data: Dict,
+    models: Optional[List[AbstractMLModel]] = None,
+    metrics: Optional[List[AbstractEvaluationMetric]] = None,
+) -> Tuple[Dict[str, Dict[str, Dict[str, float]]], Dict[str, Dict[str, Dict[str, float]]]]:
+    """
+    Train each model on train_data, evaluate on both train and test.
+
+    Parameters
+    ----------
+    train_data : dict
+        Training data with 'X' and 'y' keys.
+    test_data : dict
+        Test data with 'X' and 'y' keys.
+    models : list of AbstractMLModel, optional
+        Models to evaluate. Default: get_default_models()
+    metrics : list of AbstractEvaluationMetric, optional
+        Metrics to compute. Default: get_default_metrics()
+
+    Returns
+    -------
+    tuple of (train_results, test_results)
+        Each: model_name -> metric_name -> {'mean': float, 'std': 0.0}
+    """
+    if models is None:
+        models = get_default_models()
+    if metrics is None:
+        metrics = get_default_metrics()
+
+    X_train, y_train = train_data["X"], train_data["y"]
+    X_test, y_test = test_data["X"], test_data["y"]
+
+    train_results = {}
+    test_results = {}
+
+    for model in models:
+        sklearn_model = model._create_model()
+        sklearn_model.fit(X_train, y_train)
+
+        y_pred_train = sklearn_model.predict(X_train)
+        y_pred_test = sklearn_model.predict(X_test)
+
+        train_metrics = {}
+        test_metrics = {}
+        for metric in metrics:
+            train_metrics[metric.name] = {
+                "mean": metric.compute(y_train, y_pred_train),
+                "std": 0.0,
+            }
+            test_metrics[metric.name] = {
+                "mean": metric.compute(y_test, y_pred_test),
+                "std": 0.0,
+            }
+
+        train_results[model.name] = train_metrics
+        test_results[model.name] = test_metrics
+
+    return train_results, test_results
 
 
 def get_best_metric(results: Dict, metric: str = "accuracy") -> float:

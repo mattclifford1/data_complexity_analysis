@@ -236,6 +236,7 @@ evaluator = get_default_evaluator(cv_folds=5)
 ```python
 from data_complexity.model_experiments.ml import (
     evaluate_models,
+    evaluate_models_train_test,
     evaluate_single_model,
     get_best_metric,
     get_mean_metric,
@@ -243,7 +244,7 @@ from data_complexity.model_experiments.ml import (
     print_evaluation_results,
 )
 
-# Evaluate multiple models with defaults
+# Evaluate multiple models with defaults (cross-validation)
 results = evaluate_models(data)
 
 # Evaluate with custom components
@@ -252,6 +253,14 @@ results = evaluate_models(
     models=[LogisticRegressionModel(), KNNModel()],
     metrics=[AccuracyMetric(), F1Metric()],
     evaluator=CrossValidationEvaluator(cv_folds=3),
+)
+
+# Train/test split evaluation (used by experiment framework)
+train_results, test_results = evaluate_models_train_test(
+    train_data={"X": X_train, "y": y_train},
+    test_data={"X": X_test, "y": y_test},
+    models=[LogisticRegressionModel()],
+    metrics=[AccuracyMetric()],
 )
 
 # Extract metrics
@@ -288,7 +297,7 @@ model_experiments/
 
 ### Experiment Framework
 
-The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments.
+The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments. All experiments use **train/test splits**: for each parameter value, data is split into train/test sets, complexity is computed on both, and ML models are trained on train and evaluated on both. Multiple random seeds (`cv_folds`) control reproducibility.
 
 #### Quick Start
 
@@ -311,6 +320,7 @@ from data_complexity.model_experiments.experiment_configs import (
     gaussian_variance_config,    # Vary Gaussian covariance scale
     gaussian_separation_config,  # Vary class separation distance
     gaussian_correlation_config, # Vary feature correlation
+    gaussian_imbalance_config,   # Vary class imbalance ratio
     moons_noise_config,          # Vary moons noise level
     circles_noise_config,        # Vary circles noise level
     blobs_features_config,       # Vary dimensionality
@@ -327,7 +337,7 @@ exp = run_experiment("gaussian_variance")
 # List available configs
 print(list_configs())
 # ['gaussian_variance', 'gaussian_separation', 'gaussian_correlation',
-#  'moons_noise', 'circles_noise', 'blobs_features']
+#  'gaussian_imbalance', 'moons_noise', 'circles_noise', 'blobs_features']
 ```
 
 #### Custom Experiments
@@ -347,13 +357,14 @@ config = ExperimentConfig(
         dataset_type="Gaussian",
         fixed_params={"cov_type": "spherical"},
         num_samples=500,
+        train_size=0.5,  # Train/test split ratio
     ),
     vary_parameter=ParameterSpec(
         name="class_separation",
         values=[1.0, 2.0, 3.0, 4.0, 5.0],
         label_format="sep={value}",
     ),
-    cv_folds=5,
+    cv_folds=5,           # Number of random seeds for train/test splitting
     ml_metrics=["accuracy", "f1"],
     correlation_target="best_accuracy",
     plots=[PlotType.CORRELATIONS, PlotType.SUMMARY],
@@ -369,23 +380,42 @@ exp.save()  # Saves to model_experiments/results/my_custom_experiment/
 #### Experiment Results
 
 Results are organized into subfolders within `model_experiments/results/{experiment_name}/`:
-- `data/` - CSV files (complexity_metrics.csv, ml_performance.csv, correlations.csv)
+- `data/` - CSV files (see below)
 - `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png)
 - `datasets/` - Dataset visualization PNGs (one per parameter value)
+
+CSV files in `data/`:
+- `complexity_metrics.csv` - Train complexity (backward compat alias)
+- `ml_performance.csv` - Test ML performance (backward compat alias)
+- `train_complexity_metrics.csv` - Complexity metrics on training data
+- `test_complexity_metrics.csv` - Complexity metrics on test data
+- `train_ml_performance.csv` - ML performance on training data
+- `test_ml_performance.csv` - ML performance on test data
+- `correlations.csv` - Correlation results
 
 Results are stored in pandas DataFrames:
 
 ```python
 # After running
-exp.results.complexity_df  # Complexity metrics per parameter value
-exp.results.ml_df          # ML performance per parameter value
-exp.results.correlations_df  # Correlation results
+exp.results.complexity_df       # Train complexity (backward compat)
+exp.results.ml_df               # Test ML performance (backward compat)
+exp.results.train_complexity_df # Complexity on training data
+exp.results.test_complexity_df  # Complexity on test data
+exp.results.train_ml_df         # ML performance on training data
+exp.results.test_ml_df          # ML performance on test data
+exp.results.correlations_df     # Correlation results
+
+# Correlations with source control
+exp.compute_correlations(
+    complexity_source="train",  # 'train' or 'test'
+    ml_source="test",           # 'train' or 'test'
+)
 
 # Load previous results (supports both new hierarchical and legacy flat structure)
 exp.load_results(Path("model_experiments/results/gaussian_variance/"))
 ```
 
-**Note:** The framework maintains backwards compatibility with results saved in the legacy flat structure, so existing experiment results remain accessible.
+**Note:** The framework maintains backwards compatibility with results saved in the legacy flat structure, so existing experiment results remain accessible. The `complexity_df` property returns train complexity and `ml_df` returns test ML, matching the standard approach of correlating training data complexity with generalization performance.
 
 ### Legacy Experiments
 

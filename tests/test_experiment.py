@@ -12,10 +12,14 @@ from data_complexity.model_experiments.experiment import (
     ExperimentResults,
     Experiment,
     PlotType,
+    _apply_minority_reduction,
+    _average_dicts,
+    _average_ml_results,
 )
 from data_complexity.model_experiments.experiment_configs import (
     gaussian_variance_config,
     gaussian_separation_config,
+    gaussian_imbalance_config,
     moons_noise_config,
     circles_noise_config,
     get_config,
@@ -52,15 +56,18 @@ class TestDatasetSpec:
         assert spec.dataset_type == "Gaussian"
         assert spec.fixed_params == {}
         assert spec.num_samples == 400
+        assert spec.train_size == 0.5
 
     def test_with_params(self):
         spec = DatasetSpec(
             dataset_type="Moons",
             fixed_params={"random_state": 42},
             num_samples=200,
+            train_size=0.7,
         )
         assert spec.fixed_params == {"random_state": 42}
         assert spec.num_samples == 200
+        assert spec.train_size == 0.7
 
 
 class TestExperimentConfig:
@@ -161,6 +168,53 @@ class TestExperimentResults:
 
         assert results.get_param_values() == [1.0, 2.0]
 
+    def test_add_split_result(self, mock_config):
+        """Test adding train/test split results."""
+        results = ExperimentResults(mock_config)
+        results.add_split_result(
+            param_value=1.0,
+            train_complexity_dict={"F1": 0.5, "N3": 0.3},
+            test_complexity_dict={"F1": 0.6, "N3": 0.4},
+            train_ml_results={
+                "Model": {"accuracy": {"mean": 0.95, "std": 0.0}},
+            },
+            test_ml_results={
+                "Model": {"accuracy": {"mean": 0.85, "std": 0.0}},
+            },
+        )
+        results.finalize()
+
+        # complexity_df returns train complexity
+        assert len(results.complexity_df) == 1
+        assert results.complexity_df.iloc[0]["F1"] == 0.5
+
+        # ml_df returns test ML
+        assert len(results.ml_df) == 1
+        assert results.ml_df.iloc[0]["best_accuracy"] == 0.85
+
+        # Explicit train/test access
+        assert results.train_complexity_df.iloc[0]["F1"] == 0.5
+        assert results.test_complexity_df.iloc[0]["F1"] == 0.6
+        assert results.train_ml_df.iloc[0]["best_accuracy"] == 0.95
+        assert results.test_ml_df.iloc[0]["best_accuracy"] == 0.85
+
+    def test_split_result_backward_compat(self, mock_config):
+        """Test that complexity_df and ml_df return train/test respectively."""
+        results = ExperimentResults(mock_config)
+        results.add_split_result(
+            param_value=1.0,
+            train_complexity_dict={"F1": 0.3},
+            test_complexity_dict={"F1": 0.7},
+            train_ml_results={"M": {"accuracy": {"mean": 0.99, "std": 0.0}}},
+            test_ml_results={"M": {"accuracy": {"mean": 0.80, "std": 0.0}}},
+        )
+        results.finalize()
+
+        # complexity_df -> train complexity
+        assert results.complexity_df.iloc[0]["F1"] == 0.3
+        # ml_df -> test ML
+        assert results.ml_df.iloc[0]["best_accuracy"] == 0.80
+
 
 class TestExperimentConfigPresets:
     """Tests for pre-defined experiment configurations."""
@@ -176,6 +230,12 @@ class TestExperimentConfigPresets:
         config = gaussian_separation_config()
         assert config.name == "gaussian_separation"
         assert config.vary_parameter.name == "class_separation"
+
+    def test_gaussian_imbalance_config(self):
+        config = gaussian_imbalance_config()
+        assert config.name == "gaussian_imbalance"
+        assert config.vary_parameter.name == "minority_reduce_scaler"
+        assert config.dataset.train_size == 0.5
 
     def test_moons_noise_config(self):
         config = moons_noise_config()
@@ -221,7 +281,7 @@ class TestExperimentRun:
         assert exp.results is None
 
     @patch("data_complexity.model_experiments.experiment.complexity_metrics")
-    @patch("data_complexity.model_experiments.experiment.evaluate_models")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
     def test_run_with_mocked_data_loaders(
         self, mock_evaluate, mock_complexity, simple_config
     ):
@@ -241,9 +301,11 @@ class TestExperimentRun:
         }
         mock_complexity.return_value = mock_complexity_instance
 
-        mock_evaluate.return_value = {
-            "LogisticRegression": {"accuracy": {"mean": 0.9, "std": 0.05}},
-        }
+        # evaluate_models_train_test returns a tuple (train_results, test_results)
+        mock_evaluate.return_value = (
+            {"LogisticRegression": {"accuracy": {"mean": 0.95, "std": 0.0}}},
+            {"LogisticRegression": {"accuracy": {"mean": 0.9, "std": 0.0}}},
+        )
 
         exp = Experiment(simple_config)
         exp._get_dataset = mock_get_dataset
@@ -254,9 +316,11 @@ class TestExperimentRun:
         assert len(results.complexity_df) == 2
         assert len(results.ml_df) == 2
         assert mock_get_dataset.call_count == 2
+        # Each parameter value x cv_folds seeds
+        assert mock_evaluate.call_count == 2 * simple_config.cv_folds
 
     @patch("data_complexity.model_experiments.experiment.complexity_metrics")
-    @patch("data_complexity.model_experiments.experiment.evaluate_models")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
     def test_compute_correlations(self, mock_evaluate, mock_complexity, simple_config):
         """Test correlation computation."""
         mock_dataset = MagicMock()
@@ -269,14 +333,21 @@ class TestExperimentRun:
         mock_complexity_instance = MagicMock()
         mock_complexity.return_value = mock_complexity_instance
 
-        mock_complexity_instance.get_all_metrics_scalar.side_effect = [
-            {"F1": 0.3, "N3": 0.2},
-            {"F1": 0.6, "N3": 0.4},
+        # Called 2x per seed (train + test), cv_folds=2, 2 param values = 8 calls
+        # For param 1.0: train F1=0.3, test F1=0.3 (x2 seeds)
+        # For param 2.0: train F1=0.6, test F1=0.6 (x2 seeds)
+        complexity_values = [
+            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # param=1.0, seed=0
+            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # param=1.0, seed=1
+            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # param=2.0, seed=0
+            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # param=2.0, seed=1
         ]
-        mock_evaluate.side_effect = [
-            {"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
-            {"Model": {"accuracy": {"mean": 0.7, "std": 0.05}}},
-        ]
+        mock_complexity_instance.get_all_metrics_scalar.side_effect = complexity_values
+
+        mock_evaluate.return_value = (
+            {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}},
+        )
 
         exp = Experiment(simple_config)
         exp._get_dataset = mock_get_dataset
@@ -288,6 +359,149 @@ class TestExperimentRun:
         assert "p_value" in corr_df.columns
         assert "complexity_metric" in corr_df.columns
         assert len(corr_df) > 0
+
+    @patch("data_complexity.model_experiments.experiment.complexity_metrics")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
+    def test_run_stores_train_test_separately(
+        self, mock_evaluate, mock_complexity, simple_config
+    ):
+        """Test that run stores train and test results separately."""
+        mock_dataset = MagicMock()
+        mock_dataset.get_data_dict.return_value = {
+            "X": np.random.rand(50, 2),
+            "y": np.array([0] * 25 + [1] * 25),
+        }
+        mock_get_dataset = MagicMock(return_value=mock_dataset)
+
+        mock_complexity_instance = MagicMock()
+        mock_complexity_instance.get_all_metrics_scalar.return_value = {
+            "F1": 0.5,
+        }
+        mock_complexity.return_value = mock_complexity_instance
+
+        mock_evaluate.return_value = (
+            {"Model": {"accuracy": {"mean": 0.99, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.85, "std": 0.0}}},
+        )
+
+        exp = Experiment(simple_config)
+        exp._get_dataset = mock_get_dataset
+        results = exp.run(verbose=False)
+
+        # Train and test DFs should be populated
+        assert results.train_complexity_df is not None
+        assert results.test_complexity_df is not None
+        assert results.train_ml_df is not None
+        assert results.test_ml_df is not None
+
+        # Sizes correct
+        assert len(results.train_complexity_df) == 2
+        assert len(results.test_complexity_df) == 2
+        assert len(results.train_ml_df) == 2
+        assert len(results.test_ml_df) == 2
+
+    @patch("data_complexity.model_experiments.experiment.complexity_metrics")
+    @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
+    def test_correlation_sources(
+        self, mock_evaluate, mock_complexity, simple_config
+    ):
+        """Test that correlations can use different sources."""
+        mock_dataset = MagicMock()
+        mock_dataset.get_data_dict.return_value = {
+            "X": np.random.rand(50, 2),
+            "y": np.array([0] * 25 + [1] * 25),
+        }
+        mock_get_dataset = MagicMock(return_value=mock_dataset)
+
+        # Different complexity for train vs test
+        mock_complexity_instance = MagicMock()
+        call_count = [0]
+
+        def side_effect_complexity():
+            call_count[0] += 1
+            # Even calls are train, odd are test
+            if call_count[0] % 2 == 1:
+                return {"F1": 0.3 * (1 + (call_count[0] // 4))}
+            else:
+                return {"F1": 0.7 * (1 + (call_count[0] // 4))}
+
+        mock_complexity_instance.get_all_metrics_scalar.side_effect = side_effect_complexity
+        mock_complexity.return_value = mock_complexity_instance
+
+        mock_evaluate.return_value = (
+            {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.85, "std": 0.0}}},
+        )
+
+        exp = Experiment(simple_config)
+        exp._get_dataset = mock_get_dataset
+        exp.run(verbose=False)
+
+        # Both source options should work
+        corr_train = exp.compute_correlations(complexity_source="train", ml_source="test")
+        assert len(corr_train) > 0
+
+        corr_test = exp.compute_correlations(complexity_source="test", ml_source="test")
+        assert len(corr_test) > 0
+
+
+class TestMinorityReduction:
+    """Tests for _apply_minority_reduction helper."""
+
+    def test_basic_reduction(self):
+        X = np.random.rand(100, 2)
+        y = np.array([0] * 50 + [1] * 50)
+        data = {"X": X, "y": y}
+
+        reduced = _apply_minority_reduction(data, scaler=2)
+        unique, counts = np.unique(reduced["y"], return_counts=True)
+        assert len(unique) == 2
+        # Majority stays at 50, minority becomes 50/2 = 25
+        assert counts[np.argmax(counts)] == 50
+        assert counts[np.argmin(counts)] == 25
+
+    def test_high_scaler(self):
+        X = np.random.rand(100, 2)
+        y = np.array([0] * 50 + [1] * 50)
+        data = {"X": X, "y": y}
+
+        reduced = _apply_minority_reduction(data, scaler=10)
+        unique, counts = np.unique(reduced["y"], return_counts=True)
+        assert counts[np.argmin(counts)] == 5
+
+    def test_scaler_1_no_change(self):
+        """Scaler of 1 keeps the data balanced (majority/1 = majority)."""
+        X = np.random.rand(100, 2)
+        y = np.array([0] * 50 + [1] * 50)
+        data = {"X": X, "y": y}
+
+        reduced = _apply_minority_reduction(data, scaler=1)
+        assert len(reduced["y"]) == 100
+
+
+class TestAveragingHelpers:
+    """Tests for _average_dicts and _average_ml_results."""
+
+    def test_average_dicts(self):
+        dicts = [{"F1": 0.3, "N3": 0.2}, {"F1": 0.5, "N3": 0.4}]
+        result = _average_dicts(dicts)
+        assert abs(result["F1"] - 0.4) < 1e-10
+        assert abs(result["N3"] - 0.3) < 1e-10
+
+    def test_average_dicts_empty(self):
+        assert _average_dicts([]) == {}
+
+    def test_average_ml_results(self):
+        results = [
+            {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.8, "std": 0.0}}},
+        ]
+        averaged = _average_ml_results(results)
+        assert abs(averaged["Model"]["accuracy"]["mean"] - 0.85) < 1e-10
+        assert averaged["Model"]["accuracy"]["std"] > 0  # Should have nonzero std
+
+    def test_average_ml_results_empty(self):
+        assert _average_ml_results([]) == {}
 
 
 class TestSaveLoad:
@@ -326,6 +540,43 @@ class TestSaveLoad:
 
         return config, results
 
+    @pytest.fixture
+    def split_results_with_data(self):
+        config = ExperimentConfig(
+            dataset=DatasetSpec(dataset_type="Gaussian"),
+            vary_parameter=ParameterSpec(name="scale", values=[1.0, 2.0]),
+            ml_metrics=["accuracy"],
+        )
+        results = ExperimentResults(config)
+
+        results.add_split_result(
+            1.0,
+            {"F1": 0.5, "N3": 0.3},
+            {"F1": 0.6, "N3": 0.4},
+            {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.85, "std": 0.0}}},
+        )
+        results.add_split_result(
+            2.0,
+            {"F1": 0.4, "N3": 0.5},
+            {"F1": 0.5, "N3": 0.6},
+            {"Model": {"accuracy": {"mean": 0.90, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.80, "std": 0.0}}},
+        )
+        results.finalize()
+
+        results.correlations_df = pd.DataFrame(
+            {
+                "complexity_metric": ["F1", "N3"],
+                "ml_metric": ["best_accuracy", "best_accuracy"],
+                "correlation": [-0.8, 0.6],
+                "p_value": [0.01, 0.05],
+                "abs_correlation": [0.8, 0.6],
+            }
+        )
+
+        return config, results
+
     def test_save_load_roundtrip(self, results_with_data, tmp_path):
         config, results = results_with_data
         save_dir = tmp_path / "test_results"
@@ -349,6 +600,42 @@ class TestSaveLoad:
         pd.testing.assert_frame_equal(
             loaded.ml_df.reset_index(drop=True),
             results.ml_df.reset_index(drop=True),
+        )
+
+    def test_save_load_split_roundtrip(self, split_results_with_data, tmp_path):
+        """Test save/load round-trip with train/test split results."""
+        config, results = split_results_with_data
+        save_dir = tmp_path / "test_split_results"
+
+        exp = Experiment(config)
+        exp.results = results
+        exp.save(save_dir)
+
+        # Check train/test CSVs exist
+        assert (save_dir / "data" / "train_complexity_metrics.csv").exists()
+        assert (save_dir / "data" / "test_complexity_metrics.csv").exists()
+        assert (save_dir / "data" / "train_ml_performance.csv").exists()
+        assert (save_dir / "data" / "test_ml_performance.csv").exists()
+
+        # Load and verify
+        exp2 = Experiment(config)
+        loaded = exp2.load_results(save_dir)
+
+        pd.testing.assert_frame_equal(
+            loaded.train_complexity_df.reset_index(drop=True),
+            results.train_complexity_df.reset_index(drop=True),
+        )
+        pd.testing.assert_frame_equal(
+            loaded.test_complexity_df.reset_index(drop=True),
+            results.test_complexity_df.reset_index(drop=True),
+        )
+        pd.testing.assert_frame_equal(
+            loaded.train_ml_df.reset_index(drop=True),
+            results.train_ml_df.reset_index(drop=True),
+        )
+        pd.testing.assert_frame_equal(
+            loaded.test_ml_df.reset_index(drop=True),
+            results.test_ml_df.reset_index(drop=True),
         )
 
     def test_load_legacy_flat_structure(self, tmp_path):
@@ -515,3 +802,43 @@ class TestErrorHandling:
 
         with pytest.raises(RuntimeError, match="Must run experiment"):
             exp.save()
+
+
+class TestEvaluateModelsTrainTest:
+    """Tests for evaluate_models_train_test function."""
+
+    def test_basic_evaluation(self):
+        from data_complexity.model_experiments.ml import (
+            evaluate_models_train_test,
+            LogisticRegressionModel,
+            AccuracyMetric,
+        )
+
+        np.random.seed(42)
+        X_train = np.vstack([
+            np.random.randn(50, 2) + [2, 2],
+            np.random.randn(50, 2) + [-2, -2],
+        ])
+        y_train = np.array([0] * 50 + [1] * 50)
+        X_test = np.vstack([
+            np.random.randn(20, 2) + [2, 2],
+            np.random.randn(20, 2) + [-2, -2],
+        ])
+        y_test = np.array([0] * 20 + [1] * 20)
+
+        train_data = {"X": X_train, "y": y_train}
+        test_data = {"X": X_test, "y": y_test}
+
+        train_results, test_results = evaluate_models_train_test(
+            train_data, test_data,
+            models=[LogisticRegressionModel()],
+            metrics=[AccuracyMetric()],
+        )
+
+        assert "LogisticRegression" in train_results
+        assert "LogisticRegression" in test_results
+        assert "accuracy" in train_results["LogisticRegression"]
+        assert "accuracy" in test_results["LogisticRegression"]
+        # Train accuracy should be high for well-separated data
+        assert train_results["LogisticRegression"]["accuracy"]["mean"] > 0.8
+        assert test_results["LogisticRegression"]["accuracy"]["mean"] > 0.8

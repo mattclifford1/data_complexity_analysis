@@ -3,7 +3,9 @@ Generic experiment framework for complexity vs ML performance analysis.
 
 Provides a configurable, reusable framework for running experiments that
 measure the correlation between data complexity metrics and ML classifier
-performance.
+performance. All experiments use train/test splits: complexity is computed
+on both splits independently, and ML models are trained on the training set
+and evaluated on both.
 """
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -13,15 +15,15 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 from scipy import stats
+from sklearn.model_selection import train_test_split
 
 from data_complexity.metrics import complexity_metrics
 from data_complexity.model_experiments.ml import (
     AbstractMLModel,
     get_default_models,
-    evaluate_models,
+    evaluate_models_train_test,
     get_best_metric,
     get_mean_metric,
-    get_metrics_dict,
     get_metrics_from_names,
 )
 from data_complexity.model_experiments.plotting import (
@@ -79,11 +81,14 @@ class DatasetSpec:
         Parameters that remain constant across experiment iterations.
     num_samples : int
         Number of samples per dataset. Default: 400
+    train_size : float
+        Fraction of data used for training. Default: 0.5
     """
 
     dataset_type: str
     fixed_params: Dict[str, Any] = field(default_factory=dict)
     num_samples: int = 400
+    train_size: float = 0.5
 
 
 @dataclass
@@ -102,7 +107,7 @@ class ExperimentConfig:
     ml_metrics : list of str
         ML metrics to compute. Default: ['accuracy', 'f1']
     cv_folds : int
-        Cross-validation folds. Default: 5
+        Number of random seeds for train/test splitting. Default: 5
     name : str, optional
         Experiment name. Auto-generated if None.
     save_dir : Path, optional
@@ -137,21 +142,145 @@ class ExperimentConfig:
         return f"{self.dataset.dataset_type.lower()}_{self.vary_parameter.name}"
 
 
+def _apply_minority_reduction(
+    data: Dict[str, np.ndarray], scaler: float
+) -> Dict[str, np.ndarray]:
+    """
+    Reduce the minority class by a given factor.
+
+    Parameters
+    ----------
+    data : dict
+        Data dict with 'X' and 'y' keys.
+    scaler : float
+        Reduction factor. Minority count becomes majority_count / scaler.
+
+    Returns
+    -------
+    dict
+        New data dict with reduced minority class.
+    """
+    X, y = data["X"], data["y"]
+    classes, counts = np.unique(y, return_counts=True)
+    majority_class = classes[np.argmax(counts)]
+    minority_class = classes[np.argmin(counts)]
+    majority_count = counts[np.argmax(counts)]
+
+    target_minority = int(majority_count / scaler)
+    if target_minority < 1:
+        target_minority = 1
+
+    minority_mask = y == minority_class
+    minority_indices = np.where(minority_mask)[0]
+    majority_indices = np.where(~minority_mask)[0]
+
+    rng = np.random.RandomState(42)
+    keep_indices = rng.choice(minority_indices, size=target_minority, replace=False)
+    all_indices = np.concatenate([majority_indices, keep_indices])
+    all_indices.sort()
+
+    return {"X": X[all_indices], "y": y[all_indices]}
+
+
+def _average_dicts(dicts: List[Dict[str, float]]) -> Dict[str, float]:
+    """Average a list of metric dicts element-wise."""
+    if not dicts:
+        return {}
+    keys = dicts[0].keys()
+    return {k: np.mean([d[k] for d in dicts if k in d]) for k in keys}
+
+
+def _average_ml_results(
+    results_list: List[Dict[str, Dict[str, Dict[str, float]]]]
+) -> Dict[str, Dict[str, Dict[str, float]]]:
+    """
+    Average ML results across multiple seeds.
+
+    Parameters
+    ----------
+    results_list : list
+        Each element: model_name -> metric_name -> {'mean': float, 'std': float}
+
+    Returns
+    -------
+    dict
+        Averaged results with std computed across seeds.
+    """
+    if not results_list:
+        return {}
+
+    model_names = results_list[0].keys()
+    averaged = {}
+
+    for model in model_names:
+        averaged[model] = {}
+        metric_names = results_list[0][model].keys()
+        for metric in metric_names:
+            values = [r[model][metric]["mean"] for r in results_list if model in r and metric in r[model]]
+            averaged[model][metric] = {
+                "mean": np.mean(values),
+                "std": np.std(values),
+            }
+
+    return averaged
+
+
 class ExperimentResults:
     """
     Container for experiment results with DataFrame storage.
 
     Stores complexity metrics and ML performance for each parameter value,
-    and provides methods for correlation analysis.
+    separately for train and test splits. For backward compatibility,
+    ``complexity_df`` returns train complexity and ``ml_df`` returns test ML.
     """
 
     def __init__(self, config: ExperimentConfig):
         self.config = config
+        # Legacy rows (kept for backward compat with add_result)
         self._complexity_rows: List[Dict[str, Any]] = []
         self._ml_rows: List[Dict[str, Any]] = []
         self._complexity_df: Optional[pd.DataFrame] = None
         self._ml_df: Optional[pd.DataFrame] = None
         self._correlations_df: Optional[pd.DataFrame] = None
+
+        # Train/test split rows
+        self._train_complexity_rows: List[Dict[str, Any]] = []
+        self._test_complexity_rows: List[Dict[str, Any]] = []
+        self._train_ml_rows: List[Dict[str, Any]] = []
+        self._test_ml_rows: List[Dict[str, Any]] = []
+        self._train_complexity_df: Optional[pd.DataFrame] = None
+        self._test_complexity_df: Optional[pd.DataFrame] = None
+        self._train_ml_df: Optional[pd.DataFrame] = None
+        self._test_ml_df: Optional[pd.DataFrame] = None
+
+    def _build_ml_row(
+        self,
+        param_value: Any,
+        ml_results: Dict[str, Dict[str, Dict[str, float]]],
+    ) -> Dict[str, Any]:
+        """Build an ML row dict from model results."""
+        ml_row: Dict[str, Any] = {"param_value": param_value}
+        for metric in self.config.ml_metrics:
+            ml_row[f"best_{metric}"] = get_best_metric(ml_results, metric)
+            ml_row[f"mean_{metric}"] = get_mean_metric(ml_results, metric)
+        for model_name, metrics in ml_results.items():
+            for metric in self.config.ml_metrics:
+                if metric in metrics:
+                    ml_row[f"{model_name}_{metric}"] = metrics[metric]["mean"]
+        return ml_row
+
+    def _build_complexity_row(
+        self,
+        param_value: Any,
+        complexity_metrics_dict: Dict[str, float],
+    ) -> Dict[str, Any]:
+        """Build a complexity row dict."""
+        row = {
+            "param_value": param_value,
+            "param_label": self.config.vary_parameter.format_label(param_value),
+        }
+        row.update(complexity_metrics_dict)
+        return row
 
     def add_result(
         self,
@@ -160,7 +289,7 @@ class ExperimentResults:
         ml_results: Dict[str, Dict[str, Dict[str, float]]],
     ) -> None:
         """
-        Add results for a single parameter value.
+        Add results for a single parameter value (legacy, no train/test split).
 
         Parameters
         ----------
@@ -171,43 +300,117 @@ class ExperimentResults:
         ml_results : dict
             Model name -> metric name -> {'mean': float, 'std': float}
         """
-        complexity_row = {
-            "param_value": param_value,
-            "param_label": self.config.vary_parameter.format_label(param_value),
-        }
-        complexity_row.update(complexity_metrics_dict)
-        self._complexity_rows.append(complexity_row)
+        self._complexity_rows.append(
+            self._build_complexity_row(param_value, complexity_metrics_dict)
+        )
+        self._ml_rows.append(self._build_ml_row(param_value, ml_results))
 
-        ml_row = {"param_value": param_value}
+    def add_split_result(
+        self,
+        param_value: Any,
+        train_complexity_dict: Dict[str, float],
+        test_complexity_dict: Dict[str, float],
+        train_ml_results: Dict[str, Dict[str, Dict[str, float]]],
+        test_ml_results: Dict[str, Dict[str, Dict[str, float]]],
+    ) -> None:
+        """
+        Add results for a single parameter value with train/test split.
 
-        for metric in self.config.ml_metrics:
-            ml_row[f"best_{metric}"] = get_best_metric(ml_results, metric)
-            ml_row[f"mean_{metric}"] = get_mean_metric(ml_results, metric)
-
-        for model_name, metrics in ml_results.items():
-            for metric in self.config.ml_metrics:
-                if metric in metrics:
-                    ml_row[f"{model_name}_{metric}"] = metrics[metric]["mean"]
-
-        self._ml_rows.append(ml_row)
+        Parameters
+        ----------
+        param_value : Any
+            The parameter value used for this iteration.
+        train_complexity_dict : dict
+            Complexity metrics computed on training data.
+        test_complexity_dict : dict
+            Complexity metrics computed on test data.
+        train_ml_results : dict
+            ML results evaluated on training data.
+        test_ml_results : dict
+            ML results evaluated on test data.
+        """
+        self._train_complexity_rows.append(
+            self._build_complexity_row(param_value, train_complexity_dict)
+        )
+        self._test_complexity_rows.append(
+            self._build_complexity_row(param_value, test_complexity_dict)
+        )
+        self._train_ml_rows.append(self._build_ml_row(param_value, train_ml_results))
+        self._test_ml_rows.append(self._build_ml_row(param_value, test_ml_results))
 
     def finalize(self) -> None:
         """Convert collected rows to DataFrames."""
-        self._complexity_df = pd.DataFrame(self._complexity_rows)
-        self._ml_df = pd.DataFrame(self._ml_rows)
+        if self._complexity_rows:
+            self._complexity_df = pd.DataFrame(self._complexity_rows)
+        if self._ml_rows:
+            self._ml_df = pd.DataFrame(self._ml_rows)
+        if self._train_complexity_rows:
+            self._train_complexity_df = pd.DataFrame(self._train_complexity_rows)
+        if self._test_complexity_rows:
+            self._test_complexity_df = pd.DataFrame(self._test_complexity_rows)
+        if self._train_ml_rows:
+            self._train_ml_df = pd.DataFrame(self._train_ml_rows)
+        if self._test_ml_rows:
+            self._test_ml_df = pd.DataFrame(self._test_ml_rows)
+
+    @property
+    def train_complexity_df(self) -> Optional[pd.DataFrame]:
+        """Get train complexity metrics DataFrame."""
+        if self._train_complexity_df is None and self._train_complexity_rows:
+            self.finalize()
+        return self._train_complexity_df
+
+    @property
+    def test_complexity_df(self) -> Optional[pd.DataFrame]:
+        """Get test complexity metrics DataFrame."""
+        if self._test_complexity_df is None and self._test_complexity_rows:
+            self.finalize()
+        return self._test_complexity_df
+
+    @property
+    def train_ml_df(self) -> Optional[pd.DataFrame]:
+        """Get train ML performance DataFrame."""
+        if self._train_ml_df is None and self._train_ml_rows:
+            self.finalize()
+        return self._train_ml_df
+
+    @property
+    def test_ml_df(self) -> Optional[pd.DataFrame]:
+        """Get test ML performance DataFrame."""
+        if self._test_ml_df is None and self._test_ml_rows:
+            self.finalize()
+        return self._test_ml_df
 
     @property
     def complexity_df(self) -> pd.DataFrame:
-        """Get complexity metrics DataFrame."""
+        """Get complexity metrics DataFrame.
+
+        Returns train complexity if available (train/test mode),
+        otherwise falls back to legacy complexity_df.
+        """
+        if self._train_complexity_df is not None:
+            return self._train_complexity_df
         if self._complexity_df is None:
             self.finalize()
+        # After finalize, prefer train if available
+        if self._train_complexity_df is not None:
+            return self._train_complexity_df
         return self._complexity_df
 
     @property
     def ml_df(self) -> pd.DataFrame:
-        """Get ML performance DataFrame."""
+        """Get ML performance DataFrame.
+
+        Returns test ML if available (train/test mode),
+        otherwise falls back to legacy ml_df.
+        """
+        if self._test_ml_df is not None:
+            return self._test_ml_df
         if self._ml_df is None:
             self.finalize()
+        # After finalize, prefer test if available
+        if self._test_ml_df is not None:
+            return self._test_ml_df
         return self._ml_df
 
     @property
@@ -224,10 +427,30 @@ class ExperimentResults:
         """Get list of parameter values."""
         return self.complexity_df["param_value"].tolist()
 
+    def _get_complexity_df(self, source: str = "train") -> pd.DataFrame:
+        """Get complexity DataFrame by source ('train' or 'test')."""
+        if source == "test" and self._test_complexity_df is not None:
+            return self._test_complexity_df
+        if source == "train" and self._train_complexity_df is not None:
+            return self._train_complexity_df
+        return self.complexity_df
+
+    def _get_ml_df(self, source: str = "test") -> pd.DataFrame:
+        """Get ML DataFrame by source ('train' or 'test')."""
+        if source == "train" and self._train_ml_df is not None:
+            return self._train_ml_df
+        if source == "test" and self._test_ml_df is not None:
+            return self._test_ml_df
+        return self.ml_df
+
 
 class Experiment:
     """
     Main experiment runner for complexity vs ML performance analysis.
+
+    Uses train/test splits: for each parameter value and random seed, the data
+    is split into train and test sets. Complexity metrics are computed on both,
+    and ML models are trained on train and evaluated on both.
 
     Parameters
     ----------
@@ -251,7 +474,12 @@ class Experiment:
 
     def run(self, verbose: bool = True) -> ExperimentResults:
         """
-        Execute the experiment loop.
+        Execute the experiment loop with train/test splits.
+
+        For each parameter value, generates a dataset, then for each random
+        seed (controlled by ``cv_folds``), splits into train/test, computes
+        complexity on both, and trains ML models on train to evaluate on both.
+        Results are averaged across seeds.
 
         Parameters
         ----------
@@ -261,51 +489,103 @@ class Experiment:
         Returns
         -------
         ExperimentResults
-            Results container with complexity and ML DataFrames.
+            Results container with train/test complexity and ML DataFrames.
         """
         self._load_dataset_loader()
         self.results = ExperimentResults(self.config)
 
         models = self.config.models or get_default_models()
+        metrics = get_metrics_from_names(self.config.ml_metrics)
+        train_size = self.config.dataset.train_size
+        cv_folds = self.config.cv_folds
 
         if verbose:
             print(f"Running experiment: {self.config.name}")
             print(f"  Dataset: {self.config.dataset.dataset_type}")
             print(f"  Varying: {self.config.vary_parameter.name}")
             print(f"  Values: {self.config.vary_parameter.values}")
+            print(f"  Train size: {train_size}, Seeds: {cv_folds}")
             print()
 
         for param_value in self.config.vary_parameter.values:
+            # Build dataset params (exclude minority_reduce_scaler from dataset creation)
             params = dict(self.config.dataset.fixed_params)
-            params[self.config.vary_parameter.name] = param_value
+            if self.config.vary_parameter.name != "minority_reduce_scaler":
+                params[self.config.vary_parameter.name] = param_value
             params["num_samples"] = self.config.dataset.num_samples
             params["name"] = self.config.vary_parameter.format_label(param_value)
 
             dataset = self._get_dataset(self.config.dataset.dataset_type, **params)
-            self.datasets[param_value] = dataset  # Store for later visualization
-            data = dataset.get_data_dict()
-            X, y = data["X"], data["y"]
+            self.datasets[param_value] = dataset
+            full_data = dataset.get_data_dict()
+            X_orig, y_orig = full_data["X"].copy(), full_data["y"].copy()
 
-            complexity = complexity_metrics(dataset=data)
-            complexity_dict = complexity.get_all_metrics_scalar()
+            # Determine minority_reduce_scaler
+            minority_reduce_scaler = self._get_minority_reduce_scaler(param_value)
 
-            # Convert metric names from config to metric objects
-            metrics = get_metrics_from_names(self.config.ml_metrics)
-            ml_results = evaluate_models(
-                data, models=models, metrics=metrics, cv_folds=self.config.cv_folds
+            # Accumulate results across seeds
+            train_complexity_accum: List[Dict[str, float]] = []
+            test_complexity_accum: List[Dict[str, float]] = []
+            train_ml_accum: List[Dict] = []
+            test_ml_accum: List[Dict] = []
+
+            for seed_i in range(cv_folds):
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_orig, y_orig,
+                    test_size=1 - train_size,
+                    stratify=y_orig,
+                    random_state=42 + seed_i,
+                )
+                train_data = {"X": X_train, "y": y_train}
+                test_data = {"X": X_test, "y": y_test}
+
+                # Apply minority reduction to training data only
+                if minority_reduce_scaler is not None and minority_reduce_scaler > 1:
+                    train_data = _apply_minority_reduction(train_data, minority_reduce_scaler)
+
+                # Complexity on train and test
+                train_cmplx = complexity_metrics(dataset=train_data).get_all_metrics_scalar()
+                test_cmplx = complexity_metrics(dataset=test_data).get_all_metrics_scalar()
+
+                # ML: train on train, evaluate on both
+                train_ml, test_ml = evaluate_models_train_test(
+                    train_data, test_data, models=models, metrics=metrics,
+                )
+
+                train_complexity_accum.append(train_cmplx)
+                test_complexity_accum.append(test_cmplx)
+                train_ml_accum.append(train_ml)
+                test_ml_accum.append(test_ml)
+
+            # Average across seeds
+            avg_train_complexity = _average_dicts(train_complexity_accum)
+            avg_test_complexity = _average_dicts(test_complexity_accum)
+            avg_train_ml = _average_ml_results(train_ml_accum)
+            avg_test_ml = _average_ml_results(test_ml_accum)
+
+            self.results.add_split_result(
+                param_value, avg_train_complexity, avg_test_complexity,
+                avg_train_ml, avg_test_ml,
             )
 
-            self.results.add_result(param_value, complexity_dict, ml_results)
-
             if verbose:
-                best_acc = get_best_metric(ml_results, "accuracy")
-                print(f"  {params['name']}: best_accuracy={best_acc:.3f}")
+                best_acc = get_best_metric(avg_test_ml, "accuracy")
+                print(f"  {params['name']}: best_test_accuracy={best_acc:.3f}")
 
         self.results.finalize()
         return self.results
 
+    def _get_minority_reduce_scaler(self, param_value: Any) -> Optional[float]:
+        """Determine minority_reduce_scaler for the current iteration."""
+        if self.config.vary_parameter.name == "minority_reduce_scaler":
+            return param_value
+        return self.config.dataset.fixed_params.get("minority_reduce_scaler")
+
     def compute_correlations(
-        self, ml_column: Optional[str] = None
+        self,
+        ml_column: Optional[str] = None,
+        complexity_source: str = "train",
+        ml_source: str = "test",
     ) -> pd.DataFrame:
         """
         Compute correlations between complexity metrics and ML performance.
@@ -315,6 +595,10 @@ class Experiment:
         ml_column : str, optional
             ML metric column to correlate against.
             Default: config.correlation_target
+        complexity_source : str
+            Which complexity to use: 'train' or 'test'. Default: 'train'
+        ml_source : str
+            Which ML results to use: 'train' or 'test'. Default: 'test'
 
         Returns
         -------
@@ -325,8 +609,8 @@ class Experiment:
             raise RuntimeError("Must run experiment before computing correlations.")
 
         ml_column = ml_column or self.config.correlation_target
-        complexity_df = self.results.complexity_df
-        ml_df = self.results.ml_df
+        complexity_df = self.results._get_complexity_df(complexity_source)
+        ml_df = self.results._get_ml_df(ml_source)
 
         metric_cols = [
             c for c in complexity_df.columns if c not in ("param_value", "param_label")
@@ -490,9 +774,27 @@ class Experiment:
         plots_dir.mkdir(exist_ok=True)
         datasets_dir.mkdir(exist_ok=True)
 
-        # Save CSVs to data/ subfolder
+        # Save backward-compat CSVs (train complexity + test ML)
         self.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
         self.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
+
+        # Save train/test split CSVs if available
+        if self.results.train_complexity_df is not None:
+            self.results.train_complexity_df.to_csv(
+                data_dir / "train_complexity_metrics.csv", index=False
+            )
+        if self.results.test_complexity_df is not None:
+            self.results.test_complexity_df.to_csv(
+                data_dir / "test_complexity_metrics.csv", index=False
+            )
+        if self.results.train_ml_df is not None:
+            self.results.train_ml_df.to_csv(
+                data_dir / "train_ml_performance.csv", index=False
+            )
+        if self.results.test_ml_df is not None:
+            self.results.test_ml_df.to_csv(
+                data_dir / "test_ml_performance.csv", index=False
+            )
 
         if self.results.correlations_df is not None:
             self.results.correlations_df.to_csv(data_dir / "correlations.csv", index=False)
@@ -622,6 +924,31 @@ class Experiment:
 
         if corr_path.exists():
             self.results._correlations_df = pd.read_csv(corr_path)
+
+        # Load train/test CSVs if present
+        train_complexity_path = self._resolve_path(
+            save_dir, "train_complexity_metrics.csv", "data"
+        )
+        if train_complexity_path.exists():
+            self.results._train_complexity_df = pd.read_csv(train_complexity_path)
+
+        test_complexity_path = self._resolve_path(
+            save_dir, "test_complexity_metrics.csv", "data"
+        )
+        if test_complexity_path.exists():
+            self.results._test_complexity_df = pd.read_csv(test_complexity_path)
+
+        train_ml_path = self._resolve_path(
+            save_dir, "train_ml_performance.csv", "data"
+        )
+        if train_ml_path.exists():
+            self.results._train_ml_df = pd.read_csv(train_ml_path)
+
+        test_ml_path = self._resolve_path(
+            save_dir, "test_ml_performance.csv", "data"
+        )
+        if test_ml_path.exists():
+            self.results._test_ml_df = pd.read_csv(test_ml_path)
 
         self.datasets = {}  # Clear since we don't have loaders for loaded results
 

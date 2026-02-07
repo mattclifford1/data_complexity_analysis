@@ -4,6 +4,9 @@ Example: Run Gaussian imbalance experiment with custom configuration.
 Demonstrates how to study the effect of class imbalance on complexity metrics
 and ML model performance. Uses minority_reduce_scaler to vary imbalance from
 balanced (1x) to extreme imbalance (16x).
+
+Imbalance is applied to the training set after the train/test split, so
+complexity metrics reflect the actual imbalanced training data.
 """
 from data_complexity.model_experiments.experiment import (
     Experiment,
@@ -34,6 +37,7 @@ config = ExperimentConfig(
         dataset_type="Gaussian",
         fixed_params={"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0},
         num_samples=400,
+        train_size=0.5,
     ),
     vary_parameter=ParameterSpec(
         name="minority_reduce_scaler",
