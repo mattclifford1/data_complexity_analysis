@@ -54,10 +54,48 @@ class complexity_metrics:
 
     def get_all_metrics_scalar(self):
         all_metrics = {}
-        all_metrics.update(self.feature_overlap_scalar())
-        all_metrics.update(self.instance_overlap_scalar())
-        all_metrics.update(self.structural_overlap_scalar())
-        all_metrics.update(self.classical_measures_scalar())
+
+        # Try each category separately and continue if one fails
+        try:
+            all_metrics.update(self.feature_overlap_scalar())
+        except Exception as e:
+            # If a category fails, add NaN for its metrics
+            print(f"Warning: Feature overlap metrics failed: {e}")
+            all_metrics.update({
+                'F1': np.nan, 'F1v': np.nan, 'F2': np.nan,
+                'F3': np.nan, 'F4': np.nan, 'IN': np.nan
+            })
+
+        try:
+            all_metrics.update(self.instance_overlap_scalar())
+        except Exception as e:
+            print(f"Warning: Instance overlap metrics failed: {e}")
+            # Add NaN for instance overlap metrics
+            instance_names = ['R-value', 'Raug', 'degOver', 'N3', 'SI', 'N4',
+                            'kDN', 'D3', 'CM', 'wCM', 'dwCM',
+                            'Borderline Examples', 'IPoints']
+            for name in instance_names:
+                all_metrics[name] = np.nan
+
+        try:
+            all_metrics.update(self.structural_overlap_scalar())
+        except Exception as e:
+            print(f"Warning: Structural overlap metrics failed: {e}")
+            # Add NaN for structural overlap metrics
+            structural_names = ['N1', 'T1', 'Clust', 'ONB', 'LSCAvg',
+                              'DBC', 'N2', 'NSG', 'ICSV']
+            for name in structural_names:
+                all_metrics[name] = np.nan
+
+        try:
+            all_metrics.update(self.classical_measures_scalar())
+        except Exception as e:
+            print(f"Warning: Classical measures failed: {e}")
+            # Add NaN for classical measures
+            classical_names = ['MRCA', 'C1', 'C2', 'Purity', 'Neighbourhood Separability']
+            for name in classical_names:
+                all_metrics[name] = np.nan
+
         return all_metrics
     
     def get_all_metrics_full(self):

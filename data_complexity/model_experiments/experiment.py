@@ -7,6 +7,7 @@ performance. All experiments use train/test splits: complexity is computed
 on both splits independently, and ML models are trained on the training set
 and evaluated on both.
 """
+import copy
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -490,7 +491,9 @@ class Experiment:
 
             for seed_i in range(cv_folds):
                 # Get fresh copy of data for each seed
-                full_data = dataset.get_data_dict()
+                # IMPORTANT: Must deep copy because proportional_split mutates in place
+                # and get_data_dict() returns a reference, not a copy
+                full_data = copy.deepcopy(dataset.get_data_dict())
 
                 # Use dataset's built-in proportional_split with minority_reduce_scaler
                 # proportional_split mutates full_data to be train and returns test
