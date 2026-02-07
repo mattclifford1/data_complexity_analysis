@@ -505,10 +505,32 @@ class Experiment:
             plt.close(fig)
 
         # Save dataset visualizations to datasets/ subfolder
+        # Create dual plot: full dataset + train/test split
         for param_value, dataset in self.datasets.items():
-            fig, ax = plt.subplots(figsize=(8, 6))
-            dataset.plot_dataset(ax=ax)
             param_label = self.config.vary_parameter.format_label(param_value)
+
+            # Try to create train/test split plot
+            # Some datasets may not support splitting (e.g., minority_reduce_scaler=1)
+            try:
+                fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+                # Left: Full dataset
+                dataset.plot_dataset(ax=axes[0])
+                axes[0].set_title("Full Dataset", fontsize=12, fontweight='bold')
+
+                # Middle & Right: Train/test split
+                dataset.plot_train_test_split(ax=(axes[1], axes[2]))
+
+                # Add overall title with parameter value
+                fig.suptitle(f"Dataset: {param_label}", fontsize=14, fontweight='bold', y=1.02)
+
+            except (ValueError, AttributeError):
+                # Fallback: single plot if train/test split not supported
+                plt.close(fig)  # Close the 3-panel figure
+                fig, ax = plt.subplots(figsize=(8, 6))
+                dataset.plot_dataset(ax=ax)
+                ax.set_title(f"Full Dataset: {param_label}", fontsize=12, fontweight='bold')
+
             # Sanitize label for filename (replace = with _)
             safe_label = param_label.replace("=", "_").replace(" ", "_")
             filename = f"dataset_{safe_label}.png"
