@@ -285,11 +285,12 @@ class TestExperimentRun:
         self, mock_evaluate, mock_complexity, simple_config
     ):
         """Test experiment run with mocked data loaders."""
+        train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
+        test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
+
         mock_dataset = MagicMock()
-        mock_dataset.get_data_dict.return_value = {
-            "X": np.random.rand(50, 2),
-            "y": np.array([0] * 25 + [1] * 25),
-        }
+        mock_dataset.get_data_dict.return_value = train_data
+        mock_dataset.get_train_test_split.return_value = (train_data, test_data)
 
         mock_get_dataset = MagicMock(return_value=mock_dataset)
 
@@ -322,11 +323,11 @@ class TestExperimentRun:
     @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
     def test_compute_correlations(self, mock_evaluate, mock_complexity, simple_config):
         """Test correlation computation."""
+        train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
+        test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
+
         mock_dataset = MagicMock()
-        mock_dataset.get_data_dict.return_value = {
-            "X": np.random.rand(50, 2),
-            "y": np.array([0] * 25 + [1] * 25),
-        }
+        mock_dataset.get_train_test_split.return_value = (train_data, test_data)
         mock_get_dataset = MagicMock(return_value=mock_dataset)
 
         mock_complexity_instance = MagicMock()
@@ -365,11 +366,11 @@ class TestExperimentRun:
         self, mock_evaluate, mock_complexity, simple_config
     ):
         """Test that run stores train and test results separately."""
+        train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
+        test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
+
         mock_dataset = MagicMock()
-        mock_dataset.get_data_dict.return_value = {
-            "X": np.random.rand(50, 2),
-            "y": np.array([0] * 25 + [1] * 25),
-        }
+        mock_dataset.get_train_test_split.return_value = (train_data, test_data)
         mock_get_dataset = MagicMock(return_value=mock_dataset)
 
         mock_complexity_instance = MagicMock()
@@ -405,11 +406,11 @@ class TestExperimentRun:
         self, mock_evaluate, mock_complexity, simple_config
     ):
         """Test that correlations can use different sources."""
+        train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
+        test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
+
         mock_dataset = MagicMock()
-        mock_dataset.get_data_dict.return_value = {
-            "X": np.random.rand(50, 2),
-            "y": np.array([0] * 25 + [1] * 25),
-        }
+        mock_dataset.get_train_test_split.return_value = (train_data, test_data)
         mock_get_dataset = MagicMock(return_value=mock_dataset)
 
         # Different complexity for train vs test
