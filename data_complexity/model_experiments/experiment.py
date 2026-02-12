@@ -10,9 +10,12 @@ and evaluated on both.
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from scipy import stats
+from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 from tqdm import tqdm
 
 from data_complexity.metrics import complexity_metrics
@@ -232,7 +235,9 @@ class Experiment:
             if np.std(values) == 0 or np.any(np.isnan(values)) or np.any(np.isnan(ml_values)):
                 continue
 
-            r, p = stats.pearsonr(values, ml_values)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
+                r, p = stats.pearsonr(values, ml_values)
             results.append(
                 {
                     "complexity_metric": metric,
@@ -293,7 +298,9 @@ class Experiment:
             if np.std(values) == 0 or np.any(np.isnan(values)) or np.any(np.isnan(ml_values)):
                 continue
 
-            r, p = stats.pearsonr(values, ml_values)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
+                r, p = stats.pearsonr(values, ml_values)
             results.append(
                 {
                     "complexity_metric": metric,

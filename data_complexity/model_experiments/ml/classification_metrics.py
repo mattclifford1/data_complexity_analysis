@@ -234,7 +234,7 @@ class PrecisionMetric(AbstractEvaluationMetric):
         return "precision"
 
     def compute(self, y_true, y_pred) -> float:
-        prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
+        prec, _, _, _ = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
         # Return class 1 precision (positive class) as scalar
         return float(prec[1])
 
@@ -296,7 +296,7 @@ class FScoreMetric(AbstractEvaluationMetric):
         return "fscore"
 
     def compute(self, y_true, y_pred) -> float:
-        prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
+        _, _, fscor, _ = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
         # Return class 1 F-score (positive class) as scalar
         return float(fscor[1])
     
@@ -313,7 +313,7 @@ class RecallMetric(AbstractEvaluationMetric):
         return "recall"
 
     def compute(self, y_true, y_pred) -> float:
-        prec, recal, fscor, sup = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
+        _, recal, _, _ = precision_recall_fscore_support(y_true, y_pred, zero_division=0)
         # Return class 1 recall (positive class) as scalar
         return float(recal[1])
 

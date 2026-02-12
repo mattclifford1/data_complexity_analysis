@@ -24,3 +24,9 @@ dev = [
 dev = [
     "pytest>=8.0.0",
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::sklearn.exceptions.ConvergenceWarning",
+    "ignore:numpy.core.*is deprecated:DeprecationWarning",
+]
