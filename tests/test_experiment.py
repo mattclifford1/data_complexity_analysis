@@ -362,10 +362,13 @@ class TestExperimentRun:
         ]
         mock_complexity_instance.get_all_metrics_scalar.side_effect = complexity_values
 
-        mock_evaluate.return_value = (
-            {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
-            {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}},
-        )
+        # Return different accuracy values for param=1.0 vs param=2.0
+        mock_evaluate.side_effect = [
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}}),
+        ]
 
         exp = Experiment(simple_config)
         exp._get_dataset = mock_get_dataset
@@ -446,10 +449,13 @@ class TestExperimentRun:
         mock_complexity_instance.get_all_metrics_scalar.side_effect = side_effect_complexity
         mock_complexity.return_value = mock_complexity_instance
 
-        mock_evaluate.return_value = (
-            {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
-            {"Model": {"accuracy": {"mean": 0.85, "std": 0.0}}},
-        )
+        # Return different accuracy values for param=1.0 vs param=2.0 so ml_values isn't constant
+        mock_evaluate.side_effect = [
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}}),
+            ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}}),
+        ]
 
         exp = Experiment(simple_config)
         exp._get_dataset = mock_get_dataset

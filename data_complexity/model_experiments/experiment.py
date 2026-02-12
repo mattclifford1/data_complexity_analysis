@@ -8,7 +8,7 @@ on both splits independently, and ML models are trained on the training set
 and evaluated on both.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -17,31 +17,30 @@ from tqdm import tqdm
 
 from data_complexity.metrics import complexity_metrics
 from data_complexity.model_experiments.ml import (
-    AbstractMLModel,
     get_default_models,
     evaluate_models_train_test,
     get_best_metric,
-    get_mean_metric,
     get_metrics_from_names,
 )
 from data_complexity.model_experiments.plotting import (
     plot_correlations,
-    plot_metric_vs_accuracy,
     plot_summary,
-    plot_correlation_heatmap,
     plot_model_comparison,
 )
 
 from data_complexity.model_experiments.experiment_utils import (
-    DatasetSpec,
+    DatasetSpec as DatasetSpec,
     ExperimentConfig,
     ExperimentResults,
-    ParameterSpec,
+    ParameterSpec as ParameterSpec,
     _average_dicts,
     _average_ml_results,
     _std_dicts,
     PlotType,
 )
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 
 
@@ -68,8 +67,8 @@ class Experiment:
     def _load_dataset_loader(self):
         """Lazy load data_loaders to avoid import at module level."""
         if self._get_dataset is None:
-            import data_loaders
-            from data_loaders import get_dataset
+            import data_loaders  # type: ignore
+            from data_loaders import get_dataset  # type: ignore
 
             self._get_dataset = get_dataset
 
@@ -220,6 +219,13 @@ class Experiment:
         ml_values = ml_df[ml_column].values
         results = []
 
+        if np.std(ml_values) == 0:
+            correlations_df = pd.DataFrame(
+                columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
+            )
+            self.results.correlations_df = correlations_df
+            return correlations_df
+
         for metric in metric_cols:
             values = complexity_df[metric].values
 
@@ -276,6 +282,11 @@ class Experiment:
         ml_values = ml_df[ml_column].values
         results = []
 
+        if np.std(ml_values) == 0:
+            return pd.DataFrame(
+                columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
+            )
+
         for metric in metric_cols:
             values = complexity_df[metric].values
 
@@ -314,8 +325,6 @@ class Experiment:
         dict
             PlotType -> matplotlib Figure
         """
-        import matplotlib.pyplot as plt
-
         if self.results is None:
             raise RuntimeError("Must run experiment before plotting.")
 
