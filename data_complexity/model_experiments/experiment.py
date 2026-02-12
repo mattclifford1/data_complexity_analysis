@@ -112,12 +112,15 @@ class Experiment:
             print(f"  Train size: {train_size}, Seeds: {cv_folds}")
             print()
 
-        for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values:"):
+        for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
             # Build dataset params (include all parameters)
             params = dict(self.config.dataset.fixed_params)
             params[self.config.vary_parameter.name] = param_value
             params["num_samples"] = self.config.dataset.num_samples
             params["name"] = self.config.vary_parameter.format_label(param_value)
+            params["train_post_process"] = self.config.train_post_process
+            params["test_post_process"] = self.config.test_post_process
+            params["equal_test"] = self.config.equal_test
 
             dataset = self._get_dataset(self.config.dataset.dataset_type, **params)
             self.datasets[param_value] = dataset
@@ -176,7 +179,7 @@ class Experiment:
                 best_acc = get_best_metric(avg_test_ml, "accuracy")
                 print(f"  {params['name']}: best_test_accuracy={best_acc:.3f}")
 
-        self.results.finalize()
+        self.results.finalize()  # Convert accumulated results to DataFrames
         return self.results
 
     def _get_minority_reduce_scaler(self, param_value: Any) -> Optional[float]:
