@@ -157,8 +157,11 @@ class Experiment:
             avg_test_ml = _average_ml_results(test_ml_accum)
 
             self.results.add_split_result(
-                param_value, avg_train_complexity, avg_test_complexity,
-                avg_train_ml, avg_test_ml,
+                param_value=param_value, 
+                train_complexity_dict=avg_train_complexity, 
+                test_complexity_dict=avg_test_complexity,
+                train_ml_dict=avg_train_ml, 
+                test_ml_dict=avg_test_ml,
             )
 
             if verbose:
