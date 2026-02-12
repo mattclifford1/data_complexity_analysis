@@ -134,6 +134,14 @@ def _average_dicts(dicts: List[Dict[str, float]]) -> Dict[str, float]:
     return {k: np.mean([d[k] for d in dicts if k in d]) for k in keys}
 
 
+def _std_dicts(dicts: List[Dict[str, float]]) -> Dict[str, float]:
+    """Compute std of a list of metric dicts element-wise."""
+    if not dicts:
+        return {}
+    keys = dicts[0].keys()
+    return {k: np.std([d[k] for d in dicts if k in d]) for k in keys}
+
+
 def _average_ml_results(
     results_list: List[Dict[str, Dict[str, Dict[str, float]]]]
 ) -> Dict[str, Dict[str, Dict[str, float]]]:
@@ -211,19 +219,23 @@ class ExperimentResults:
             for metric in self.config.ml_metrics:
                 if metric in metrics:
                     ml_row[f"{model_name}_{metric}"] = metrics[metric]["mean"]
+                    ml_row[f"{model_name}_{metric}_std"] = metrics[metric]["std"]
         return ml_row
 
     def _build_complexity_row(
         self,
         param_value: Any,
         complexity_metrics_dict: Dict[str, float],
+        std_dict: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
-        """Build a complexity row dict."""
+        """Build a complexity row dict, optionally including per-metric std columns."""
         row = {
             "param_value": param_value,
             "param_label": self.config.vary_parameter.format_label(param_value),
         }
         row.update(complexity_metrics_dict)
+        if std_dict:
+            row.update({f"{k}_std": v for k, v in std_dict.items()})
         return row
 
     def add_result(
@@ -256,6 +268,8 @@ class ExperimentResults:
         test_complexity_dict: Dict[str, float],
         train_ml_results: Dict[str, Dict[str, Dict[str, float]]],
         test_ml_results: Dict[str, Dict[str, Dict[str, float]]],
+        train_complexity_std_dict: Optional[Dict[str, float]] = None,
+        test_complexity_std_dict: Optional[Dict[str, float]] = None,
     ) -> None:
         """
         Add results for a single parameter value with train/test split.
@@ -265,19 +279,23 @@ class ExperimentResults:
         param_value : Any
             The parameter value used for this iteration.
         train_complexity_dict : dict
-            Complexity metrics computed on training data.
+            Complexity metrics computed on training data (means across seeds).
         test_complexity_dict : dict
-            Complexity metrics computed on test data.
+            Complexity metrics computed on test data (means across seeds).
         train_ml_results : dict
             ML results evaluated on training data.
         test_ml_results : dict
             ML results evaluated on test data.
+        train_complexity_std_dict : dict, optional
+            Std of complexity metrics on training data across seeds.
+        test_complexity_std_dict : dict, optional
+            Std of complexity metrics on test data across seeds.
         """
         self._train_complexity_rows.append(
-            self._build_complexity_row(param_value, train_complexity_dict)
+            self._build_complexity_row(param_value, train_complexity_dict, train_complexity_std_dict)
         )
         self._test_complexity_rows.append(
-            self._build_complexity_row(param_value, test_complexity_dict)
+            self._build_complexity_row(param_value, test_complexity_dict, test_complexity_std_dict)
         )
         self._train_ml_rows.append(self._build_ml_row(param_value, train_ml_results))
         self._test_ml_rows.append(self._build_ml_row(param_value, test_ml_results))

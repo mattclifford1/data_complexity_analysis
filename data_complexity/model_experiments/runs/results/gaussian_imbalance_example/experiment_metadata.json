@@ -1,6 +1,6 @@
 {
   "experiment_name": "gaussian_imbalance_example",
-  "timestamp": "2026-02-12T15:46:04.983718",
+  "timestamp": "2026-02-12T15:51:16.198470",
   "dataset": {
     "type": "Gaussian",
     "num_samples": 400,

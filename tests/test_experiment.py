@@ -14,6 +14,7 @@ from data_complexity.model_experiments.experiment import (
     PlotType,
     _average_dicts,
     _average_ml_results,
+    _std_dicts,
 )
 from data_complexity.model_experiments.experiment_configs import (
     gaussian_variance_config,
@@ -180,6 +181,8 @@ class TestExperimentResults:
             test_ml_results={
                 "Model": {"accuracy": {"mean": 0.85, "std": 0.0}},
             },
+            train_complexity_std_dict={"F1": 0.01, "N3": 0.02},
+            test_complexity_std_dict={"F1": 0.03, "N3": 0.04},
         )
         results.finalize()
 
@@ -196,6 +199,14 @@ class TestExperimentResults:
         assert results.test_complexity_df.iloc[0]["F1"] == 0.6
         assert results.train_ml_df.iloc[0]["best_accuracy"] == 0.95
         assert results.test_ml_df.iloc[0]["best_accuracy"] == 0.85
+
+        # Std columns present in complexity DFs
+        assert results.train_complexity_df.iloc[0]["F1_std"] == 0.01
+        assert results.test_complexity_df.iloc[0]["F1_std"] == 0.03
+
+        # Std columns present in ML DFs
+        assert results.train_ml_df.iloc[0]["Model_accuracy_std"] == 0.0
+        assert results.test_ml_df.iloc[0]["Model_accuracy_std"] == 0.0
 
     def test_split_result_backward_compat(self, mock_config):
         """Test that complexity_df and ml_df return train/test respectively."""
@@ -318,6 +329,13 @@ class TestExperimentRun:
         assert mock_get_dataset.call_count == 2
         # Each parameter value x cv_folds seeds
         assert mock_evaluate.call_count == 2 * simple_config.cv_folds
+
+        # Std columns present in complexity and ML DFs
+        assert "F1_std" in results.train_complexity_df.columns
+        assert "N3_std" in results.train_complexity_df.columns
+        assert "F1_std" in results.test_complexity_df.columns
+        assert "LogisticRegression_accuracy_std" in results.train_ml_df.columns
+        assert "LogisticRegression_accuracy_std" in results.test_ml_df.columns
 
     @patch("data_complexity.model_experiments.experiment.complexity_metrics")
     @patch("data_complexity.model_experiments.experiment.evaluate_models_train_test")
@@ -468,6 +486,20 @@ class TestAveragingHelpers:
 
     def test_average_ml_results_empty(self):
         assert _average_ml_results([]) == {}
+
+    def test_std_dicts(self):
+        dicts = [{"F1": 0.3, "N3": 0.2}, {"F1": 0.5, "N3": 0.4}]
+        result = _std_dicts(dicts)
+        assert abs(result["F1"] - np.std([0.3, 0.5])) < 1e-10
+        assert abs(result["N3"] - np.std([0.2, 0.4])) < 1e-10
+
+    def test_std_dicts_empty(self):
+        assert _std_dicts([]) == {}
+
+    def test_std_dicts_single(self):
+        dicts = [{"F1": 0.5}]
+        result = _std_dicts(dicts)
+        assert result["F1"] == 0.0
 
 
 class TestSaveLoad:

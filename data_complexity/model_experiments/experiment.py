@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 from scipy import stats
+from tqdm import tqdm
 
 from data_complexity.metrics import complexity_metrics
 from data_complexity.model_experiments.ml import (
@@ -38,6 +39,7 @@ from data_complexity.model_experiments.experiment_utils import (
     ParameterSpec,
     _average_dicts,
     _average_ml_results,
+    _std_dicts,
     PlotType,
 )
 
@@ -108,7 +110,7 @@ class Experiment:
             print(f"  Train size: {train_size}, Seeds: {cv_folds}")
             print()
 
-        for param_value in self.config.vary_parameter.values:
+        for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values:"):
             # Build dataset params (include all parameters)
             params = dict(self.config.dataset.fixed_params)
             params[self.config.vary_parameter.name] = param_value
@@ -127,7 +129,7 @@ class Experiment:
             train_ml_accum: List[Dict] = []
             test_ml_accum: List[Dict] = []
 
-            for seed_i in range(cv_folds):
+            for seed_i in tqdm(range(cv_folds), desc=f"Param {params['name']}", leave=False):
                 # Use dataset's built-in proportional_split with minority_reduce_scaler
                 train_data, test_data = dataset.get_train_test_split(
                              train_size=train_size,
@@ -150,18 +152,22 @@ class Experiment:
                 train_ml_accum.append(train_ml)
                 test_ml_accum.append(test_ml)
 
-            # Average across seeds
+            # Average and std across seeds
             avg_train_complexity = _average_dicts(train_complexity_accum)
             avg_test_complexity = _average_dicts(test_complexity_accum)
+            std_train_complexity = _std_dicts(train_complexity_accum)
+            std_test_complexity = _std_dicts(test_complexity_accum)
             avg_train_ml = _average_ml_results(train_ml_accum)
             avg_test_ml = _average_ml_results(test_ml_accum)
 
             self.results.add_split_result(
-                param_value=param_value, 
-                train_complexity_dict=avg_train_complexity, 
+                param_value=param_value,
+                train_complexity_dict=avg_train_complexity,
                 test_complexity_dict=avg_test_complexity,
-                train_ml_dict=avg_train_ml, 
-                test_ml_dict=avg_test_ml,
+                train_ml_results=avg_train_ml,
+                test_ml_results=avg_test_ml,
+                train_complexity_std_dict=std_train_complexity,
+                test_complexity_std_dict=std_test_complexity,
             )
 
             if verbose:
