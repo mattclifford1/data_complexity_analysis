@@ -246,6 +246,7 @@ def plot_metrics_vs_parameter(
     title: str = "Metrics vs Parameter",
     ml_prefixes: tuple = ("best_", "mean_"),
     split_subplots: bool = True,
+    x_label: str = "Parameter value",
 ) -> plt.Figure:
     """
     Line plot of all normalised complexity and ML metrics vs. a varied parameter.
@@ -368,7 +369,7 @@ def plot_metrics_vs_parameter(
             )
         ax.set_xticks(x)
         ax.set_xticklabels(x_labels, rotation=45, ha="right")
-        ax.set_xlabel("Parameter value")
+        ax.set_xlabel(x_label)
         ax.set_ylabel("Normalised value (min\u2013max per metric)")
         ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=8)
 
@@ -406,6 +407,7 @@ def plot_models_vs_parameter(
     param_label_col: str = "param_label",
     title: str = "Models vs Parameter",
     ml_metrics: Optional[List[str]] = None,
+    x_label: str = "Parameter value",
 ) -> plt.Figure:
     """
     Line plots showing each ML model in its own subplot, with one line per metric.
@@ -506,7 +508,7 @@ def plot_models_vs_parameter(
         ax.set_xticklabels(x_labels, rotation=45, ha="right")
         ax.set_ylim(0, 1)
         ax.set_ylabel("Score")
-        ax.set_xlabel("Parameter value")
+        ax.set_xlabel(x_label)
         ax.legend(fontsize=8)
 
     # Turn off unused subplots

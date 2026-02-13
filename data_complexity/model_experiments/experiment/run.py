@@ -496,6 +496,8 @@ class Experiment:
                     fig = plot_metrics_vs_parameter(
                         complexity_df=self.results.train_complexity_df,
                         ml_df=self.results.train_ml_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Train — metrics vs {self.config.vary_parameter.name}",
                     )
                     figures[pt] = fig
@@ -505,6 +507,8 @@ class Experiment:
                     fig = plot_metrics_vs_parameter(
                         complexity_df=self.results.test_complexity_df,
                         ml_df=self.results.test_ml_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Test — metrics vs {self.config.vary_parameter.name}",
                     )
                     figures[pt] = fig
@@ -513,6 +517,8 @@ class Experiment:
                 if self.results.train_ml_df is not None:
                     fig = plot_models_vs_parameter(
                         ml_df=self.results.train_ml_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Models (Train) vs {self.config.vary_parameter.name}",
                         ml_metrics=self.config.ml_metrics,
                     )
@@ -522,6 +528,8 @@ class Experiment:
                 if self.results.test_ml_df is not None:
                     fig = plot_models_vs_parameter(
                         ml_df=self.results.test_ml_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Models (Test) vs {self.config.vary_parameter.name}",
                         ml_metrics=self.config.ml_metrics,
                     )
