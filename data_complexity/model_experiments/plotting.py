@@ -245,13 +245,13 @@ def plot_metrics_vs_parameter(
     param_label_col: str = "param_label",
     title: str = "Metrics vs Parameter",
     ml_prefixes: tuple = ("best_", "mean_"),
+    split_subplots: bool = True,
 ) -> plt.Figure:
     """
     Line plot of all normalised complexity and ML metrics vs. a varied parameter.
 
     Each metric is min-max normalised independently across parameter values so
-    that all lines share the same y-axis scale.  Complexity metrics are drawn
-    with solid lines; ML metrics with dashed lines.
+    that all lines share the same y-axis scale.
 
     Parameters
     ----------
@@ -267,6 +267,10 @@ def plot_metrics_vs_parameter(
         Only ML columns whose name starts with one of these prefixes are
         included (e.g. ``best_accuracy``, ``mean_f1``).  Per-model columns are
         excluded. Default: ('best_', 'mean_')
+    split_subplots : bool
+        If True (default), complexity metrics are shown in the left subplot and
+        ML metrics in the right subplot.  If False, all metrics share a single
+        axes (complexity = solid lines, ML = dashed lines).
 
     Returns
     -------
@@ -286,6 +290,7 @@ def plot_metrics_vs_parameter(
 
     x_labels = complexity_df[param_label_col].tolist()
     n_points = len(x_labels)
+    x = np.arange(n_points)
 
     def _normalise(values: np.ndarray) -> Optional[np.ndarray]:
         """Min-max normalise; returns None if all-NaN, flat 0.5 if zero range."""
@@ -314,28 +319,30 @@ def plot_metrics_vs_parameter(
     n_c = len(complexity_series)
     n_m = len(ml_series)
     complexity_colors = [cmap(i / max(n_c, 1)) for i in range(n_c)]
-    ml_colors = [cmap(0.5 + i / max(n_m * 2, 1)) for i in range(n_m)]
+    ml_colors = [cmap(i / max(n_m, 1)) for i in range(n_m)]
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    x = np.arange(n_points)
+    def _draw(ax: plt.Axes, series: dict, colors: list, linestyle: str) -> None:
+        for (col, values), color in zip(series.items(), colors):
+            ax.plot(x, values, marker="o", linestyle=linestyle, color=color, label=col, linewidth=1.5)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        ax.set_xlabel("Parameter value")
+        ax.set_ylabel("Normalised value (min\u2013max per metric)")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=8)
 
-    for (col, values), color in zip(complexity_series.items(), complexity_colors):
-        ax.plot(x, values, marker="o", linestyle="-", color=color, label=col, linewidth=1.5)
-
-    for (col, values), color in zip(ml_series.items(), ml_colors):
-        ax.plot(x, values, marker="o", linestyle="--", color=color, label=col, linewidth=1.5)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(x_labels, rotation=45, ha="right")
-    ax.set_xlabel("Parameter value")
-    ax.set_ylabel("Normalised value (min\u2013max per metric)")
-    ax.set_title(title)
-    ax.legend(
-        loc="upper left",
-        bbox_to_anchor=(1.01, 1),
-        borderaxespad=0,
-        fontsize=8,
-    )
+    if split_subplots:
+        fig, (ax_c, ax_m) = plt.subplots(1, 2, figsize=(20, 6))
+        _draw(ax_c, complexity_series, complexity_colors, "-")
+        ax_c.set_title("Complexity metrics")
+        _draw(ax_m, ml_series, ml_colors, "-")
+        ax_m.set_title("ML metrics")
+        fig.suptitle(title)
+    else:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        _draw(ax, complexity_series, complexity_colors, "-")
+        for (col, values), color in zip(ml_series.items(), ml_colors):
+            ax.plot(x, values, marker="o", linestyle="--", color=color, label=col, linewidth=1.5)
+        ax.set_title(title)
 
     plt.tight_layout()
     return fig

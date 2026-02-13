@@ -65,7 +65,13 @@ config = ExperimentConfig(
         label_format="Random Oversample Balanced (factor={value})",
     ),
     models=models,
-    ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
+    ml_metrics=[
+        "accuracy", 
+        "f1", 
+        "precision", 
+        "recall", 
+        "balanced_accuracy"
+        ],
     cv_folds=5,
     plots=[
         PlotType.CORRELATIONS, 
