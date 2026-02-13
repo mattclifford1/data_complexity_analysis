@@ -63,16 +63,13 @@ class DatasetSpec:
         Type of dataset ('Gaussian', 'Moons', 'Circles', 'Blobs', 'XOR').
     fixed_params : dict
         Parameters that remain constant across experiment iterations.
-    num_samples : int
-        Number of samples per dataset. Default: 400
-    train_size : float
-        Fraction of data used for training. Default: 0.5
     """
 
     dataset_type: str
+    # fixed_params can include any parameters accepted by the dataset generation functions
+    # e.g.: for Gaussian: class_separation, cov_type, cov_scale, equal_test
+    #     or train_size, num_samples (if we want to fix those instead of varying them)
     fixed_params: Dict[str, Any] = field(default_factory=dict)
-    num_samples: int = 400
-    train_size: float = 0.5
 
 
 @dataclass
@@ -189,7 +186,7 @@ def _average_ml_results(
     return averaged
 
 
-class ExperimentResults:
+class ExperimentResultsContainer:
     """
     Container for experiment results with DataFrame storage.
 
@@ -416,3 +413,17 @@ class ExperimentResults:
         if source == "test" and self._test_ml_df is not None:
             return self._test_ml_df
         return self.ml_df
+
+
+def make_json_safe_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+    """get the repr of class values in a dict to make it JSON serializable (for saving config)"""
+    safe_dict = {}
+    for k, v in d.items():
+        if isinstance(v, (str, int, float, bool, type(None))):
+            safe_dict[k] = v
+        else:
+            if hasattr(v, "__repr__"):
+                safe_dict[k] = repr(v)
+            else:
+                raise ValueError(f"Value for key '{k}' is not JSON serializable and has no __repr__: {v}")
+    return safe_dict

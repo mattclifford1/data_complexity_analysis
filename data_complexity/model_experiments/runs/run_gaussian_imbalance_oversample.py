@@ -27,37 +27,46 @@ from data_complexity.model_experiments.ml import (
     KNNModel,
 )
 
+class RandomOversampleBalanced:
+    def __call__(self, X, y):
+        """
+        Randomly duplicate minority class samples until class distribution is 1:1.
 
-def random_oversample_balanced(X, y):
-    """
-    Randomly duplicate minority class samples until class distribution is 1:1.
+        Parameters
+        ----------
+        X : np.ndarray
+            Feature matrix.
+        y : np.ndarray
+            Target vector.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Feature matrix.
-    y : np.ndarray
-        Target vector.
+        Returns
+        -------
+        tuple
+            New X and y arrays with balanced class distribution.
+        """
+        classes, counts = np.unique(y, return_counts=True)
+        majority_count = counts.max()
 
-    Returns
-    -------
-    tuple
-        New X and y arrays with balanced class distribution.
-    """
-    classes, counts = np.unique(y, return_counts=True)
-    majority_count = counts.max()
+        X_parts = [X]
+        y_parts = [y]
 
-    X_parts = [X]
-    y_parts = [y]
+        for cls, count in zip(classes, counts):
+            if count < majority_count:
+                deficit = majority_count - count
+                minority_idx = np.where(y == cls)[0]
+                oversample_idx = np.random.choice(minority_idx, size=deficit, replace=True)
+                X_parts.append(X[oversample_idx])
+                y_parts.append(y[oversample_idx])
+        return np.concatenate(X_parts), np.concatenate(y_parts)
+    
+    def __repr__(self):
+        return "RandomOversampleBalanced()"
 
-    for cls, count in zip(classes, counts):
-        if count < majority_count:
-            deficit = majority_count - count
-            minority_idx = np.where(y == cls)[0]
-            oversample_idx = np.random.choice(minority_idx, size=deficit, replace=True)
-            X_parts.append(X[oversample_idx])
-            y_parts.append(y[oversample_idx])
-    return np.concatenate(X_parts), np.concatenate(y_parts)
+    def __str__(self):
+        return "RandomOversampleBalanced()"
+
+    def __name__(self):
+        return "RandomOversampleBalanced"
 
 
 def systematic_oversample(X, y):
@@ -104,13 +113,16 @@ models = [
 config = ExperimentConfig(
     dataset=DatasetSpec(
         dataset_type="Gaussian",
-        fixed_params={"class_separation": 1.0, 
-                      "cov_type": "spherical", 
-                      "cov_scale": 1.0,
-                      "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-                      },
-        num_samples=400,
-        train_size=0.5,
+        fixed_params={
+            "num_samples": 400,
+            "train_size": 0.5,
+            "class_separation": 1.0, 
+            "cov_type": "spherical", 
+            "cov_scale": 1.0,
+            "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
+            "train_post_process": RandomOversampleBalanced(),
+        #   "test_post_process": systematic_oversample,
+        },
     ),
     vary_parameter=ParameterSpec(
         name="minority_reduce_scaler",
@@ -123,8 +135,6 @@ config = ExperimentConfig(
     plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.HEATMAP],
     correlation_target="best_accuracy",
     name="gaussian_imbalance_oversample",
-    train_post_process=random_oversample_balanced,
-    # test_post_process=systematic_oversample,
     
 )
 

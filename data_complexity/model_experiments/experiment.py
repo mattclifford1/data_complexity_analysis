@@ -34,12 +34,13 @@ from data_complexity.model_experiments.plotting import (
 from data_complexity.model_experiments.experiment_utils import (
     DatasetSpec as DatasetSpec,
     ExperimentConfig,
-    ExperimentResults,
+    ExperimentResultsContainer,
     ParameterSpec as ParameterSpec,
     _average_dicts,
     _average_ml_results,
     _std_dicts,
     PlotType,
+    make_json_safe_dict,
 )
 
 if TYPE_CHECKING:
@@ -63,8 +64,8 @@ class Experiment:
 
     def __init__(self, config: ExperimentConfig):
         self.config = config
-        self.results: Optional[ExperimentResults] = None
-        self._get_dataset = None
+        self.results: Optional[ExperimentResultsContainer] = None
+        self._get_dataset = None  # Lazy loader for dataset function to avoid circular imports
         self.datasets: Dict[Any, Any] = {}  # Store loaders for visualization
 
     def _load_dataset_loader(self):
@@ -75,7 +76,7 @@ class Experiment:
 
             self._get_dataset = get_dataset
 
-    def run(self, verbose: bool = True) -> ExperimentResults:
+    def run(self, verbose: bool = True) -> ExperimentResultsContainer:
         """
         Execute the experiment loop with train/test splits.
 
@@ -92,37 +93,39 @@ class Experiment:
 
         Returns
         -------
-        ExperimentResults
+        ExperimentResultsContainer
             Results container with train/test complexity and ML DataFrames.
         """
         self._load_dataset_loader()
 
-        self.results = ExperimentResults(self.config)
+        self.results = ExperimentResultsContainer(self.config)
 
         models = self.config.models or get_default_models()
         metrics = get_metrics_from_names(self.config.ml_metrics)
-        train_size = self.config.dataset.train_size
+        # train_size = self.config.dataset.train_size
         cv_folds = self.config.cv_folds
 
         if verbose:
             print(f"Running experiment: {self.config.name}")
             print(f"  Dataset: {self.config.dataset.dataset_type}")
+            print(f"  Fixed data params:")
+            for k, v in self.config.dataset.fixed_params.items():
+                print(f"        {k}: {v}")
             print(f"  Varying: {self.config.vary_parameter.name}")
             print(f"  Values: {self.config.vary_parameter.values}")
-            print(f"  Train size: {train_size}, Seeds: {cv_folds}")
+            print(f"  Seeds: {cv_folds}")
             print()
 
         for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
             # Build dataset params (include all parameters)
-            params = dict(self.config.dataset.fixed_params)
-            params[self.config.vary_parameter.name] = param_value
-            params["num_samples"] = self.config.dataset.num_samples
-            params["name"] = self.config.vary_parameter.format_label(param_value)
-            params["train_post_process"] = self.config.train_post_process
-            params["test_post_process"] = self.config.test_post_process
-            params["equal_test"] = self.config.equal_test
+            data_params = dict(self.config.dataset.fixed_params)
+            data_params[self.config.vary_parameter.name] = param_value
+            data_params["name"] = self.config.vary_parameter.format_label(param_value)
 
-            dataset = self._get_dataset(self.config.dataset.dataset_type, **params)
+            dataset = self._get_dataset(
+                dataset_name=self.config.dataset.dataset_type, 
+                **data_params
+                )
             self.datasets[param_value] = dataset
 
             # Determine minority_reduce_scaler
@@ -134,7 +137,15 @@ class Experiment:
             train_ml_accum: List[Dict] = []
             test_ml_accum: List[Dict] = []
 
-            for seed_i in tqdm(range(cv_folds), desc=f"Param {params['name']}", leave=False):
+            # get the train/test split size from either the fixed_params or vary_parameter
+            if "train_size" in self.config.dataset.fixed_params:
+                train_size = self.config.dataset.fixed_params["train_size"]
+            elif self.config.vary_parameter.name == "train_size":
+                train_size = param_value
+            else:
+                raise ValueError("train_size must be specified in fixed_params or as the vary_parameter")
+
+            for seed_i in tqdm(range(cv_folds), desc=f"Param {data_params['name']}", leave=False):
                 # Use dataset's built-in proportional_split with minority_reduce_scaler
                 train_data, test_data = dataset.get_train_test_split(
                              train_size=train_size,
@@ -177,7 +188,7 @@ class Experiment:
 
             if verbose:
                 best_acc = get_best_metric(avg_test_ml, "accuracy")
-                print(f"  {params['name']}: best_test_accuracy={best_acc:.3f}")
+                print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
 
         self.results.finalize()  # Convert accumulated results to DataFrames
         return self.results
@@ -404,9 +415,9 @@ class Experiment:
             # "timestamp": datetime.now().isoformat(),
             "dataset": {
                 "type": self.config.dataset.dataset_type,
-                "num_samples": self.config.dataset.num_samples,
-                "train_size": self.config.dataset.train_size,
-                "fixed_params": self.config.dataset.fixed_params,
+                # "num_samples": self.config.dataset.num_samples,
+                # "train_size": self.config.dataset.train_size,
+                "fixed_params": make_json_safe_dict(self.config.dataset.fixed_params)
             },
             "vary_parameter": {
                 "name": self.config.vary_parameter.name,
@@ -560,7 +571,7 @@ class Experiment:
         # Return new path (will raise FileNotFoundError if neither exists)
         return save_dir / subfolder / filename if subfolder else old_path
 
-    def load_results(self, save_dir: Optional[Path] = None) -> ExperimentResults:
+    def load_results(self, save_dir: Optional[Path] = None) -> ExperimentResultsContainer:
         """
         Load previously saved results from CSVs.
 
@@ -571,7 +582,7 @@ class Experiment:
 
         Returns
         -------
-        ExperimentResults
+        ExperimentResultsContainer
             Loaded results.
         """
         save_dir = save_dir or self.config.save_dir
@@ -581,7 +592,7 @@ class Experiment:
         ml_path = self._resolve_path(save_dir, "ml_performance.csv", "data")
         corr_path = self._resolve_path(save_dir, "correlations.csv", "data")
 
-        self.results = ExperimentResults(self.config)
+        self.results = ExperimentResultsContainer(self.config)
         self.results._complexity_df = pd.read_csv(complexity_path)
         self.results._ml_df = pd.read_csv(ml_path)
 

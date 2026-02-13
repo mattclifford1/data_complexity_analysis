@@ -2,12 +2,14 @@
   "experiment_name": "gaussian_imbalance_oversample",
   "dataset": {
     "type": "Gaussian",
-    "num_samples": 400,
-    "train_size": 0.5,
     "fixed_params": {
+      "num_samples": 400,
+      "train_size": 0.5,
       "class_separation": 1.0,
       "cov_type": "spherical",
-      "cov_scale": 1.0
+      "cov_scale": 1.0,
+      "equal_test": true,
+      "train_post_process": "RandomOversampleBalanced()"
     }
   },
   "vary_parameter": {
