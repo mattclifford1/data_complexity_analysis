@@ -16,7 +16,7 @@ from data_complexity.model_experiments.experiment import (
     _average_ml_results,
     _std_dicts,
 )
-from data_complexity.model_experiments.experiment_configs import (
+from data_complexity.model_experiments.experiment import (
     gaussian_variance_config,
     gaussian_separation_config,
     gaussian_imbalance_config,
