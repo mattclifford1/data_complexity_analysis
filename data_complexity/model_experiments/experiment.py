@@ -167,11 +167,6 @@ class Experiment:
         -------
         ExperimentResultsContainer
             Results container with train/test complexity and ML DataFrames.
-
-        Raises
-        ------
-        ValueError
-            If ``n_jobs != 1``
         """
         self._load_dataset_loader()
 

@@ -831,6 +831,76 @@ class TestErrorHandling:
             exp.save()
 
 
+class TestParallelRun:
+    """Tests for Experiment.run() with n_jobs != 1."""
+
+    @pytest.fixture
+    def tiny_config(self):
+        """Minimal config: 2 param values, 1 seed, small dataset — runs fast."""
+        from data_complexity.model_experiments.ml import LogisticRegressionModel, AccuracyMetric
+        return ExperimentConfig(
+            dataset=DatasetSpec(
+                dataset_type="Gaussian",
+                fixed_params={"num_samples": 60, "cov_type": "spherical", "train_size": 0.5},
+            ),
+            vary_parameter=ParameterSpec(name="cov_scale", values=[0.5, 2.0]),
+            cv_folds=1,
+            ml_metrics=["accuracy"],
+            models=[LogisticRegressionModel()],
+            plots=[],
+        )
+
+    def test_n_jobs_minus1_returns_results(self, tiny_config):
+        """Parallel run with n_jobs=-1 should return a populated results container."""
+        exp = Experiment(tiny_config)
+        results = exp.run(verbose=False, n_jobs=-1)
+
+        assert results is not None
+        assert results.train_complexity_df is not None
+        assert results.test_complexity_df is not None
+        assert results.train_ml_df is not None
+        assert results.test_ml_df is not None
+        assert len(results.train_complexity_df) == 2
+        assert len(results.test_complexity_df) == 2
+
+    def test_parallel_matches_sequential(self, tiny_config):
+        """Results from n_jobs=-1 should match n_jobs=1 (same seeds, same data)."""
+        exp_seq = Experiment(tiny_config)
+        results_seq = exp_seq.run(verbose=False, n_jobs=1)
+
+        exp_par = Experiment(tiny_config)
+        results_par = exp_par.run(verbose=False, n_jobs=-1)
+
+        # Sort both by param_value to ensure consistent ordering before comparison
+        seq_cmplx = results_seq.train_complexity_df.sort_values("param_value").reset_index(drop=True)
+        par_cmplx = results_par.train_complexity_df.sort_values("param_value").reset_index(drop=True)
+        pd.testing.assert_frame_equal(seq_cmplx, par_cmplx, atol=1e-10)
+
+        seq_ml = results_seq.test_ml_df.sort_values("param_value").reset_index(drop=True)
+        par_ml = results_par.test_ml_df.sort_values("param_value").reset_index(drop=True)
+        pd.testing.assert_frame_equal(seq_ml, par_ml, atol=1e-10)
+
+    def test_parallel_datasets_not_populated(self, tiny_config):
+        """self.datasets should be empty after a parallel run."""
+        exp = Experiment(tiny_config)
+        exp.run(verbose=False, n_jobs=-1)
+        assert exp.datasets == {}
+
+    def test_sequential_datasets_populated(self, tiny_config):
+        """self.datasets should be populated after a sequential run."""
+        exp = Experiment(tiny_config)
+        exp.run(verbose=False, n_jobs=1)
+        assert len(exp.datasets) == len(tiny_config.vary_parameter.values)
+
+    def test_n_jobs_2_returns_results(self, tiny_config):
+        """n_jobs=2 (explicit worker count) should also work correctly."""
+        exp = Experiment(tiny_config)
+        results = exp.run(verbose=False, n_jobs=2)
+
+        assert results is not None
+        assert len(results.train_complexity_df) == 2
+
+
 class TestEvaluateModelsTrainTest:
     """Tests for evaluate_models_train_test function."""
 
