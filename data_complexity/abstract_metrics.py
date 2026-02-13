@@ -5,7 +5,7 @@ Generic class for metrics to inherit functionality from
 from abc import ABC, abstractmethod
 
 
-class abstract_metric(ABC):
+class AbstractMetric(ABC):
     @abstractmethod
     def compute(self, X, y):
         '''

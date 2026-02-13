@@ -13,7 +13,7 @@ from pathlib import Path
 from scipy import stats
 import data_loaders
 from data_loaders import get_dataset
-from data_complexity.metrics import complexity_metrics
+from data_complexity.metrics import ComplexityMetrics
 from data_complexity.experiments.ml_evaluation import (
     evaluate_classifiers,
     get_best_accuracy,
@@ -84,7 +84,7 @@ def run_experiment(
         X, y = data["X"], data["y"]
 
         # Compute complexity metrics
-        complexity = complexity_metrics(dataset=data)
+        complexity = ComplexityMetrics(dataset=data)
         results["complexity"][scale] = complexity.get_all_metrics_scalar()
 
         # Evaluate ML models

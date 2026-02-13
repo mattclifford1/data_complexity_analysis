@@ -12,7 +12,7 @@ from scipy import stats
 import pandas as pd
 import data_loaders
 from data_loaders import get_dataset
-from data_complexity.metrics import complexity_metrics
+from data_complexity.metrics import ComplexityMetrics
 from data_complexity.experiments.ml_evaluation import (
     evaluate_classifiers,
     get_default_classifiers,
@@ -109,7 +109,7 @@ def run_experiment(datasets=None, cv_folds=5):
         X, y = ds["X"], ds["y"]
 
         # Compute complexity metrics
-        complexity = complexity_metrics(dataset={"X": X, "y": y})
+        complexity = ComplexityMetrics(dataset={"X": X, "y": y})
         metrics = complexity.get_all_metrics_scalar()
         complexity_row = {"dataset": ds["name"]}
         complexity_row.update(metrics)
@@ -298,20 +298,20 @@ def plot_correlation_heatmap(all_corr_df, ml_metric="best_accuracy", top_n=20):
     return fig
 
 
-def plot_model_comparison(all_corr_df, complexity_metrics=None):
+def plot_model_comparison(all_corr_df, ComplexityMetrics=None):
     """
     Plot correlation of top complexity metrics with each model's accuracy.
     """
-    if complexity_metrics is None:
+    if ComplexityMetrics is None:
         # Get top 5 complexity metrics by best_accuracy correlation
         top = all_corr_df[all_corr_df["ml_metric"] == "best_accuracy"].head(5)
-        complexity_metrics = top["complexity_metric"].tolist()
+        ComplexityMetrics = top["complexity_metric"].tolist()
 
     model_names = list(get_default_classifiers().keys())
 
     # Build matrix
-    matrix = np.zeros((len(complexity_metrics), len(model_names)))
-    for i, cm in enumerate(complexity_metrics):
+    matrix = np.zeros((len(ComplexityMetrics), len(model_names)))
+    for i, cm in enumerate(ComplexityMetrics):
         for j, model in enumerate(model_names):
             ml_col = f"{model}_accuracy"
             subset = all_corr_df[
@@ -326,11 +326,11 @@ def plot_model_comparison(all_corr_df, complexity_metrics=None):
 
     ax.set_xticks(range(len(model_names)))
     ax.set_xticklabels(model_names, rotation=45, ha="right")
-    ax.set_yticks(range(len(complexity_metrics)))
-    ax.set_yticklabels(complexity_metrics)
+    ax.set_yticks(range(len(ComplexityMetrics)))
+    ax.set_yticklabels(ComplexityMetrics)
 
     # Add correlation values
-    for i in range(len(complexity_metrics)):
+    for i in range(len(ComplexityMetrics)):
         for j in range(len(model_names)):
             ax.text(j, i, f"{matrix[i, j]:.2f}", ha="center", va="center", fontsize=8)
 
@@ -407,7 +407,7 @@ if __name__ == "__main__":
     ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
     all_corr_df.to_csv(data_dir / "correlations.csv", index=False)
     print("Saved CSVs:")
-    print(f"  - {data_dir / 'complexity_metrics.csv'}")
+    print(f"  - {data_dir / 'ComplexityMetrics.csv'}")
     print(f"  - {data_dir / 'ml_performance.csv'}")
     print(f"  - {data_dir / 'correlations.csv'}")
 

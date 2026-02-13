@@ -1,25 +1,25 @@
 """
-Tests for the abstract_metric base class.
+Tests for the AbstractMetric base class.
 
 Verifies that the abstract base class enforces the expected interface
 for custom metric implementations.
 """
 import pytest
 import numpy as np
-from data_complexity.abstract_metrics import abstract_metric
+from data_complexity.abstract_metrics import AbstractMetric
 
 
 class TestAbstractMetricInterface:
-    """Tests verifying abstract_metric enforces proper interface."""
+    """Tests verifying AbstractMetric enforces proper interface."""
 
     def test_cannot_instantiate_directly(self):
-        """Verify abstract_metric cannot be instantiated directly."""
+        """Verify AbstractMetric cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            abstract_metric()
+            AbstractMetric()
 
     def test_subclass_must_implement_compute(self):
         """Verify subclass without compute method cannot be instantiated."""
-        class IncompleteMetric(abstract_metric):
+        class IncompleteMetric(AbstractMetric):
             pass
 
         with pytest.raises(TypeError):
@@ -27,7 +27,7 @@ class TestAbstractMetricInterface:
 
     def test_subclass_with_compute_can_instantiate(self):
         """Verify subclass implementing compute can be instantiated."""
-        class CompleteMetric(abstract_metric):
+        class CompleteMetric(AbstractMetric):
             def compute(self, X, y):
                 return 0.5
 
@@ -36,7 +36,7 @@ class TestAbstractMetricInterface:
 
     def test_compute_receives_correct_arguments(self):
         """Verify compute method receives X and y as expected."""
-        class RecordingMetric(abstract_metric):
+        class RecordingMetric(AbstractMetric):
             def __init__(self):
                 self.received_X = None
                 self.received_y = None
@@ -57,7 +57,7 @@ class TestAbstractMetricInterface:
 
     def test_compute_can_return_float(self):
         """Verify compute can return a float value."""
-        class FloatMetric(abstract_metric):
+        class FloatMetric(AbstractMetric):
             def compute(self, X, y):
                 return 0.75
 
@@ -68,7 +68,7 @@ class TestAbstractMetricInterface:
 
     def test_compute_can_return_dict(self):
         """Verify compute can return a dictionary of metrics."""
-        class DictMetric(abstract_metric):
+        class DictMetric(AbstractMetric):
             def compute(self, X, y):
                 return {'metric_a': 0.5, 'metric_b': 0.8}
 
@@ -87,7 +87,7 @@ class TestCustomMetricExample:
         Demonstrates implementing a concrete metric that calculates
         the ratio of minority to majority class samples.
         """
-        class ClassImbalanceRatio(abstract_metric):
+        class ClassImbalanceRatio(AbstractMetric):
             """Computes minority/majority class ratio (0 to 1)."""
 
             def compute(self, X, y):

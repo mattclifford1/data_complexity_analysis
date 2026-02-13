@@ -6,7 +6,7 @@ import numpy as np
 from data_complexity.pycol import Complexity
 
 
-class complexity_metrics:
+class ComplexityMetrics:
     def __init__(
             self,
             dataset: dict,
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     print(f"Dataset loaded: {dataset.name}\n")
     dataset.plot_dataset(terminal_plot=True)
 
-    complexity = complexity_metrics(dataset=dataset.get_data_dict())
+    complexity = ComplexityMetrics(dataset=dataset.get_data_dict())
     all_metrics = complexity.get_all_metrics_scalar()
     for metric_name, metric_value in all_metrics.items():
         print(f'{metric_name}: {metric_value}')

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import data_loaders
 from data_loaders import get_dataset
 from data_loaders.terminal_plots import terminal_show
-from data_complexity.metrics import complexity_metrics
+from data_complexity.metrics import ComplexityMetrics
 
     
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # metrics_by_dataset = {}
     # for dataset_name in datasets_to_test:
     #     dataset = get_dataset(dataset_name)
-    #     complexity = complexity_metrics(dataset=dataset.get_data_dict())
+    #     complexity = ComplexityMetrics(dataset=dataset.get_data_dict())
     #     all_metrics = complexity.get_all_metrics_scalar()
     #     metrics_by_dataset[dataset_name] = all_metrics
     
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         dataset = get_dataset("Gaussian",
                               covs=cov_matrix,
                               name=dataset_name)
-        complexity = complexity_metrics(dataset=dataset.get_data_dict())
+        complexity = ComplexityMetrics(dataset=dataset.get_data_dict())
         all_metrics = complexity.get_all_metrics_scalar()
         metrics_by_dataset[dataset_name] = all_metrics
         dataset.plot_dataset(terminal_plot=True)

@@ -18,7 +18,7 @@ from scipy import stats
 from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 from tqdm import tqdm
 
-from data_complexity.metrics import complexity_metrics
+from data_complexity.metrics import ComplexityMetrics
 from data_complexity.model_experiments.ml import (
     get_default_models,
     evaluate_models_train_test,
@@ -144,8 +144,8 @@ class Experiment:
                              seed=42 + seed_i)
 
                 # Complexity on train and test
-                train_cmplx = complexity_metrics(dataset=train_data).get_all_metrics_scalar()
-                test_cmplx = complexity_metrics(dataset=test_data).get_all_metrics_scalar()
+                train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
+                test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
 
                 # ML: train on train, evaluate on both
                 train_ml, test_ml = evaluate_models_train_test(

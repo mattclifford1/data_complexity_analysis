@@ -6,7 +6,7 @@ Imbalance can affect instance-level and structural metrics.
 """
 import data_loaders
 from data_loaders import get_dataset
-from data_complexity.metrics import complexity_metrics
+from data_complexity.metrics import ComplexityMetrics
 from data_complexity.plot_multiple_datasets import plot_metrics
 
 
@@ -55,7 +55,7 @@ def run_experiment(ratios=None, total_samples=400, plot_datasets=False, terminal
             print(f"\n{dataset_name} (n={n_class0}+{n_class1}):")
             dataset.plot_dataset(terminal_plot=terminal_plot)
 
-        complexity = complexity_metrics(dataset=dataset.get_data_dict())
+        complexity = ComplexityMetrics(dataset=dataset.get_data_dict())
         metrics_by_dataset[dataset_name] = complexity.get_all_metrics_scalar()
 
     return metrics_by_dataset
