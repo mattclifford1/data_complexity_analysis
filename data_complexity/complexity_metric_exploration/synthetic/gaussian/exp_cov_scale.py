@@ -7,7 +7,7 @@ Higher variance causes more class overlap, increasing complexity.
 import data_loaders
 from data_loaders import get_dataset
 from data_complexity.metrics import ComplexityMetrics
-from data_complexity.plot_multiple_datasets import plot_metrics
+from data_complexity.plotting.plot_multiple_datasets import plot_metrics
 
 
 def run_experiment(scales=None, plot_datasets=False, terminal_plot=True):

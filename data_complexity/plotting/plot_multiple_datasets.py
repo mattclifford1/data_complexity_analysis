@@ -2,7 +2,7 @@ import math
 import matplotlib.pyplot as plt
 import data_loaders
 from data_loaders import get_dataset
-from data_loaders.terminal_plots import terminal_show
+from data_loaders.plotting.terminal_plots import terminal_show
 from data_complexity.metrics import ComplexityMetrics
 
     

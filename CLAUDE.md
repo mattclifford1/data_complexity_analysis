@@ -22,7 +22,8 @@ Always use PDM (Python Dependency Manager) for environment and dependency manage
 data_complexity/
 ├── metrics.py              # Main wrapper class (complexity_metrics)
 ├── abstract_metrics.py     # Base class for custom metrics
-├── plot_multiple_datasets.py  # Visualization utilities
+├── plotting/                  # Visualization utilities
+│   └── plot_multiple_datasets.py
 ├── model_experiments/      # Parameter study scripts
 └── pycol/
     ├── complexity.py       # Core implementation (~3000 lines, 50+ measures)
