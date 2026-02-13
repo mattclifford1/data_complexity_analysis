@@ -864,21 +864,23 @@ class TestParallelRun:
         assert len(results.test_complexity_df) == 2
 
     def test_parallel_matches_sequential(self, tiny_config):
-        """Results from n_jobs=-1 should match n_jobs=1 (same seeds, same data)."""
+        """n_jobs=-1 and n_jobs=1 must produce identical results across all DataFrames."""
         exp_seq = Experiment(tiny_config)
         results_seq = exp_seq.run(verbose=False, n_jobs=1)
 
         exp_par = Experiment(tiny_config)
         results_par = exp_par.run(verbose=False, n_jobs=-1)
 
-        # Sort both by param_value to ensure consistent ordering before comparison
-        seq_cmplx = results_seq.train_complexity_df.sort_values("param_value").reset_index(drop=True)
-        par_cmplx = results_par.train_complexity_df.sort_values("param_value").reset_index(drop=True)
-        pd.testing.assert_frame_equal(seq_cmplx, par_cmplx, atol=1e-10)
-
-        seq_ml = results_seq.test_ml_df.sort_values("param_value").reset_index(drop=True)
-        par_ml = results_par.test_ml_df.sort_values("param_value").reset_index(drop=True)
-        pd.testing.assert_frame_equal(seq_ml, par_ml, atol=1e-10)
+        pairs = [
+            ("train_complexity_df", results_seq.train_complexity_df, results_par.train_complexity_df),
+            ("test_complexity_df",  results_seq.test_complexity_df,  results_par.test_complexity_df),
+            ("train_ml_df",         results_seq.train_ml_df,         results_par.train_ml_df),
+            ("test_ml_df",          results_seq.test_ml_df,          results_par.test_ml_df),
+        ]
+        for name, seq_df, par_df in pairs:
+            seq_df = seq_df.sort_values("param_value").reset_index(drop=True)
+            par_df = par_df.sort_values("param_value").reset_index(drop=True)
+            pd.testing.assert_frame_equal(seq_df, par_df, atol=1e-10, obj=name)
 
     def test_parallel_datasets_populated(self, tiny_config):
         """self.datasets should be populated after a parallel run."""
