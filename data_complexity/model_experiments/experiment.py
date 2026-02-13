@@ -102,7 +102,6 @@ class Experiment:
 
         models = self.config.models or get_default_models()
         metrics = get_metrics_from_names(self.config.ml_metrics)
-        # train_size = self.config.dataset.train_size
         cv_folds = self.config.cv_folds
 
         if verbose:
@@ -126,7 +125,7 @@ class Experiment:
             data_params["name"] = self.config.vary_parameter.format_label(param_value)
             # build the dataset (with internal train/test split and postprocessing etc. all handled by the dataset object)
             dataset = self._get_dataset(
-                dataset_name=self.config.dataset.dataset_type, 
+                dataset_name=self.config.dataset.dataset_type,
                 **data_params
                 )
             # Store dataset for visualization later (keyed by param_value for easy lookup)
@@ -406,8 +405,6 @@ class Experiment:
             # "timestamp": datetime.now().isoformat(),
             "dataset": {
                 "type": self.config.dataset.dataset_type,
-                # "num_samples": self.config.dataset.num_samples,
-                # "train_size": self.config.dataset.train_size,
                 "fixed_params": make_json_safe_dict(self.config.dataset.fixed_params)
             },
             "vary_parameter": {
