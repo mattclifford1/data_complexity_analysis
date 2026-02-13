@@ -427,3 +427,7 @@ def make_json_safe_dict(d: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 raise ValueError(f"Value for key '{k}' is not JSON serializable and has no __repr__: {v}")
     return safe_dict
+
+def make_json_safe_list(lst: List[Any]) -> List[Any]:
+    """Convert a list of values to JSON-safe representations."""
+    return [make_json_safe_dict(item) if isinstance(item, dict) else repr(item) for item in lst]

@@ -41,6 +41,7 @@ from data_complexity.model_experiments.experiment_utils import (
     _std_dicts,
     PlotType,
     make_json_safe_dict,
+    make_json_safe_list,
 )
 
 if TYPE_CHECKING:
@@ -409,7 +410,7 @@ class Experiment:
             },
             "vary_parameter": {
                 "name": self.config.vary_parameter.name,
-                "values": self.config.vary_parameter.values,
+                "values": make_json_safe_list(self.config.vary_parameter.values),
                 "label_format": self.config.vary_parameter.label_format,
             },
             "ml_models": [

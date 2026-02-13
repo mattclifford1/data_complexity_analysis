@@ -1,0 +1,90 @@
+{
+  "experiment_name": "gaussian_imbalance_vary_oversampling",
+  "dataset": {
+    "type": "Gaussian",
+    "fixed_params": {
+      "num_samples": 400,
+      "train_size": 0.5,
+      "class_separation": 1.0,
+      "cov_type": "spherical",
+      "cov_scale": 1.0,
+      "equal_test": true,
+      "minority_reduce_scaler": 5
+    }
+  },
+  "vary_parameter": {
+    "name": "train_post_process",
+    "values": [
+      "RandomDuplicate(factor=1, seed=True)",
+      "RandomDuplicate(factor=2, seed=True)",
+      "RandomDuplicate(factor=4, seed=True)",
+      "RandomDuplicate(factor=8, seed=True)",
+      "RandomDuplicate(factor=16, seed=True)"
+    ],
+    "label_format": "Random Oversample Balanced (factor={value})"
+  },
+  "ml_models": [
+    {
+      "name": "LogisticRegression",
+      "class": "LogisticRegressionModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "max_iter": 1000
+      }
+    },
+    {
+      "name": "SVM-RBF",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "rbf",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "SVM-LINEAR",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "linear",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "RandomForest",
+      "class": "RandomForestModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false,
+        "n_estimators": 50,
+        "max_depth": 5
+      }
+    },
+    {
+      "name": "KNN-5",
+      "class": "KNNModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "n_neighbors": 5
+      }
+    }
+  ],
+  "ml_metrics": [
+    "accuracy",
+    "f1",
+    "precision",
+    "recall",
+    "balanced_accuracy"
+  ],
+  "cv_folds": 5,
+  "correlation_target": "best_accuracy",
+  "plots": [
+    "CORRELATIONS",
+    "SUMMARY",
+    "HEATMAP"
+  ]
+}
