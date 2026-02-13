@@ -35,9 +35,15 @@ models = [
 config = ExperimentConfig(
     dataset=DatasetSpec(
         dataset_type="Gaussian",
-        fixed_params={"class_separation": 1.0, "cov_type": "spherical", "cov_scale": 1.0},
-        num_samples=400,
-        train_size=0.5,
+        fixed_params={
+            "num_samples": 400,
+            "train_size": 0.5,
+            "class_separation": 1.0, 
+            "cov_type": 
+            "spherical", 
+            "cov_scale": 1.0,
+            "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
+            },
     ),
     vary_parameter=ParameterSpec(
         name="minority_reduce_scaler",

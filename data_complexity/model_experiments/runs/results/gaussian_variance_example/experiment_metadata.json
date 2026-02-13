@@ -1,13 +1,13 @@
 {
   "experiment_name": "gaussian_variance_example",
-  "timestamp": "2026-02-07T14:15:27.380040",
   "dataset": {
     "type": "Gaussian",
-    "num_samples": 400,
-    "train_size": 0.5,
     "fixed_params": {
+      "num_samples": 400,
+      "train_size": 0.5,
       "class_separation": 4.0,
-      "cov_type": "spherical"
+      "cov_type": "spherical",
+      "equal_test": true
     }
   },
   "vary_parameter": {

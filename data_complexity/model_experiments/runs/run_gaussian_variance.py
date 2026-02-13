@@ -30,8 +30,13 @@ models = [
 config = ExperimentConfig(
     dataset=DatasetSpec(
         dataset_type="Gaussian",
-        fixed_params={"class_separation": 4.0, "cov_type": "spherical"},
-        num_samples=400,
+        fixed_params={
+            "num_samples": 400,
+            "train_size": 0.5,
+            "class_separation": 4.0, 
+            "cov_type": "spherical",
+            "equal_test": True, # Ensure test set is balanced for fair evaluation of variance effects
+            },
     ),
     vary_parameter=ParameterSpec(
         name="cov_scale",
