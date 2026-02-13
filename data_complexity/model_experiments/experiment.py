@@ -290,7 +290,13 @@ class Experiment:
                     desc="All Parameter values (parallel)",
                 ):
                     result = future.result()  # re-raises worker exceptions in main process
-                    results_by_param[result["param_value"]] = result
+                    # Key by the *original* param_value (from futures map), not the
+                    # deserialized copy returned by the worker, so that object identity
+                    # is preserved for types that don't implement __eq__/__hash__.
+                    original_param_value = futures[future]
+                    results_by_param[original_param_value] = result
+                    # old way (maybe do this and dont allow non hashable params?)
+                    # results_by_param[result["param_value"]] = result
 
             # Restore original order then store
             for param_value in self.config.vary_parameter.values:

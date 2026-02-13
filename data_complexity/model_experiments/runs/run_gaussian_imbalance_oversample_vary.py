@@ -88,6 +88,6 @@ config = ExperimentConfig(
 if __name__ == "__main__":
     exp = Experiment(config)
     exp.run(n_jobs=-1)
-    exp.compute_correlations(n_jobs=-1)
+    exp.compute_correlations()
     exp.print_summary(top_n=10)
     exp.save()
