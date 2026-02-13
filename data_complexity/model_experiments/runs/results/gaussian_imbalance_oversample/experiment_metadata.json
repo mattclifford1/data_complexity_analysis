@@ -9,7 +9,7 @@
       "cov_type": "spherical",
       "cov_scale": 1.0,
       "equal_test": true,
-      "train_post_process": "RandomOversampleBalanced()"
+      "train_post_process": "RandomDuplicate(factor=equal, seed=True)"
     }
   },
   "vary_parameter": {

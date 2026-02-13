@@ -26,78 +26,7 @@ from data_complexity.model_experiments.ml import (
     RandomForestModel,
     KNNModel,
 )
-
-class RandomOversampleBalanced:
-    def __call__(self, X, y):
-        """
-        Randomly duplicate minority class samples until class distribution is 1:1.
-
-        Parameters
-        ----------
-        X : np.ndarray
-            Feature matrix.
-        y : np.ndarray
-            Target vector.
-
-        Returns
-        -------
-        tuple
-            New X and y arrays with balanced class distribution.
-        """
-        classes, counts = np.unique(y, return_counts=True)
-        majority_count = counts.max()
-
-        X_parts = [X]
-        y_parts = [y]
-
-        for cls, count in zip(classes, counts):
-            if count < majority_count:
-                deficit = majority_count - count
-                minority_idx = np.where(y == cls)[0]
-                oversample_idx = np.random.choice(minority_idx, size=deficit, replace=True)
-                X_parts.append(X[oversample_idx])
-                y_parts.append(y[oversample_idx])
-        return np.concatenate(X_parts), np.concatenate(y_parts)
-    
-    def __repr__(self):
-        return "RandomOversampleBalanced()"
-
-    def __str__(self):
-        return "RandomOversampleBalanced()"
-
-    def __name__(self):
-        return "RandomOversampleBalanced"
-
-
-def systematic_oversample(X, y):
-    """
-    Duplicate each minority class sample exactly once (2x original minority count).
-
-    Parameters
-    ----------
-    X : np.ndarray
-        Feature matrix.
-    y : np.ndarray
-        Target vector.
-
-    Returns
-    -------
-    tuple
-        New X and y arrays with each minority sample duplicated once.
-    """
-    classes, counts = np.unique(y, return_counts=True)
-    majority_count = counts.max()
-
-    X_parts = [X]
-    y_parts = [y]
-
-    for cls, count in zip(classes, counts):
-        if count < majority_count:
-            minority_idx = np.where(y == cls)[0]
-            X_parts.append(X[minority_idx])
-            y_parts.append(y[minority_idx])
-
-    return np.concatenate(X_parts), np.concatenate(y_parts)
+from data_loaders.resampling import RandomDuplicateMinorityUpsampler
 
 
 # Configure custom models (subset of available models)
@@ -120,7 +49,7 @@ config = ExperimentConfig(
             "cov_type": "spherical", 
             "cov_scale": 1.0,
             "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-            "train_post_process": RandomOversampleBalanced(),
+            "train_post_process": RandomDuplicateMinorityUpsampler(factor="equal"),
         #   "test_post_process": systematic_oversample,
         },
     ),
