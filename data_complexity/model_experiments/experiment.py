@@ -401,7 +401,7 @@ class Experiment:
         models = self.config.models or get_default_models()
         metadata = {
             "experiment_name": self.config.name,
-            "timestamp": datetime.now().isoformat(),
+            # "timestamp": datetime.now().isoformat(),
             "dataset": {
                 "type": self.config.dataset.dataset_type,
                 "num_samples": self.config.dataset.num_samples,

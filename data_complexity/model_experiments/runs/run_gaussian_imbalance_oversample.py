@@ -104,14 +104,18 @@ models = [
 config = ExperimentConfig(
     dataset=DatasetSpec(
         dataset_type="Gaussian",
-        fixed_params={"class_separation": 1.0, "cov_type": "spherical", "cov_scale": 1.0},
+        fixed_params={"class_separation": 1.0, 
+                      "cov_type": "spherical", 
+                      "cov_scale": 1.0,
+                      "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
+                      },
         num_samples=400,
         train_size=0.5,
     ),
     vary_parameter=ParameterSpec(
         name="minority_reduce_scaler",
         values=[1, 2, 4, 8, 16],
-        label_format="imbalance={value}x",
+        label_format="imbalance={value}x (Oversampled)",
     ),
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
@@ -121,7 +125,7 @@ config = ExperimentConfig(
     name="gaussian_imbalance_oversample",
     train_post_process=random_oversample_balanced,
     # test_post_process=systematic_oversample,
-    equal_test=True, # Ensure test set is balanced for fair evaluation of imbalance effects
+    
 )
 
 if __name__ == "__main__":
