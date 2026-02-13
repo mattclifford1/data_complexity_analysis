@@ -251,14 +251,18 @@ def plot_metrics_vs_parameter(
     Line plot of all normalised complexity and ML metrics vs. a varied parameter.
 
     Each metric is min-max normalised independently across parameter values so
-    that all lines share the same y-axis scale.
+    that all lines share the same y-axis scale.  Where ``{metric}_std`` columns
+    are present in the DataFrames (produced by multi-seed experiments), error
+    bars scaled by the same normalisation are drawn around each line.
 
     Parameters
     ----------
     complexity_df : pd.DataFrame
         DataFrame with complexity metrics and a ``param_label`` column.
+        May also contain ``{metric}_std`` columns for error bars.
     ml_df : pd.DataFrame
         DataFrame with ML performance metrics.
+        May also contain ``{metric}_std`` columns for error bars.
     param_label_col : str
         Column in ``complexity_df`` used as x-axis labels. Default: 'param_label'
     title : str
@@ -285,34 +289,55 @@ def plot_metrics_vs_parameter(
     ]
     ml_cols = [
         c for c in ml_df.columns
-        if any(c.startswith(p) for p in ml_prefixes)
+        if any(c.startswith(p) for p in ml_prefixes) and not c.endswith("_std")
     ]
 
     x_labels = complexity_df[param_label_col].tolist()
     n_points = len(x_labels)
     x = np.arange(n_points)
 
-    def _normalise(values: np.ndarray) -> Optional[np.ndarray]:
-        """Min-max normalise; returns None if all-NaN, flat 0.5 if zero range."""
-        if np.all(np.isnan(values)):
-            return None
-        lo, hi = np.nanmin(values), np.nanmax(values)
-        if hi == lo:
-            return np.full_like(values, 0.5, dtype=float)
-        return (values - lo) / (hi - lo)
+    def _normalise(values: np.ndarray) -> tuple[Optional[np.ndarray], float, float]:
+        """Min-max normalise; returns (normalised, lo, hi).
 
-    # --- build normalised series ---
-    complexity_series = {}
+        Returns (None, 0, 0) if all-NaN, (flat 0.5, lo, lo) if zero range.
+        """
+        if np.all(np.isnan(values)):
+            return None, 0.0, 0.0
+        lo, hi = float(np.nanmin(values)), float(np.nanmax(values))
+        if hi == lo:
+            return np.full_like(values, 0.5, dtype=float), lo, lo
+        return (values - lo) / (hi - lo), lo, hi
+
+    def _normalise_std(std: np.ndarray, lo: float, hi: float) -> np.ndarray:
+        """Scale std by the same factor used for min-max normalisation."""
+        if hi == lo:
+            return np.zeros_like(std, dtype=float)
+        return std / (hi - lo)
+
+    # --- build normalised series (mean + optional std) ---
+    complexity_series: dict = {}
+    complexity_std_series: dict = {}
     for col in complexity_cols:
-        norm = _normalise(complexity_df[col].values.astype(float))
+        norm, lo, hi = _normalise(complexity_df[col].values.astype(float))
         if norm is not None:
             complexity_series[col] = norm
+            std_col = f"{col}_std"
+            if std_col in complexity_df.columns:
+                complexity_std_series[col] = _normalise_std(
+                    complexity_df[std_col].values.astype(float), lo, hi
+                )
 
-    ml_series = {}
+    ml_series: dict = {}
+    ml_std_series: dict = {}
     for col in ml_cols:
-        norm = _normalise(ml_df[col].values.astype(float))
+        norm, lo, hi = _normalise(ml_df[col].values.astype(float))
         if norm is not None:
             ml_series[col] = norm
+            std_col = f"{col}_std"
+            if std_col in ml_df.columns:
+                ml_std_series[col] = _normalise_std(
+                    ml_df[std_col].values.astype(float), lo, hi
+                )
 
     # --- colours ---
     cmap = plt.get_cmap("tab20")
@@ -321,9 +346,26 @@ def plot_metrics_vs_parameter(
     complexity_colors = [cmap(i / max(n_c, 1)) for i in range(n_c)]
     ml_colors = [cmap(i / max(n_m, 1)) for i in range(n_m)]
 
-    def _draw(ax: plt.Axes, series: dict, colors: list, linestyle: str) -> None:
+    def _draw(
+        ax: plt.Axes,
+        series: dict,
+        std_series: dict,
+        colors: list,
+        linestyle: str,
+    ) -> None:
         for (col, values), color in zip(series.items(), colors):
-            ax.plot(x, values, marker="o", linestyle=linestyle, color=color, label=col, linewidth=1.5)
+            yerr = std_series.get(col)
+            ax.errorbar(
+                x, values,
+                yerr=yerr,
+                marker="o",
+                linestyle=linestyle,
+                color=color,
+                label=col,
+                linewidth=1.5,
+                capsize=3,
+                elinewidth=0.8,
+            )
         ax.set_xticks(x)
         ax.set_xticklabels(x_labels, rotation=45, ha="right")
         ax.set_xlabel("Parameter value")
@@ -332,16 +374,27 @@ def plot_metrics_vs_parameter(
 
     if split_subplots:
         fig, (ax_c, ax_m) = plt.subplots(1, 2, figsize=(20, 6))
-        _draw(ax_c, complexity_series, complexity_colors, "-")
+        _draw(ax_c, complexity_series, complexity_std_series, complexity_colors, "-")
         ax_c.set_title("Complexity metrics")
-        _draw(ax_m, ml_series, ml_colors, "-")
+        _draw(ax_m, ml_series, ml_std_series, ml_colors, "-")
         ax_m.set_title("ML metrics")
         fig.suptitle(title)
     else:
         fig, ax = plt.subplots(figsize=(12, 6))
-        _draw(ax, complexity_series, complexity_colors, "-")
+        _draw(ax, complexity_series, complexity_std_series, complexity_colors, "-")
         for (col, values), color in zip(ml_series.items(), ml_colors):
-            ax.plot(x, values, marker="o", linestyle="--", color=color, label=col, linewidth=1.5)
+            yerr = ml_std_series.get(col)
+            ax.errorbar(
+                x, values,
+                yerr=yerr,
+                marker="o",
+                linestyle="--",
+                color=color,
+                label=col,
+                linewidth=1.5,
+                capsize=3,
+                elinewidth=0.8,
+            )
         ax.set_title(title)
 
     plt.tight_layout()

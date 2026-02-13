@@ -46,14 +46,20 @@ config = ExperimentConfig(
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
-    plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.HEATMAP],
+    plots=[
+        PlotType.CORRELATIONS, 
+        PlotType.SUMMARY, 
+        PlotType.HEATMAP,
+        PlotType.LINE_PLOT_TRAIN,
+        PlotType.LINE_PLOT_TEST,
+        ],
     correlation_target="best_accuracy",
     name="gaussian_variance_example",
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
-    exp.run()
+    exp.run(n_jobs=-1)
     exp.compute_correlations()
     exp.print_summary(top_n=10)
     exp.save()

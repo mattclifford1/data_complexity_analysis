@@ -13,13 +13,13 @@
   "vary_parameter": {
     "name": "cov_scale",
     "values": [
-      0.5,
-      1.0,
-      1.5,
-      2.0,
-      3.0,
-      4.0,
-      5.0
+      "0.5",
+      "1.0",
+      "1.5",
+      "2.0",
+      "3.0",
+      "4.0",
+      "5.0"
     ],
     "label_format": "scale={value}"
   },
@@ -85,6 +85,8 @@
   "plots": [
     "CORRELATIONS",
     "SUMMARY",
-    "HEATMAP"
+    "HEATMAP",
+    "LINE_PLOT_TRAIN",
+    "LINE_PLOT_TEST"
   ]
 }
