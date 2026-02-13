@@ -139,7 +139,7 @@ class TestExperimentResultsContainer:
                 "KNN-5": {"accuracy": {"mean": 0.85, "std": 0.03}},
             },
         )
-        results.finalize()
+        results.covert_to_df()
 
         assert len(results.complexity_df) == 1
         assert results.complexity_df.iloc[0]["F1"] == 0.5
@@ -155,7 +155,7 @@ class TestExperimentResultsContainer:
                     "Model": {"accuracy": {"mean": 1.0 / val, "std": 0.01}},
                 },
             )
-        results.finalize()
+        results.covert_to_df()
 
         assert len(results.complexity_df) == 2
         assert len(results.ml_df) == 2
@@ -164,7 +164,7 @@ class TestExperimentResultsContainer:
         results = ExperimentResultsContainer(mock_config)
         results.add_result(1.0, {"F1": 0.5}, {"M": {"accuracy": {"mean": 0.9, "std": 0.1}}})
         results.add_result(2.0, {"F1": 0.3}, {"M": {"accuracy": {"mean": 0.8, "std": 0.1}}})
-        results.finalize()
+        results.covert_to_df()
 
         assert results.get_param_values() == [1.0, 2.0]
 
@@ -184,7 +184,7 @@ class TestExperimentResultsContainer:
             train_complexity_std_dict={"F1": 0.01, "N3": 0.02},
             test_complexity_std_dict={"F1": 0.03, "N3": 0.04},
         )
-        results.finalize()
+        results.covert_to_df()
 
         # complexity_df returns train complexity
         assert len(results.complexity_df) == 1
@@ -218,7 +218,7 @@ class TestExperimentResultsContainer:
             train_ml_results={"M": {"accuracy": {"mean": 0.99, "std": 0.0}}},
             test_ml_results={"M": {"accuracy": {"mean": 0.80, "std": 0.0}}},
         )
-        results.finalize()
+        results.covert_to_df()
 
         # complexity_df -> train complexity
         assert results.complexity_df.iloc[0]["F1"] == 0.3
@@ -530,7 +530,7 @@ class TestSaveLoad:
             {"F1": 0.4, "N3": 0.5},
             {"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
         )
-        results.finalize()
+        results.covert_to_df()
 
         results.correlations_df = pd.DataFrame(
             {
@@ -567,7 +567,7 @@ class TestSaveLoad:
             {"Model": {"accuracy": {"mean": 0.90, "std": 0.0}}},
             {"Model": {"accuracy": {"mean": 0.80, "std": 0.0}}},
         )
-        results.finalize()
+        results.covert_to_df()
 
         results.correlations_df = pd.DataFrame(
             {
@@ -738,7 +738,7 @@ class TestPlotting:
                 {"F1": val * 0.2, "N3": 1.0 - val * 0.2},
                 {"Model": {"accuracy": {"mean": 1.0 - val * 0.1, "std": 0.05}}},
             )
-        results.finalize()
+        results.covert_to_df()
 
         results.correlations_df = pd.DataFrame(
             {
@@ -782,7 +782,7 @@ class TestPrintSummary:
             {"F1": 0.5},
             {"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
         )
-        results.finalize()
+        results.covert_to_df()
         results.correlations_df = pd.DataFrame(
             {
                 "complexity_metric": ["F1"],

@@ -117,19 +117,20 @@ class Experiment:
             print()
 
         for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
-            # Build dataset params (include all parameters)
+            # Build dataset params
+            # fixed
             data_params = dict(self.config.dataset.fixed_params)
+            # current varying param
             data_params[self.config.vary_parameter.name] = param_value
+            # name for labeling
             data_params["name"] = self.config.vary_parameter.format_label(param_value)
-
+            # build the dataset (with internal train/test split and postprocessing etc. all handled by the dataset object)
             dataset = self._get_dataset(
                 dataset_name=self.config.dataset.dataset_type, 
                 **data_params
                 )
+            # Store dataset for visualization later (keyed by param_value for easy lookup)
             self.datasets[param_value] = dataset
-
-            # Determine minority_reduce_scaler
-            minority_reduce_scaler = self._get_minority_reduce_scaler(param_value)
 
             # Accumulate results across seeds
             train_complexity_accum: List[Dict[str, float]] = []
@@ -137,22 +138,9 @@ class Experiment:
             train_ml_accum: List[Dict] = []
             test_ml_accum: List[Dict] = []
 
-            # get the train/test split size from either the fixed_params or vary_parameter
-            if "train_size" in self.config.dataset.fixed_params:
-                train_size = self.config.dataset.fixed_params["train_size"]
-            elif self.config.vary_parameter.name == "train_size":
-                train_size = param_value
-            else:
-                raise ValueError("train_size must be specified in fixed_params or as the vary_parameter")
-
             for seed_i in tqdm(range(cv_folds), desc=f"Param {data_params['name']}", leave=False):
-                # Use dataset's built-in proportional_split with minority_reduce_scaler
-                train_data, test_data = dataset.get_train_test_split(
-                             train_size=train_size,
-                             minority_reduce_scaler=minority_reduce_scaler,
-                             minority_reduce_scaler_test=None,
-                             equal_test=None,
-                             seed=42 + seed_i)
+                # Use dataset's built-in proportional_split with all params already set (look up datasets package docs for more info)
+                train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
 
                 # Complexity on train and test
                 train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
@@ -163,6 +151,7 @@ class Experiment:
                     train_data, test_data, models=models, metrics=metrics,
                 )
 
+                # Accumulate results for this seed
                 train_complexity_accum.append(train_cmplx)
                 test_complexity_accum.append(test_cmplx)
                 train_ml_accum.append(train_ml)
@@ -176,6 +165,7 @@ class Experiment:
             avg_train_ml = _average_ml_results(train_ml_accum)
             avg_test_ml = _average_ml_results(test_ml_accum)
 
+            # store results
             self.results.add_split_result(
                 param_value=param_value,
                 train_complexity_dict=avg_train_complexity,
@@ -190,7 +180,8 @@ class Experiment:
                 best_acc = get_best_metric(avg_test_ml, "accuracy")
                 print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
 
-        self.results.finalize()  # Convert accumulated results to DataFrames
+        # Convert accumulated results to DataFrames
+        self.results.covert_to_df()  
         return self.results
 
     def _get_minority_reduce_scaler(self, param_value: Any) -> Optional[float]:

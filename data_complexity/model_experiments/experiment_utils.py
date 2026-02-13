@@ -309,7 +309,7 @@ class ExperimentResultsContainer:
         self._train_ml_rows.append(self._build_ml_row(param_value, train_ml_results))
         self._test_ml_rows.append(self._build_ml_row(param_value, test_ml_results))
 
-    def finalize(self) -> None:
+    def covert_to_df(self) -> None:
         """Convert collected rows to DataFrames."""
         if self._complexity_rows:
             self._complexity_df = pd.DataFrame(self._complexity_rows)
@@ -328,28 +328,28 @@ class ExperimentResultsContainer:
     def train_complexity_df(self) -> Optional[pd.DataFrame]:
         """Get train complexity metrics DataFrame."""
         if self._train_complexity_df is None and self._train_complexity_rows:
-            self.finalize()
+            self.covert_to_df()
         return self._train_complexity_df
 
     @property
     def test_complexity_df(self) -> Optional[pd.DataFrame]:
         """Get test complexity metrics DataFrame."""
         if self._test_complexity_df is None and self._test_complexity_rows:
-            self.finalize()
+            self.covert_to_df()
         return self._test_complexity_df
 
     @property
     def train_ml_df(self) -> Optional[pd.DataFrame]:
         """Get train ML performance DataFrame."""
         if self._train_ml_df is None and self._train_ml_rows:
-            self.finalize()
+            self.covert_to_df()
         return self._train_ml_df
 
     @property
     def test_ml_df(self) -> Optional[pd.DataFrame]:
         """Get test ML performance DataFrame."""
         if self._test_ml_df is None and self._test_ml_rows:
-            self.finalize()
+            self.covert_to_df()
         return self._test_ml_df
 
     @property
@@ -362,8 +362,8 @@ class ExperimentResultsContainer:
         if self._train_complexity_df is not None:
             return self._train_complexity_df
         if self._complexity_df is None:
-            self.finalize()
-        # After finalize, prefer train if available
+            self.covert_to_df()
+        # After covert_to_df, prefer train if available
         if self._train_complexity_df is not None:
             return self._train_complexity_df
         return self._complexity_df
@@ -378,8 +378,8 @@ class ExperimentResultsContainer:
         if self._test_ml_df is not None:
             return self._test_ml_df
         if self._ml_df is None:
-            self.finalize()
-        # After finalize, prefer test if available
+            self.covert_to_df()
+        # After covert_to_df, prefer test if available
         if self._test_ml_df is not None:
             return self._test_ml_df
         return self._ml_df
