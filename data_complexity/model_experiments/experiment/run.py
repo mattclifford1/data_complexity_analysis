@@ -159,10 +159,6 @@ class Experiment:
             - ``N > 1`` — N worker processes via ``ProcessPoolExecutor``.
             - ``-1`` — one process per CPU (executor chooses ``max_workers``).
 
-            **Limitations when** ``n_jobs != 1``:
-            - ``self.datasets`` is *not* populated; dataset visualisation PNGs
-              are skipped when calling ``save()``.
-
         Returns
         -------
         ExperimentResultsContainer
@@ -294,8 +290,16 @@ class Experiment:
                     param_label = self.config.vary_parameter.format_label(param_value)
                     print(f"  {param_label}: best_test_accuracy={best_acc:.3f}")
 
-            # Note: self.datasets is not populated in parallel mode;
-            # dataset visualisation PNGs are skipped when calling save().
+            # Regenerate datasets in the main process for visualisation.
+            # Dataset construction is cheap; we only need the objects for plotting.
+            for param_value in self.config.vary_parameter.values:
+                data_params = dict(self.config.dataset.fixed_params)
+                data_params[self.config.vary_parameter.name] = param_value
+                data_params["name"] = self.config.vary_parameter.format_label(param_value)
+                self.datasets[param_value] = self._get_dataset(
+                    dataset_name=self.config.dataset.dataset_type,
+                    **data_params,
+                )
 
         # Convert accumulated results to DataFrames
         self.results.covert_to_df()

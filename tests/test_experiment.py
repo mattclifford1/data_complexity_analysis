@@ -880,11 +880,11 @@ class TestParallelRun:
         par_ml = results_par.test_ml_df.sort_values("param_value").reset_index(drop=True)
         pd.testing.assert_frame_equal(seq_ml, par_ml, atol=1e-10)
 
-    def test_parallel_datasets_not_populated(self, tiny_config):
-        """self.datasets should be empty after a parallel run."""
+    def test_parallel_datasets_populated(self, tiny_config):
+        """self.datasets should be populated after a parallel run."""
         exp = Experiment(tiny_config)
         exp.run(verbose=False, n_jobs=-1)
-        assert exp.datasets == {}
+        assert len(exp.datasets) == len(tiny_config.vary_parameter.values)
 
     def test_sequential_datasets_populated(self, tiny_config):
         """self.datasets should be populated after a sequential run."""
