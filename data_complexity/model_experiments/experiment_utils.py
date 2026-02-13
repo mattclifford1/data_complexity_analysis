@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from data_complexity.model_experiments.ml import (
+from data_complexity.model_experiments.classification import (
     AbstractMLModel,
     get_default_models,
     evaluate_models_train_test,

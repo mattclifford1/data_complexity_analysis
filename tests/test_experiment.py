@@ -837,7 +837,7 @@ class TestParallelRun:
     @pytest.fixture
     def tiny_config(self):
         """Minimal config: 2 param values, 1 seed, small dataset — runs fast."""
-        from data_complexity.model_experiments.ml import LogisticRegressionModel, AccuracyMetric
+        from data_complexity.model_experiments.classification import LogisticRegressionModel, AccuracyMetric
         return ExperimentConfig(
             dataset=DatasetSpec(
                 dataset_type="Gaussian",
@@ -905,7 +905,7 @@ class TestEvaluateModelsTrainTest:
     """Tests for evaluate_models_train_test function."""
 
     def test_basic_evaluation(self):
-        from data_complexity.model_experiments.ml import (
+        from data_complexity.model_experiments.classification import (
             evaluate_models_train_test,
             LogisticRegressionModel,
             AccuracyMetric,

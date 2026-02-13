@@ -15,7 +15,7 @@ from data_complexity.model_experiments.experiment import (
     ParameterSpec,
     PlotType,
 )
-from data_complexity.model_experiments.ml import (
+from data_complexity.model_experiments.classification import (
     LogisticRegressionModel,
     SVMModel,
     RandomForestModel,

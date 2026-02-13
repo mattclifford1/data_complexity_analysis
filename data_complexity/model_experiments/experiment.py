@@ -19,7 +19,7 @@ from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 from tqdm import tqdm
 
 from data_complexity.metrics import ComplexityMetrics
-from data_complexity.model_experiments.ml import (
+from data_complexity.model_experiments.classification import (
     get_default_models,
     evaluate_models_train_test,
     get_best_metric,
