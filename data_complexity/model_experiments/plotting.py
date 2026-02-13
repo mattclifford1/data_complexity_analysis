@@ -239,6 +239,108 @@ def plot_correlation_heatmap(
     return fig
 
 
+def plot_metrics_vs_parameter(
+    complexity_df: pd.DataFrame,
+    ml_df: pd.DataFrame,
+    param_label_col: str = "param_label",
+    title: str = "Metrics vs Parameter",
+    ml_prefixes: tuple = ("best_", "mean_"),
+) -> plt.Figure:
+    """
+    Line plot of all normalised complexity and ML metrics vs. a varied parameter.
+
+    Each metric is min-max normalised independently across parameter values so
+    that all lines share the same y-axis scale.  Complexity metrics are drawn
+    with solid lines; ML metrics with dashed lines.
+
+    Parameters
+    ----------
+    complexity_df : pd.DataFrame
+        DataFrame with complexity metrics and a ``param_label`` column.
+    ml_df : pd.DataFrame
+        DataFrame with ML performance metrics.
+    param_label_col : str
+        Column in ``complexity_df`` used as x-axis labels. Default: 'param_label'
+    title : str
+        Plot title.
+    ml_prefixes : tuple of str
+        Only ML columns whose name starts with one of these prefixes are
+        included (e.g. ``best_accuracy``, ``mean_f1``).  Per-model columns are
+        excluded. Default: ('best_', 'mean_')
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    # --- collect columns ---
+    exclude_cols = {"param_value", "param_label"}
+    complexity_cols = [
+        c for c in complexity_df.columns
+        if c not in exclude_cols and not c.endswith("_std")
+    ]
+    ml_cols = [
+        c for c in ml_df.columns
+        if any(c.startswith(p) for p in ml_prefixes)
+    ]
+
+    x_labels = complexity_df[param_label_col].tolist()
+    n_points = len(x_labels)
+
+    def _normalise(values: np.ndarray) -> Optional[np.ndarray]:
+        """Min-max normalise; returns None if all-NaN, flat 0.5 if zero range."""
+        if np.all(np.isnan(values)):
+            return None
+        lo, hi = np.nanmin(values), np.nanmax(values)
+        if hi == lo:
+            return np.full_like(values, 0.5, dtype=float)
+        return (values - lo) / (hi - lo)
+
+    # --- build normalised series ---
+    complexity_series = {}
+    for col in complexity_cols:
+        norm = _normalise(complexity_df[col].values.astype(float))
+        if norm is not None:
+            complexity_series[col] = norm
+
+    ml_series = {}
+    for col in ml_cols:
+        norm = _normalise(ml_df[col].values.astype(float))
+        if norm is not None:
+            ml_series[col] = norm
+
+    # --- colours ---
+    cmap = plt.get_cmap("tab20")
+    n_c = len(complexity_series)
+    n_m = len(ml_series)
+    complexity_colors = [cmap(i / max(n_c, 1)) for i in range(n_c)]
+    ml_colors = [cmap(0.5 + i / max(n_m * 2, 1)) for i in range(n_m)]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    x = np.arange(n_points)
+
+    for (col, values), color in zip(complexity_series.items(), complexity_colors):
+        ax.plot(x, values, marker="o", linestyle="-", color=color, label=col, linewidth=1.5)
+
+    for (col, values), color in zip(ml_series.items(), ml_colors):
+        ax.plot(x, values, marker="o", linestyle="--", color=color, label=col, linewidth=1.5)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels, rotation=45, ha="right")
+    ax.set_xlabel("Parameter value")
+    ax.set_ylabel("Normalised value (min\u2013max per metric)")
+    ax.set_title(title)
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.01, 1),
+        borderaxespad=0,
+        fontsize=8,
+    )
+
+    plt.tight_layout()
+    return fig
+
+
 def plot_model_comparison(
     all_correlations_df: pd.DataFrame,
     complexity_metrics: Optional[List[str]] = None,

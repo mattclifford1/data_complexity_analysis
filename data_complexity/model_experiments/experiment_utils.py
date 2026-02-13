@@ -26,6 +26,8 @@ class PlotType(Enum):
     METRIC_VS_ACCURACY = auto()
     SUMMARY = auto()
     HEATMAP = auto()
+    LINE_PLOT_TRAIN = auto()
+    LINE_PLOT_TEST = auto()
 
 
 @dataclass
@@ -116,7 +118,12 @@ class ExperimentConfig:
     name: Optional[str] = None
     save_dir: Optional[Path] = None
     plots: List[PlotType] = field(
-        default_factory=lambda: [PlotType.CORRELATIONS, PlotType.SUMMARY]
+        default_factory=lambda: [
+            PlotType.CORRELATIONS,
+            PlotType.SUMMARY,
+            PlotType.LINE_PLOT_TRAIN,
+            PlotType.LINE_PLOT_TEST,
+        ]
     )
     correlation_target: str = "best_accuracy"
     train_post_process: Optional[Callable[[Dict], Dict]] = None

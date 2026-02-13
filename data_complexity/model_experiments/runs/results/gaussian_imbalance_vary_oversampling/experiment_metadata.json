@@ -85,6 +85,8 @@
   "plots": [
     "CORRELATIONS",
     "SUMMARY",
-    "HEATMAP"
+    "HEATMAP",
+    "LINE_PLOT_TRAIN",
+    "LINE_PLOT_TEST"
   ]
 }

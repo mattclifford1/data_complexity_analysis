@@ -29,6 +29,7 @@ from data_complexity.model_experiments.plotting import (
     plot_correlations,
     plot_summary,
     plot_model_comparison,
+    plot_metrics_vs_parameter,
 )
 
 from data_complexity.model_experiments.experiment_utils import (
@@ -368,6 +369,24 @@ class Experiment:
                 all_corr = self.compute_all_correlations()
                 fig = plot_model_comparison(all_corr)
                 figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_TRAIN:
+                if self.results.train_complexity_df is not None and self.results.train_ml_df is not None:
+                    fig = plot_metrics_vs_parameter(
+                        complexity_df=self.results.train_complexity_df,
+                        ml_df=self.results.train_ml_df,
+                        title=f"{self.config.name}: Train — metrics vs {self.config.vary_parameter.name}",
+                    )
+                    figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_TEST:
+                if self.results.test_complexity_df is not None and self.results.test_ml_df is not None:
+                    fig = plot_metrics_vs_parameter(
+                        complexity_df=self.results.test_complexity_df,
+                        ml_df=self.results.test_ml_df,
+                        title=f"{self.config.name}: Test — metrics vs {self.config.vary_parameter.name}",
+                    )
+                    figures[pt] = fig
 
         return figures
 
