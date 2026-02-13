@@ -55,19 +55,15 @@ class TestDatasetSpec:
         spec = DatasetSpec(dataset_type="Gaussian")
         assert spec.dataset_type == "Gaussian"
         assert spec.fixed_params == {}
-        assert spec.num_samples == 400
-        assert spec.train_size == 0.5
 
     def test_with_params(self):
         spec = DatasetSpec(
             dataset_type="Moons",
-            fixed_params={"random_state": 42},
-            num_samples=200,
-            train_size=0.7,
+            fixed_params={"random_state": 42, "num_samples": 200, "train_size": 0.7},
         )
-        assert spec.fixed_params == {"random_state": 42}
-        assert spec.num_samples == 200
-        assert spec.train_size == 0.7
+        assert spec.fixed_params == {"random_state": 42, "num_samples": 200, "train_size": 0.7}
+        assert spec.fixed_params["num_samples"] == 200
+        assert spec.fixed_params["train_size"] == 0.7
 
 
 class TestExperimentConfig:
@@ -245,7 +241,6 @@ class TestExperimentConfigPresets:
         config = gaussian_imbalance_config()
         assert config.name == "gaussian_imbalance"
         assert config.vary_parameter.name == "minority_reduce_scaler"
-        assert config.dataset.train_size == 0.5
 
     def test_moons_noise_config(self):
         config = moons_noise_config()
@@ -279,7 +274,7 @@ class TestExperimentRun:
     @pytest.fixture
     def simple_config(self):
         return ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian", num_samples=50),
+            dataset=DatasetSpec(dataset_type="Gaussian", fixed_params={"num_samples": 50}),
             vary_parameter=ParameterSpec(name="cov_scale", values=[1.0, 2.0]),
             cv_folds=2,
             ml_metrics=["accuracy"],
@@ -711,8 +706,6 @@ class TestSaveLoad:
         assert metadata["experiment_name"] == config.name
         # assert "timestamp" in metadata
         assert metadata["dataset"]["type"] == "Gaussian"
-        assert metadata["dataset"]["num_samples"] == 400
-        assert metadata["dataset"]["train_size"] == 0.5
         assert metadata["vary_parameter"]["name"] == "scale"
         assert metadata["ml_metrics"] == ["accuracy"]
         assert metadata["cv_folds"] == 5

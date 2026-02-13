@@ -93,7 +93,6 @@ def gaussian_imbalance_config() -> ExperimentConfig:
         dataset=DatasetSpec(
             dataset_type="Gaussian",
             fixed_params={"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0},
-            train_size=0.5,
         ),
         vary_parameter=ParameterSpec(
             name="minority_reduce_scaler",
