@@ -160,9 +160,6 @@ class Experiment:
             - ``-1`` — one process per CPU (executor chooses ``max_workers``).
 
             **Limitations when** ``n_jobs != 1``:
-
-            - ``config.train_post_process`` and ``config.test_post_process``
-              must be ``None`` (callables cannot be pickled for subprocesses).
             - ``self.datasets`` is *not* populated; dataset visualisation PNGs
               are skipped when calling ``save()``.
 
@@ -174,19 +171,8 @@ class Experiment:
         Raises
         ------
         ValueError
-            If ``n_jobs != 1`` and ``train_post_process`` or
-            ``test_post_process`` are set.
+            If ``n_jobs != 1``
         """
-        if n_jobs != 1 and (
-            self.config.train_post_process is not None
-            or self.config.test_post_process is not None
-        ):
-            raise ValueError(
-                "n_jobs != 1 is not supported when train_post_process or "
-                "test_post_process are set, as callables cannot be pickled "
-                "for subprocess workers. Use n_jobs=1 instead."
-            )
-
         self._load_dataset_loader()
 
         self.results = ExperimentResultsContainer(self.config)

@@ -99,15 +99,6 @@ class ExperimentConfig:
         Plot types to generate. Default: [CORRELATIONS, SUMMARY]
     correlation_target : str
         ML metric to correlate against. Default: 'best_accuracy'
-    train_post_process : Callable, optional
-        Applied to train data after the train/test split and before complexity
-        computation and ML training. Takes a data dict ``{"X": np.ndarray,
-        "y": np.ndarray}`` and returns a (possibly new) data dict. ``None``
-        means no transformation.
-    test_post_process : Callable, optional
-        Applied to test data after the train/test split and before complexity
-        computation and ML evaluation. Same signature as ``train_post_process``.
-        ``None`` means no transformation.
     """
 
     dataset: DatasetSpec
@@ -126,8 +117,6 @@ class ExperimentConfig:
         ]
     )
     correlation_target: str = "best_accuracy"
-    train_post_process: Optional[Callable[[Dict], Dict]] = None
-    test_post_process: Optional[Callable[[Dict], Dict]] = None
     equal_test: bool = False # If True, ensures test set is balanced for imbalance experiments
 
     def __post_init__(self):
