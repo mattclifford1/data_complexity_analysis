@@ -49,6 +49,65 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
 
+def _run_param_value_worker(
+    param_value: Any,
+    config: "ExperimentConfig",
+    models: List,
+    metrics: List,
+) -> Dict[str, Any]:
+    """Worker executed in a subprocess for one parameter value.
+
+    Parameters
+    ----------
+    param_value :
+        The value of the varied parameter for this worker.
+    config : ExperimentConfig
+        Experiment configuration (must be picklable — no callable fields).
+    models : list
+        ML model instances to evaluate.
+    metrics : list
+        ML metric instances to compute.
+
+    Returns
+    -------
+    dict
+        Averaged results across all seeds for this parameter value.
+    """
+    from data_loaders import get_dataset  # type: ignore
+
+    data_params = dict(config.dataset.fixed_params)
+    data_params[config.vary_parameter.name] = param_value
+    data_params["name"] = config.vary_parameter.format_label(param_value)
+
+    dataset = get_dataset(dataset_name=config.dataset.dataset_type, **data_params)
+
+    train_complexity_accum: List[Dict[str, float]] = []
+    test_complexity_accum: List[Dict[str, float]] = []
+    train_ml_accum: List[Dict] = []
+    test_ml_accum: List[Dict] = []
+
+    for seed_i in range(config.cv_folds):
+        train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
+        train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
+        test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
+        train_ml, test_ml = evaluate_models_train_test(
+            train_data, test_data, models=models, metrics=metrics,
+        )
+        train_complexity_accum.append(train_cmplx)
+        test_complexity_accum.append(test_cmplx)
+        train_ml_accum.append(train_ml)
+        test_ml_accum.append(test_ml)
+
+    return {
+        "param_value": param_value,
+        "avg_train_complexity": _average_dicts(train_complexity_accum),
+        "avg_test_complexity": _average_dicts(test_complexity_accum),
+        "std_train_complexity": _std_dicts(train_complexity_accum),
+        "std_test_complexity": _std_dicts(test_complexity_accum),
+        "avg_train_ml": _average_ml_results(train_ml_accum),
+        "avg_test_ml": _average_ml_results(test_ml_accum),
+    }
+
 
 class Experiment:
     """
@@ -78,7 +137,7 @@ class Experiment:
 
             self._get_dataset = get_dataset
 
-    def run(self, verbose: bool = True) -> ExperimentResultsContainer:
+    def run(self, verbose: bool = True, n_jobs: int = 1) -> ExperimentResultsContainer:
         """
         Execute the experiment loop with train/test splits.
 
@@ -92,12 +151,42 @@ class Experiment:
         ----------
         verbose : bool
             Print progress. Default: True
+        n_jobs : int
+            Number of parallel worker processes for the parameter loop.
+            Follows sklearn convention:
+
+            - ``1`` (default) — sequential execution, unchanged behaviour.
+            - ``N > 1`` — N worker processes via ``ProcessPoolExecutor``.
+            - ``-1`` — one process per CPU (executor chooses ``max_workers``).
+
+            **Limitations when** ``n_jobs != 1``:
+
+            - ``config.train_post_process`` and ``config.test_post_process``
+              must be ``None`` (callables cannot be pickled for subprocesses).
+            - ``self.datasets`` is *not* populated; dataset visualisation PNGs
+              are skipped when calling ``save()``.
 
         Returns
         -------
         ExperimentResultsContainer
             Results container with train/test complexity and ML DataFrames.
+
+        Raises
+        ------
+        ValueError
+            If ``n_jobs != 1`` and ``train_post_process`` or
+            ``test_post_process`` are set.
         """
+        if n_jobs != 1 and (
+            self.config.train_post_process is not None
+            or self.config.test_post_process is not None
+        ):
+            raise ValueError(
+                "n_jobs != 1 is not supported when train_post_process or "
+                "test_post_process are set, as callables cannot be pickled "
+                "for subprocess workers. Use n_jobs=1 instead."
+            )
+
         self._load_dataset_loader()
 
         self.results = ExperimentResultsContainer(self.config)
@@ -115,74 +204,116 @@ class Experiment:
             print(f"  Varying: {self.config.vary_parameter.name}")
             print(f"  Values: {self.config.vary_parameter.values}")
             print(f"  Seeds: {cv_folds}")
+            if n_jobs != 1:
+                print(f"  Parallel workers: {n_jobs if n_jobs > 0 else 'auto'}")
             print()
 
-        for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
-            # Build dataset params
-            # fixed
-            data_params = dict(self.config.dataset.fixed_params)
-            # current varying param
-            data_params[self.config.vary_parameter.name] = param_value
-            # name for labeling
-            data_params["name"] = self.config.vary_parameter.format_label(param_value)
-            # build the dataset (with internal train/test split and postprocessing etc. all handled by the dataset object)
-            dataset = self._get_dataset(
-                dataset_name=self.config.dataset.dataset_type,
-                **data_params
+        if n_jobs == 1:
+            # --- sequential loop ---
+            for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
+                # Build dataset params
+                data_params = dict(self.config.dataset.fixed_params)
+                data_params[self.config.vary_parameter.name] = param_value
+                data_params["name"] = self.config.vary_parameter.format_label(param_value)
+                # build the dataset (with internal train/test split and postprocessing etc. all handled by the dataset object)
+                dataset = self._get_dataset(
+                    dataset_name=self.config.dataset.dataset_type,
+                    **data_params
                 )
-            # Store dataset for visualization later (keyed by param_value for easy lookup)
-            self.datasets[param_value] = dataset
+                # Store dataset for visualization later (keyed by param_value for easy lookup)
+                self.datasets[param_value] = dataset
 
-            # Accumulate results across seeds
-            train_complexity_accum: List[Dict[str, float]] = []
-            test_complexity_accum: List[Dict[str, float]] = []
-            train_ml_accum: List[Dict] = []
-            test_ml_accum: List[Dict] = []
+                # Accumulate results across seeds
+                train_complexity_accum: List[Dict[str, float]] = []
+                test_complexity_accum: List[Dict[str, float]] = []
+                train_ml_accum: List[Dict] = []
+                test_ml_accum: List[Dict] = []
 
-            for seed_i in tqdm(range(cv_folds), desc=f"Param {data_params['name']}", leave=False):
-                # Use dataset's built-in proportional_split with all params already set (look up datasets package docs for more info)
-                train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
+                for seed_i in tqdm(range(cv_folds), desc=f"Param {data_params['name']}", leave=False):
+                    # Use dataset's built-in proportional_split with all params already set
+                    train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
 
-                # Complexity on train and test
-                train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
-                test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
+                    # Complexity on train and test
+                    train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
+                    test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
 
-                # ML: train on train, evaluate on both
-                train_ml, test_ml = evaluate_models_train_test(
-                    train_data, test_data, models=models, metrics=metrics,
+                    # ML: train on train, evaluate on both
+                    train_ml, test_ml = evaluate_models_train_test(
+                        train_data, test_data, models=models, metrics=metrics,
+                    )
+
+                    train_complexity_accum.append(train_cmplx)
+                    test_complexity_accum.append(test_cmplx)
+                    train_ml_accum.append(train_ml)
+                    test_ml_accum.append(test_ml)
+
+                # Average and std across seeds
+                avg_train_complexity = _average_dicts(train_complexity_accum)
+                avg_test_complexity = _average_dicts(test_complexity_accum)
+                std_train_complexity = _std_dicts(train_complexity_accum)
+                std_test_complexity = _std_dicts(test_complexity_accum)
+                avg_train_ml = _average_ml_results(train_ml_accum)
+                avg_test_ml = _average_ml_results(test_ml_accum)
+
+                self.results.add_split_result(
+                    param_value=param_value,
+                    train_complexity_dict=avg_train_complexity,
+                    test_complexity_dict=avg_test_complexity,
+                    train_ml_results=avg_train_ml,
+                    test_ml_results=avg_test_ml,
+                    train_complexity_std_dict=std_train_complexity,
+                    test_complexity_std_dict=std_test_complexity,
                 )
 
-                # Accumulate results for this seed
-                train_complexity_accum.append(train_cmplx)
-                test_complexity_accum.append(test_cmplx)
-                train_ml_accum.append(train_ml)
-                test_ml_accum.append(test_ml)
+                if verbose:
+                    best_acc = get_best_metric(avg_test_ml, "accuracy")
+                    print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
 
-            # Average and std across seeds
-            avg_train_complexity = _average_dicts(train_complexity_accum)
-            avg_test_complexity = _average_dicts(test_complexity_accum)
-            std_train_complexity = _std_dicts(train_complexity_accum)
-            std_test_complexity = _std_dicts(test_complexity_accum)
-            avg_train_ml = _average_ml_results(train_ml_accum)
-            avg_test_ml = _average_ml_results(test_ml_accum)
+        else:
+            # --- parallel branch ---
+            from concurrent.futures import ProcessPoolExecutor, as_completed
 
-            # store results
-            self.results.add_split_result(
-                param_value=param_value,
-                train_complexity_dict=avg_train_complexity,
-                test_complexity_dict=avg_test_complexity,
-                train_ml_results=avg_train_ml,
-                test_ml_results=avg_test_ml,
-                train_complexity_std_dict=std_train_complexity,
-                test_complexity_std_dict=std_test_complexity,
-            )
+            max_workers = n_jobs if n_jobs > 0 else None
+            futures = {}
+            with ProcessPoolExecutor(max_workers=max_workers) as pool:
+                for param_value in self.config.vary_parameter.values:
+                    future = pool.submit(
+                        _run_param_value_worker,
+                        param_value, self.config, models, metrics,
+                    )
+                    futures[future] = param_value
 
-            if verbose:
-                best_acc = get_best_metric(avg_test_ml, "accuracy")
-                print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
+                results_by_param: Dict[Any, Dict[str, Any]] = {}
+                for future in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc="All Parameter values (parallel)",
+                ):
+                    result = future.result()  # re-raises worker exceptions in main process
+                    results_by_param[result["param_value"]] = result
+
+            # Restore original order then store
+            for param_value in self.config.vary_parameter.values:
+                r = results_by_param[param_value]
+                self.results.add_split_result(
+                    param_value=r["param_value"],
+                    train_complexity_dict=r["avg_train_complexity"],
+                    test_complexity_dict=r["avg_test_complexity"],
+                    train_ml_results=r["avg_train_ml"],
+                    test_ml_results=r["avg_test_ml"],
+                    train_complexity_std_dict=r["std_train_complexity"],
+                    test_complexity_std_dict=r["std_test_complexity"],
+                )
+                if verbose:
+                    best_acc = get_best_metric(r["avg_test_ml"], "accuracy")
+                    param_label = self.config.vary_parameter.format_label(param_value)
+                    print(f"  {param_label}: best_test_accuracy={best_acc:.3f}")
+
+            # Note: self.datasets is not populated in parallel mode;
+            # dataset visualisation PNGs are skipped when calling save().
 
         # Convert accumulated results to DataFrames
-        self.results.covert_to_df()  
+        self.results.covert_to_df()
         return self.results
 
     def _get_minority_reduce_scaler(self, param_value: Any) -> Optional[float]:
