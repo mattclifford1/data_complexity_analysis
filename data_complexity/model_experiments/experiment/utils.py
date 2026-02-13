@@ -28,6 +28,8 @@ class PlotType(Enum):
     HEATMAP = auto()
     LINE_PLOT_TRAIN = auto()
     LINE_PLOT_TEST = auto()
+    LINE_PLOT_MODELS_TRAIN = auto()
+    LINE_PLOT_MODELS_TEST = auto()
 
 
 @dataclass

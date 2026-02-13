@@ -401,6 +401,123 @@ def plot_metrics_vs_parameter(
     return fig
 
 
+def plot_models_vs_parameter(
+    ml_df: pd.DataFrame,
+    param_label_col: str = "param_label",
+    title: str = "Models vs Parameter",
+    ml_metrics: Optional[List[str]] = None,
+) -> plt.Figure:
+    """
+    Line plots showing each ML model in its own subplot, with one line per metric.
+
+    Raw (un-normalised) metric values are plotted so that subplots are directly
+    comparable on the same 0–1 y-axis scale.  Where ``{model}_{metric}_std``
+    columns are present, error bars are drawn.
+
+    Parameters
+    ----------
+    ml_df : pd.DataFrame
+        DataFrame with ML performance columns named ``{model}_{metric}`` and
+        optionally ``{model}_{metric}_std``.  Must also contain ``param_label``.
+    param_label_col : str
+        Column used as x-axis tick labels. Default: 'param_label'
+    title : str
+        Overall figure title.
+    ml_metrics : list of str, optional
+        Metric names to plot (e.g. ``['accuracy', 'f1']``).  If None, all
+        metrics are inferred from the column names.
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    col = param_label_col if param_label_col in ml_df.columns else "param_value"
+    x_labels = ml_df[col].tolist()
+    x = np.arange(len(x_labels))
+
+    # --- infer model names and metrics from columns ---
+    # Columns look like:  {model}_{metric}  and  {model}_{metric}_std
+    # Aggregate columns like best_* / mean_* / param_* are excluded.
+    exclude_prefixes = ("best_", "mean_", "param_")
+    candidate_cols = [
+        c for c in ml_df.columns
+        if not any(c.startswith(p) for p in exclude_prefixes)
+        and not c.endswith("_std")
+        and c != param_label_col
+    ]
+
+    if ml_metrics is None:
+        # Collect all metric suffixes that appear in the columns
+        all_suffixes: set = set()
+        for col in candidate_cols:
+            parts = col.rsplit("_", 1)
+            if len(parts) == 2:
+                all_suffixes.add(parts[1])
+        ml_metrics = sorted(all_suffixes)
+
+    # Build { model_name: [col_for_metric1, col_for_metric2, ...] }
+    model_metric_cols: dict = {}
+    for col in candidate_cols:
+        for metric in ml_metrics:
+            suffix = f"_{metric}"
+            if col.endswith(suffix):
+                model_name = col[: -len(suffix)]
+                model_metric_cols.setdefault(model_name, {})[metric] = col
+                break
+
+    model_names = sorted(model_metric_cols.keys())
+    n_models = len(model_names)
+    if n_models == 0:
+        fig, ax = plt.subplots()
+        ax.set_title("No per-model columns found")
+        return fig
+
+    cols = min(3, n_models)
+    rows = (n_models + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
+    flat_axes = axes.flatten()
+
+    cmap = plt.get_cmap("tab10")
+    metric_colors = {m: cmap(i / max(len(ml_metrics), 1)) for i, m in enumerate(ml_metrics)}
+
+    for idx, model_name in enumerate(model_names):
+        ax = flat_axes[idx]
+        metric_cols = model_metric_cols[model_name]
+
+        for metric, col in metric_cols.items():
+            values = ml_df[col].values.astype(float)
+            std_col = f"{col}_std"
+            yerr = ml_df[std_col].values.astype(float) if std_col in ml_df.columns else None
+            ax.errorbar(
+                x, values,
+                yerr=yerr,
+                marker="o",
+                linestyle="-",
+                color=metric_colors[metric],
+                label=metric,
+                linewidth=1.5,
+                capsize=3,
+                elinewidth=0.8,
+            )
+
+        ax.set_title(model_name)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        ax.set_ylim(0, 1)
+        ax.set_ylabel("Score")
+        ax.set_xlabel("Parameter value")
+        ax.legend(fontsize=8)
+
+    # Turn off unused subplots
+    for idx in range(n_models, len(flat_axes)):
+        flat_axes[idx].axis("off")
+
+    fig.suptitle(title, y=1.01)
+    plt.tight_layout()
+    return fig
+
+
 def plot_model_comparison(
     all_correlations_df: pd.DataFrame,
     complexity_metrics: Optional[List[str]] = None,

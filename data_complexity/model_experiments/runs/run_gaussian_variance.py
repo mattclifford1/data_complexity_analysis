@@ -52,6 +52,8 @@ config = ExperimentConfig(
         PlotType.HEATMAP,
         PlotType.LINE_PLOT_TRAIN,
         PlotType.LINE_PLOT_TEST,
+        PlotType.LINE_PLOT_MODELS_TRAIN,
+        PlotType.LINE_PLOT_MODELS_TEST,
         ],
     correlation_target="best_accuracy",
     name="gaussian_variance_example",
