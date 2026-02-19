@@ -610,6 +610,9 @@ def plot_datasets_overview(
     Composite grid showing all dataset visualizations.
 
     Rows = one per parameter value; columns = Full Dataset | Train | Test.
+    All subplots share the same axis scale limits. X-axis labels appear only
+    on the bottom row. Parameter values are shown as row labels in the left
+    margin, outside the plot area, preserving the original y-axis labels.
 
     Parameters
     ----------
@@ -643,9 +646,6 @@ def plot_datasets_overview(
     for row_idx, param_value in enumerate(param_values):
         dataset = datasets[param_value]
         row_axes = axes[row_idx]
-        row_axes[0].set_ylabel(
-            format_label(param_value), fontsize=11, fontweight="bold", labelpad=10
-        )
         try:
             dataset.plot_dataset(ax=row_axes[0])
             dataset.plot_train_test_split(ax=(row_axes[1], row_axes[2]))
@@ -658,9 +658,43 @@ def plot_datasets_overview(
                     transform=blank_ax.transAxes,
                     ha="center", va="center", fontsize=12, color="grey",
                 )
+        # Add param label to the left margin, outside the axes area
+        row_axes[0].text(
+            -0.18, 0.5,
+            format_label(param_value),
+            transform=row_axes[0].transAxes,
+            fontsize=14,
+            ha="center",
+            va="center",
+            rotation=90,
+            clip_on=False,
+            fontweight="bold"
+        )
+
+    # Uniform axis limits across all populated axes
+    all_xlims = [ax.get_xlim() for row in axes for ax in row if ax.has_data()]
+    all_ylims = [ax.get_ylim() for row in axes for ax in row if ax.has_data()]
+    if all_xlims:
+        global_xlim = (min(lo for lo, _ in all_xlims), max(hi for _, hi in all_xlims))
+        global_ylim = (min(lo for lo, _ in all_ylims), max(hi for _, hi in all_ylims))
+        for row in axes:
+            for ax in row:
+                if ax.has_data():
+                    ax.set_xlim(global_xlim)
+                    ax.set_ylim(global_ylim)
+
+    # X-axis labels only on the bottom row and title only on the top row; row labels in the left margin
+    for row_idx, row in enumerate(axes):
+        if row_idx < n_rows - 1:
+            for ax in row:
+                ax.set_xlabel("")
+        if row_idx > 0:
+            for ax in row:
+                ax.set_title("")
 
     fig.suptitle("Datasets Overview", fontsize=14, fontweight="bold", y=1.01)
     plt.tight_layout()
+    fig.subplots_adjust(left=0.1)
     return fig
 
 
