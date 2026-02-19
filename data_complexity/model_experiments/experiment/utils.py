@@ -122,13 +122,15 @@ class ExperimentConfig:
     save_dir: Optional[Path] = None
     plots: List[PlotType] = field(
         default_factory=lambda: [
-            # PlotType.CORRELATIONS, 
-            # PlotType.SUMMARY, 
+            # PlotType.CORRELATIONS,
+            # PlotType.SUMMARY,
             # PlotType.HEATMAP,
             PlotType.LINE_PLOT_TRAIN,
             PlotType.LINE_PLOT_TEST,
             PlotType.LINE_PLOT_MODELS_TRAIN,
             PlotType.LINE_PLOT_MODELS_TEST,
+            PlotType.LINE_PLOT_COMPLEXITY_TRAIN,
+            PlotType.LINE_PLOT_COMPLEXITY_TEST,
         ]
     )
     correlation_target: str = "best_accuracy"
