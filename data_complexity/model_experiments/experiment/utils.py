@@ -1,6 +1,7 @@
 """
 Experiment utilities for complexity vs ML experiments.
 """
+import sys
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -151,8 +152,11 @@ class ExperimentConfig:
         if self.name is None:
             self.name = self._generate_name()
         if self.save_dir is None:
-            # __file__ is model_experiments/experiment/utils.py, so go up two levels
-            self.save_dir = Path(__file__).parent.parent / "runs" / "results" / self.name
+            # Default to results/{name} next to the executing script.
+            # Falls back to cwd if sys.argv[0] is not a real file path (e.g. in tests/REPL).
+            script_path = Path(sys.argv[0])
+            base = script_path.parent if script_path.suffix == ".py" else Path.cwd()
+            self.save_dir = base / "results" / self.name
 
     def _generate_name(self) -> str:
         """Generate experiment name from dataset type and varied parameter."""
