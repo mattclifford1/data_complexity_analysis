@@ -73,13 +73,6 @@ config = ExperimentConfig(
         "balanced_accuracy"
         ],
     cv_folds=5,
-    plots=[
-        PlotType.CORRELATIONS, 
-        PlotType.SUMMARY, 
-        PlotType.HEATMAP,
-        PlotType.LINE_PLOT_TRAIN,
-        PlotType.LINE_PLOT_TEST,
-        ],
     correlation_target="best_accuracy",
     name="gaussian_imbalance_vary_oversampling",
     

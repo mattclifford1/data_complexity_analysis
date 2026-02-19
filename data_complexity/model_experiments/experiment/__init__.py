@@ -9,6 +9,7 @@ config  : Pre-defined experiment configurations.
 """
 from data_complexity.model_experiments.experiment.utils import (
     PlotType,
+    RunMode,
     ParameterSpec,
     DatasetSpec,
     ExperimentConfig,
@@ -41,6 +42,7 @@ from data_complexity.model_experiments.experiment.config import (
 __all__ = [
     # utils
     "PlotType",
+    "RunMode",
     "ParameterSpec",
     "DatasetSpec",
     "ExperimentConfig",

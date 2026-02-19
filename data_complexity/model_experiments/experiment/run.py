@@ -42,6 +42,7 @@ from data_complexity.model_experiments.experiment.utils import (
     _average_ml_results,
     _std_dicts,
     PlotType,
+    RunMode,
     make_json_safe_dict,
     make_json_safe_list,
 )
@@ -82,6 +83,7 @@ def _run_param_value_worker(
 
     dataset = get_dataset(dataset_name=config.dataset.dataset_type, **data_params)
 
+    run_mode = config.run_mode
     train_complexity_accum: List[Dict[str, float]] = []
     test_complexity_accum: List[Dict[str, float]] = []
     train_ml_accum: List[Dict] = []
@@ -89,24 +91,28 @@ def _run_param_value_worker(
 
     for seed_i in range(config.cv_folds):
         train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
-        train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
-        test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
-        train_ml, test_ml = evaluate_models_train_test(
-            train_data, test_data, models=models, metrics=metrics,
-        )
-        train_complexity_accum.append(train_cmplx)
-        test_complexity_accum.append(test_cmplx)
-        train_ml_accum.append(train_ml)
-        test_ml_accum.append(test_ml)
+
+        if run_mode != RunMode.ML_ONLY:
+            train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
+            test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
+            train_complexity_accum.append(train_cmplx)
+            test_complexity_accum.append(test_cmplx)
+
+        if run_mode != RunMode.COMPLEXITY_ONLY:
+            train_ml, test_ml = evaluate_models_train_test(
+                train_data, test_data, models=models, metrics=metrics,
+            )
+            train_ml_accum.append(train_ml)
+            test_ml_accum.append(test_ml)
 
     return {
         "param_value": param_value,
-        "avg_train_complexity": _average_dicts(train_complexity_accum),
-        "avg_test_complexity": _average_dicts(test_complexity_accum),
-        "std_train_complexity": _std_dicts(train_complexity_accum),
-        "std_test_complexity": _std_dicts(test_complexity_accum),
-        "avg_train_ml": _average_ml_results(train_ml_accum),
-        "avg_test_ml": _average_ml_results(test_ml_accum),
+        "avg_train_complexity": _average_dicts(train_complexity_accum) if train_complexity_accum else None,
+        "avg_test_complexity": _average_dicts(test_complexity_accum) if test_complexity_accum else None,
+        "std_train_complexity": _std_dicts(train_complexity_accum) if train_complexity_accum else None,
+        "std_test_complexity": _std_dicts(test_complexity_accum) if test_complexity_accum else None,
+        "avg_train_ml": _average_ml_results(train_ml_accum) if train_ml_accum else None,
+        "avg_test_ml": _average_ml_results(test_ml_accum) if test_ml_accum else None,
     }
 
 
@@ -202,6 +208,7 @@ class Experiment:
                 self.datasets[param_value] = dataset
 
                 # Accumulate results across seeds
+                run_mode = self.config.run_mode
                 train_complexity_accum: List[Dict[str, float]] = []
                 test_complexity_accum: List[Dict[str, float]] = []
                 train_ml_accum: List[Dict] = []
@@ -211,27 +218,26 @@ class Experiment:
                     # Use dataset's built-in proportional_split with all params already set
                     train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
 
-                    # Complexity on train and test
-                    train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
-                    test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
+                    if run_mode != RunMode.ML_ONLY:
+                        train_cmplx = ComplexityMetrics(dataset=train_data).get_all_metrics_scalar()
+                        test_cmplx = ComplexityMetrics(dataset=test_data).get_all_metrics_scalar()
+                        train_complexity_accum.append(train_cmplx)
+                        test_complexity_accum.append(test_cmplx)
 
-                    # ML: train on train, evaluate on both
-                    train_ml, test_ml = evaluate_models_train_test(
-                        train_data, test_data, models=models, metrics=metrics,
-                    )
-
-                    train_complexity_accum.append(train_cmplx)
-                    test_complexity_accum.append(test_cmplx)
-                    train_ml_accum.append(train_ml)
-                    test_ml_accum.append(test_ml)
+                    if run_mode != RunMode.COMPLEXITY_ONLY:
+                        train_ml, test_ml = evaluate_models_train_test(
+                            train_data, test_data, models=models, metrics=metrics,
+                        )
+                        train_ml_accum.append(train_ml)
+                        test_ml_accum.append(test_ml)
 
                 # Average and std across seeds
-                avg_train_complexity = _average_dicts(train_complexity_accum)
-                avg_test_complexity = _average_dicts(test_complexity_accum)
-                std_train_complexity = _std_dicts(train_complexity_accum)
-                std_test_complexity = _std_dicts(test_complexity_accum)
-                avg_train_ml = _average_ml_results(train_ml_accum)
-                avg_test_ml = _average_ml_results(test_ml_accum)
+                avg_train_complexity = _average_dicts(train_complexity_accum) if train_complexity_accum else None
+                avg_test_complexity = _average_dicts(test_complexity_accum) if test_complexity_accum else None
+                std_train_complexity = _std_dicts(train_complexity_accum) if train_complexity_accum else None
+                std_test_complexity = _std_dicts(test_complexity_accum) if test_complexity_accum else None
+                avg_train_ml = _average_ml_results(train_ml_accum) if train_ml_accum else None
+                avg_test_ml = _average_ml_results(test_ml_accum) if test_ml_accum else None
 
                 self.results.add_split_result(
                     param_value=param_value,
@@ -243,7 +249,7 @@ class Experiment:
                     test_complexity_std_dict=std_test_complexity,
                 )
 
-                if verbose:
+                if verbose and run_mode != RunMode.COMPLEXITY_ONLY and avg_test_ml:
                     best_acc = get_best_metric(avg_test_ml, "accuracy")
                     print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
 
@@ -286,7 +292,7 @@ class Experiment:
                     train_complexity_std_dict=r["std_train_complexity"],
                     test_complexity_std_dict=r["std_test_complexity"],
                 )
-                if verbose:
+                if verbose and self.config.run_mode != RunMode.COMPLEXITY_ONLY and r["avg_test_ml"]:
                     best_acc = get_best_metric(r["avg_test_ml"], "accuracy")
                     param_label = self.config.vary_parameter.format_label(param_value)
                     print(f"  {param_label}: best_test_accuracy={best_acc:.3f}")
@@ -338,6 +344,16 @@ class Experiment:
         """
         if self.results is None:
             raise RuntimeError("Must run experiment before computing correlations.")
+
+        run_mode = self.config.run_mode
+        if run_mode == RunMode.COMPLEXITY_ONLY:
+            raise RuntimeError(
+                "Cannot compute correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
+            )
+        if run_mode == RunMode.ML_ONLY:
+            raise RuntimeError(
+                "Cannot compute correlations with run_mode=ML_ONLY (no complexity results)."
+            )
 
         ml_column = ml_column or self.config.correlation_target
         complexity_df = self.results._get_complexity_df(complexity_source)
@@ -464,12 +480,20 @@ class Experiment:
 
         plot_types = plot_types or self.config.plots
         figures = {}
+        run_mode = self.config.run_mode
 
-        if self.results.correlations_df is None:
+        if run_mode == RunMode.BOTH and self.results.correlations_df is None:
             self.compute_correlations()
 
         for pt in plot_types:
             if pt == PlotType.CORRELATIONS:
+                if run_mode != RunMode.BOTH:
+                    import warnings
+                    warnings.warn(
+                        f"Skipping {pt.name} plot: requires both complexity and ML results "
+                        f"(run_mode={run_mode.value})."
+                    )
+                    continue
                 fig = plot_correlations(
                     self.results.correlations_df,
                     title=f"{self.config.name}: Complexity vs {self.config.correlation_target}",
@@ -477,6 +501,13 @@ class Experiment:
                 figures[pt] = fig
 
             elif pt == PlotType.SUMMARY:
+                if run_mode != RunMode.BOTH:
+                    import warnings
+                    warnings.warn(
+                        f"Skipping {pt.name} plot: requires both complexity and ML results "
+                        f"(run_mode={run_mode.value})."
+                    )
+                    continue
                 fig = plot_summary(
                     self.results.complexity_df,
                     self.results.ml_df,
@@ -487,6 +518,13 @@ class Experiment:
                 figures[pt] = fig
 
             elif pt == PlotType.HEATMAP:
+                if run_mode != RunMode.BOTH:
+                    import warnings
+                    warnings.warn(
+                        f"Skipping {pt.name} plot: requires both complexity and ML results "
+                        f"(run_mode={run_mode.value})."
+                    )
+                    continue
                 all_corr = self.compute_all_correlations()
                 fig = plot_model_comparison(all_corr)
                 figures[pt] = fig
@@ -592,14 +630,17 @@ class Experiment:
             "cv_folds": self.config.cv_folds,
             "correlation_target": self.config.correlation_target,
             "plots": [pt.name for pt in self.config.plots],
+            "run_mode": self.config.run_mode.value,
         }
 
         with open(save_dir / "experiment_metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
         # Save backward-compat CSVs (train complexity + test ML)
-        self.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
-        self.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
+        if self.results.complexity_df is not None:
+            self.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
+        if self.results.ml_df is not None:
+            self.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
 
         # Save train/test split CSVs if available
         if self.results.train_complexity_df is not None:

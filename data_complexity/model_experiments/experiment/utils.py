@@ -32,6 +32,14 @@ class PlotType(Enum):
     LINE_PLOT_MODELS_TEST = auto()
 
 
+class RunMode(Enum):
+    """Controls what the experiment computes."""
+
+    BOTH = "both"
+    COMPLEXITY_ONLY = "complexity"
+    ML_ONLY = "ml"
+
+
 @dataclass
 class ParameterSpec:
     """
@@ -112,14 +120,18 @@ class ExperimentConfig:
     save_dir: Optional[Path] = None
     plots: List[PlotType] = field(
         default_factory=lambda: [
-            PlotType.CORRELATIONS,
-            PlotType.SUMMARY,
+            # PlotType.CORRELATIONS, 
+            # PlotType.SUMMARY, 
+            # PlotType.HEATMAP,
             PlotType.LINE_PLOT_TRAIN,
             PlotType.LINE_PLOT_TEST,
+            PlotType.LINE_PLOT_MODELS_TRAIN,
+            PlotType.LINE_PLOT_MODELS_TEST,
         ]
     )
     correlation_target: str = "best_accuracy"
     equal_test: bool = False  # If True, ensures test set is balanced for imbalance experiments
+    run_mode: RunMode = RunMode.BOTH
 
     def __post_init__(self):
         """Generate name and save_dir if not provided."""
@@ -272,10 +284,10 @@ class ExperimentResultsContainer:
     def add_split_result(
         self,
         param_value: Any,
-        train_complexity_dict: Dict[str, float],
-        test_complexity_dict: Dict[str, float],
-        train_ml_results: Dict[str, Dict[str, Dict[str, float]]],
-        test_ml_results: Dict[str, Dict[str, Dict[str, float]]],
+        train_complexity_dict: Optional[Dict[str, float]] = None,
+        test_complexity_dict: Optional[Dict[str, float]] = None,
+        train_ml_results: Optional[Dict[str, Dict[str, Dict[str, float]]]] = None,
+        test_ml_results: Optional[Dict[str, Dict[str, Dict[str, float]]]] = None,
         train_complexity_std_dict: Optional[Dict[str, float]] = None,
         test_complexity_std_dict: Optional[Dict[str, float]] = None,
     ) -> None:
@@ -286,27 +298,35 @@ class ExperimentResultsContainer:
         ----------
         param_value : Any
             The parameter value used for this iteration.
-        train_complexity_dict : dict
+        train_complexity_dict : dict, optional
             Complexity metrics computed on training data (means across seeds).
-        test_complexity_dict : dict
+            Pass ``None`` to skip storing train complexity (e.g. RunMode.ML_ONLY).
+        test_complexity_dict : dict, optional
             Complexity metrics computed on test data (means across seeds).
-        train_ml_results : dict
+            Pass ``None`` to skip storing test complexity.
+        train_ml_results : dict, optional
             ML results evaluated on training data.
-        test_ml_results : dict
+            Pass ``None`` to skip storing train ML (e.g. RunMode.COMPLEXITY_ONLY).
+        test_ml_results : dict, optional
             ML results evaluated on test data.
+            Pass ``None`` to skip storing test ML.
         train_complexity_std_dict : dict, optional
             Std of complexity metrics on training data across seeds.
         test_complexity_std_dict : dict, optional
             Std of complexity metrics on test data across seeds.
         """
-        self._train_complexity_rows.append(
-            self._build_complexity_row(param_value, train_complexity_dict, train_complexity_std_dict)
-        )
-        self._test_complexity_rows.append(
-            self._build_complexity_row(param_value, test_complexity_dict, test_complexity_std_dict)
-        )
-        self._train_ml_rows.append(self._build_ml_row(param_value, train_ml_results))
-        self._test_ml_rows.append(self._build_ml_row(param_value, test_ml_results))
+        if train_complexity_dict is not None:
+            self._train_complexity_rows.append(
+                self._build_complexity_row(param_value, train_complexity_dict, train_complexity_std_dict)
+            )
+        if test_complexity_dict is not None:
+            self._test_complexity_rows.append(
+                self._build_complexity_row(param_value, test_complexity_dict, test_complexity_std_dict)
+            )
+        if train_ml_results is not None:
+            self._train_ml_rows.append(self._build_ml_row(param_value, train_ml_results))
+        if test_ml_results is not None:
+            self._test_ml_rows.append(self._build_ml_row(param_value, test_ml_results))
 
     def covert_to_df(self) -> None:
         """Convert collected rows to DataFrames."""

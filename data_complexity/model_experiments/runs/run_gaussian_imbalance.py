@@ -53,7 +53,6 @@ config = ExperimentConfig(
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
-    plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.HEATMAP],
     correlation_target="best_accuracy",
     name="gaussian_imbalance_example",
 )

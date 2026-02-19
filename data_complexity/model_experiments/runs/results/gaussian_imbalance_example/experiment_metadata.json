@@ -14,11 +14,11 @@
   "vary_parameter": {
     "name": "minority_reduce_scaler",
     "values": [
-      1,
-      2,
-      4,
-      8,
-      16
+      "1",
+      "2",
+      "4",
+      "8",
+      "16"
     ],
     "label_format": "imbalance={value}x"
   },
@@ -82,8 +82,10 @@
   "cv_folds": 5,
   "correlation_target": "best_accuracy",
   "plots": [
-    "CORRELATIONS",
-    "SUMMARY",
-    "HEATMAP"
-  ]
+    "LINE_PLOT_TRAIN",
+    "LINE_PLOT_TEST",
+    "LINE_PLOT_MODELS_TRAIN",
+    "LINE_PLOT_MODELS_TEST"
+  ],
+  "run_mode": "both"
 }
