@@ -32,6 +32,7 @@ from data_complexity.model_experiments.plotting import (
     plot_metrics_vs_parameter,
     plot_models_vs_parameter,
     plot_complexity_metrics_vs_parameter,
+    plot_datasets_overview,
 )
 
 from data_complexity.model_experiments.experiment.utils import (
@@ -593,6 +594,20 @@ class Experiment:
                         title=f"{self.config.name}: Complexity (Test) vs {self.config.vary_parameter.name}",
                     )
                     figures[pt] = fig
+
+            elif pt == PlotType.DATASETS_OVERVIEW:
+                if self.datasets:
+                    fig = plot_datasets_overview(
+                        datasets=self.datasets,
+                        format_label=self.config.vary_parameter.format_label,
+                    )
+                    figures[pt] = fig
+                else:
+                    import warnings
+                    warnings.warn(
+                        "Skipping DATASETS_OVERVIEW plot: self.datasets is empty. "
+                        "Run the experiment first."
+                    )
 
         return figures
 

@@ -32,6 +32,7 @@ class PlotType(Enum):
     LINE_PLOT_MODELS_TEST = auto()
     LINE_PLOT_COMPLEXITY_TRAIN = auto()
     LINE_PLOT_COMPLEXITY_TEST = auto()
+    DATASETS_OVERVIEW = auto()
 
 
 class RunMode(Enum):
@@ -131,6 +132,7 @@ class ExperimentConfig:
             PlotType.LINE_PLOT_MODELS_TEST,
             PlotType.LINE_PLOT_COMPLEXITY_TRAIN,
             PlotType.LINE_PLOT_COMPLEXITY_TEST,
+            PlotType.DATASETS_OVERVIEW,
         ]
     )
     correlation_target: str = "best_accuracy"

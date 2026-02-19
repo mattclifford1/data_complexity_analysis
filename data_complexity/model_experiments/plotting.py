@@ -3,7 +3,7 @@ Plotting utilities for experiment visualization.
 
 Provides reusable plotting functions for complexity vs ML performance analysis.
 """
-from typing import Optional, List
+from typing import Any, Callable, Dict, Optional, List
 
 import numpy as np
 import pandas as pd
@@ -596,6 +596,70 @@ def plot_complexity_metrics_vs_parameter(
         flat_axes[idx].axis("off")
 
     fig.suptitle(title, y=1.01)
+    plt.tight_layout()
+    return fig
+
+
+def plot_datasets_overview(
+    datasets: Dict[Any, Any],
+    format_label: Callable[[Any], str],
+    cell_width: float = 6.0,
+    cell_height: float = 4.0,
+) -> plt.Figure:
+    """
+    Composite grid showing all dataset visualizations.
+
+    Rows = one per parameter value; columns = Full Dataset | Train | Test.
+
+    Parameters
+    ----------
+    datasets : dict
+        param_value -> dataset object (from Experiment.datasets).
+    format_label : callable
+        Converts a param_value to a human-readable row label.
+    cell_width : float
+        Width of each grid cell in inches. Default: 6.0
+    cell_height : float
+        Height of each grid cell in inches. Default: 4.0
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    param_values = list(datasets.keys())
+    n_rows = len(param_values)
+
+    fig, axes = plt.subplots(
+        n_rows, 3,
+        figsize=(cell_width * 3, cell_height * n_rows),
+        squeeze=False,
+    )
+
+    col_titles = ["Full Dataset", "Train", "Test"]
+    for col_idx, title in enumerate(col_titles):
+        axes[0][col_idx].set_title(title, fontsize=12, fontweight="bold")
+
+    for row_idx, param_value in enumerate(param_values):
+        dataset = datasets[param_value]
+        row_axes = axes[row_idx]
+        row_axes[0].set_ylabel(
+            format_label(param_value), fontsize=11, fontweight="bold", labelpad=10
+        )
+        try:
+            dataset.plot_dataset(ax=row_axes[0])
+            dataset.plot_train_test_split(ax=(row_axes[1], row_axes[2]))
+        except (ValueError, AttributeError):
+            dataset.plot_dataset(ax=row_axes[0])
+            for blank_ax in row_axes[1:]:
+                blank_ax.axis("off")
+                blank_ax.text(
+                    0.5, 0.5, "N/A",
+                    transform=blank_ax.transAxes,
+                    ha="center", va="center", fontsize=12, color="grey",
+                )
+
+    fig.suptitle("Datasets Overview", fontsize=14, fontweight="bold", y=1.01)
     plt.tight_layout()
     return fig
 
