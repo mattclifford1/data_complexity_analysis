@@ -110,8 +110,10 @@ class TestExperimentConfig:
         assert config.cv_folds == 5
         assert config.ml_metrics == ["accuracy", "f1"]
         assert config.correlation_target == "best_accuracy"
-        assert PlotType.CORRELATIONS in config.plots
-        assert PlotType.SUMMARY in config.plots
+        assert PlotType.LINE_PLOT_TRAIN in config.plots
+        assert PlotType.LINE_PLOT_TEST in config.plots
+        assert PlotType.LINE_PLOT_MODELS_TRAIN in config.plots
+        assert PlotType.LINE_PLOT_MODELS_TEST in config.plots
 
 
 class TestExperimentResultsContainer:
@@ -515,15 +517,19 @@ class TestSaveLoad:
         )
         results = ExperimentResultsContainer(config)
 
-        results.add_result(
+        results.add_split_result(
             1.0,
-            {"F1": 0.5, "N3": 0.3},
-            {"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
+            train_complexity_dict={"F1": 0.5, "N3": 0.3},
+            test_complexity_dict={"F1": 0.5, "N3": 0.3},
+            train_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
+            test_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
         )
-        results.add_result(
+        results.add_split_result(
             2.0,
-            {"F1": 0.4, "N3": 0.5},
-            {"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
+            train_complexity_dict={"F1": 0.4, "N3": 0.5},
+            test_complexity_dict={"F1": 0.4, "N3": 0.5},
+            train_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
+            test_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
         )
         results.covert_to_df()
 
@@ -682,7 +688,7 @@ class TestSaveLoad:
         # Verify files in correct locations
         assert (save_dir / "data" / "complexity_metrics.csv").exists()
         assert (save_dir / "data" / "ml_performance.csv").exists()
-        assert (save_dir / "plots" / "correlations.png").exists()
+        assert (save_dir / "plots" / "line_plot_train.png").exists()
 
     def test_save_creates_metadata_file(self, results_with_data, tmp_path):
         """Test that save creates experiment metadata JSON file."""
@@ -726,10 +732,12 @@ class TestPlotting:
         results = ExperimentResultsContainer(config)
 
         for val in [1.0, 2.0, 3.0]:
-            results.add_result(
+            results.add_split_result(
                 val,
-                {"F1": val * 0.2, "N3": 1.0 - val * 0.2},
-                {"Model": {"accuracy": {"mean": 1.0 - val * 0.1, "std": 0.05}}},
+                train_complexity_dict={"F1": val * 0.2, "N3": 1.0 - val * 0.2},
+                test_complexity_dict={"F1": val * 0.2, "N3": 1.0 - val * 0.2},
+                train_ml_results={"Model": {"accuracy": {"mean": 1.0 - val * 0.1, "std": 0.05}}},
+                test_ml_results={"Model": {"accuracy": {"mean": 1.0 - val * 0.1, "std": 0.05}}},
             )
         results.covert_to_df()
 
@@ -752,8 +760,8 @@ class TestPlotting:
 
         figures = experiment_with_results.plot()
 
-        assert PlotType.CORRELATIONS in figures
-        assert PlotType.SUMMARY in figures
+        assert PlotType.LINE_PLOT_TRAIN in figures
+        assert PlotType.LINE_PLOT_TEST in figures
 
         for fig in figures.values():
             assert isinstance(fig, plt.Figure)
