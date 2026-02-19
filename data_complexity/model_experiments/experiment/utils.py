@@ -112,6 +112,13 @@ class ExperimentConfig:
         Plot types to generate. Default: [CORRELATIONS, SUMMARY]
     correlation_target : str
         ML metric to correlate against. Default: 'best_accuracy'
+    equal_test : bool
+        If True, ensures the test set is class-balanced (useful for imbalance experiments
+        where training data is imbalanced but evaluation should be fair). Default: False
+    run_mode : RunMode
+        Controls what the experiment computes. ``RunMode.BOTH`` computes complexity and
+        ML performance, ``RunMode.COMPLEXITY_ONLY`` skips ML evaluation, and
+        ``RunMode.ML_ONLY`` skips complexity computation. Default: RunMode.BOTH
     """
 
     dataset: DatasetSpec
