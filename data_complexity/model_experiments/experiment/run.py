@@ -31,6 +31,7 @@ from data_complexity.model_experiments.plotting import (
     plot_model_comparison,
     plot_metrics_vs_parameter,
     plot_models_vs_parameter,
+    plot_complexity_metrics_vs_parameter,
 )
 
 from data_complexity.model_experiments.experiment.utils import (
@@ -570,6 +571,26 @@ class Experiment:
                         x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Models (Test) vs {self.config.vary_parameter.name}",
                         ml_metrics=self.config.ml_metrics,
+                    )
+                    figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_COMPLEXITY_TRAIN:
+                if self.results.train_complexity_df is not None:
+                    fig = plot_complexity_metrics_vs_parameter(
+                        complexity_df=self.results.train_complexity_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
+                        title=f"{self.config.name}: Complexity (Train) vs {self.config.vary_parameter.name}",
+                    )
+                    figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_COMPLEXITY_TEST:
+                if self.results.test_complexity_df is not None:
+                    fig = plot_complexity_metrics_vs_parameter(
+                        complexity_df=self.results.test_complexity_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
+                        title=f"{self.config.name}: Complexity (Test) vs {self.config.vary_parameter.name}",
                     )
                     figures[pt] = fig
 

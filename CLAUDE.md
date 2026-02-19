@@ -384,7 +384,7 @@ exp.save()  # Saves to model_experiments/results/my_custom_experiment/
 Results are organized into subfolders within `model_experiments/results/{experiment_name}/`:
 - `experiment_metadata.json` - Complete experiment configuration and parameters
 - `data/` - CSV files (see below)
-- `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png, line_plot_train.png, line_plot_test.png, line_plot_models_train.png, line_plot_models_test.png)
+- `plots/` - Analysis visualizations (correlations.png, summary.png, heatmap.png, line_plot_train.png, line_plot_test.png, line_plot_models_train.png, line_plot_models_test.png, line_plot_complexity_train.png, line_plot_complexity_test.png)
 - `datasets/` - Dataset visualization PNGs (one per parameter value)
 
 Metadata file (`experiment_metadata.json`) contains:

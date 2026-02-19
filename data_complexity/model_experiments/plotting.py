@@ -520,6 +520,86 @@ def plot_models_vs_parameter(
     return fig
 
 
+def plot_complexity_metrics_vs_parameter(
+    complexity_df: pd.DataFrame,
+    param_label_col: str = "param_label",
+    title: str = "Complexity Metrics vs Parameter",
+    x_label: str = "Parameter value",
+) -> plt.Figure:
+    """
+    Plot each complexity metric in its own subplot as the experiment parameter varies.
+
+    One subplot per complexity metric, with error bars from ``{metric}_std`` columns
+    where present.  Y-axes are auto-scaled per subplot since complexity metrics have
+    heterogeneous ranges.
+
+    Parameters
+    ----------
+    complexity_df : pd.DataFrame
+        DataFrame with complexity metric columns and optionally ``{metric}_std``
+        columns.  Must contain ``param_value`` and/or ``param_label``.
+    param_label_col : str
+        Column used as x-axis tick labels. Default: 'param_label'
+    title : str
+        Overall figure title.
+    x_label : str
+        X-axis label applied to bottom-row subplots.
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    col = param_label_col if param_label_col in complexity_df.columns else "param_value"
+    x_labels = complexity_df[col].tolist()
+    x = np.arange(len(x_labels))
+
+    # Identify metric columns: exclude param_*, *_std columns
+    exclude_cols = {"param_value", "param_label"}
+    metric_cols = [
+        c for c in complexity_df.columns
+        if c not in exclude_cols and not c.endswith("_std")
+    ]
+
+    n_metrics = len(metric_cols)
+    if n_metrics == 0:
+        fig, ax = plt.subplots()
+        ax.set_title("No complexity metric columns found")
+        return fig
+
+    cols = min(3, n_metrics)
+    rows = (n_metrics + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
+    flat_axes = axes.flatten()
+
+    for idx, metric in enumerate(metric_cols):
+        ax = flat_axes[idx]
+        values = complexity_df[metric].values.astype(float)
+        std_col = f"{metric}_std"
+        yerr = complexity_df[std_col].values.astype(float) if std_col in complexity_df.columns else None
+        ax.errorbar(
+            x, values,
+            yerr=yerr,
+            marker="o",
+            linestyle="-",
+            linewidth=1.5,
+            capsize=3,
+            elinewidth=0.8,
+        )
+        ax.set_title(metric)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        ax.set_xlabel(x_label)
+
+    # Turn off unused subplots
+    for idx in range(n_metrics, len(flat_axes)):
+        flat_axes[idx].axis("off")
+
+    fig.suptitle(title, y=1.01)
+    plt.tight_layout()
+    return fig
+
+
 def plot_model_comparison(
     all_correlations_df: pd.DataFrame,
     complexity_metrics: Optional[List[str]] = None,

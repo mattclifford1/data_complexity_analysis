@@ -30,6 +30,8 @@ class PlotType(Enum):
     LINE_PLOT_TEST = auto()
     LINE_PLOT_MODELS_TRAIN = auto()
     LINE_PLOT_MODELS_TEST = auto()
+    LINE_PLOT_COMPLEXITY_TRAIN = auto()
+    LINE_PLOT_COMPLEXITY_TEST = auto()
 
 
 class RunMode(Enum):
