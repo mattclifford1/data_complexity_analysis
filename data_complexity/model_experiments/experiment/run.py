@@ -602,12 +602,6 @@ class Experiment:
                         format_label=self.config.vary_parameter.format_label,
                     )
                     figures[pt] = fig
-                else:
-                    import warnings
-                    warnings.warn(
-                        "Skipping DATASETS_OVERVIEW plot: self.datasets is empty. "
-                        "Run the experiment first."
-                    )
 
         return figures
 
