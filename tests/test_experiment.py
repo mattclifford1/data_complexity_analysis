@@ -681,14 +681,15 @@ class TestSaveLoad:
         exp.save(save_dir)
 
         # Verify subfolder structure
+        plots_dir_name = f"plots-{config.name}"
         assert (save_dir / "data").is_dir()
-        assert (save_dir / "plots").is_dir()
+        assert (save_dir / plots_dir_name).is_dir()
         assert (save_dir / "datasets").is_dir()
 
         # Verify files in correct locations
         assert (save_dir / "data" / "complexity_metrics.csv").exists()
         assert (save_dir / "data" / "ml_performance.csv").exists()
-        assert (save_dir / "plots" / "line_plot_train.png").exists()
+        assert (save_dir / plots_dir_name / "line_plot_train.png").exists()
 
     def test_save_creates_metadata_file(self, results_with_data, tmp_path):
         """Test that save creates experiment metadata JSON file."""

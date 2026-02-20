@@ -625,7 +625,7 @@ class Experiment:
 
         # Create subfolders for organized results
         data_dir = save_dir / "data"
-        plots_dir = save_dir / "plots"
+        plots_dir = save_dir / f"plots-{self.config.name}"
         datasets_dir = save_dir / "datasets"
 
         data_dir.mkdir(exist_ok=True)
@@ -736,7 +736,7 @@ class Experiment:
         print(f"Saved results to: {save_dir}")
         print(f"  - Metadata: experiment_metadata.json")
         print(f"  - Data CSVs: data/")
-        print(f"  - Plots: plots/")
+        print(f"  - Plots: plots-{self.config.name}/")
         print(f"  - Datasets: datasets/")
 
     def print_summary(self, top_n: int = 10) -> None:

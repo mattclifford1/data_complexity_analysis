@@ -1,0 +1,139 @@
+{
+  "experiment_name": "gaussian_imbalance_complexity",
+  "dataset": {
+    "type": "Gaussian",
+    "fixed_params": {
+      "num_samples": 400,
+      "train_size": 0.5,
+      "class_separation": 1.0,
+      "cov_type": "spherical",
+      "cov_scale": 1.0,
+      "equal_test": true
+    }
+  },
+  "vary_parameter": {
+    "name": "minority_reduce_scaler",
+    "values": [
+      "1",
+      "2",
+      "4",
+      "8",
+      "16"
+    ],
+    "label_format": "imbalance={value}x"
+  },
+  "ml_models": [
+    {
+      "name": "LogisticRegression",
+      "class": "LogisticRegressionModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "max_iter": 1000
+      }
+    },
+    {
+      "name": "KNN-5",
+      "class": "KNNModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "n_neighbors": 5
+      }
+    },
+    {
+      "name": "KNN-3",
+      "class": "KNNModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "n_neighbors": 3
+      }
+    },
+    {
+      "name": "DecisionTree",
+      "class": "DecisionTreeModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false,
+        "max_depth": 5
+      }
+    },
+    {
+      "name": "SVM-RBF",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "rbf",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "SVM-LINEAR",
+      "class": "SVMModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "kernel": "linear",
+        "C": 1.0
+      }
+    },
+    {
+      "name": "RandomForest",
+      "class": "RandomForestModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false,
+        "n_estimators": 50,
+        "max_depth": 5
+      }
+    },
+    {
+      "name": "GradientBoosting",
+      "class": "GradientBoostingModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false,
+        "n_estimators": 50,
+        "max_depth": 3
+      }
+    },
+    {
+      "name": "NaiveBayes",
+      "class": "NaiveBayesModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": false
+      }
+    },
+    {
+      "name": "MLP",
+      "class": "MLPModel",
+      "parameters": {
+        "random_state": 42,
+        "scale_features": true,
+        "hidden_layer_sizes": [
+          50
+        ],
+        "max_iter": 500
+      }
+    }
+  ],
+  "ml_metrics": [
+    "accuracy",
+    "f1"
+  ],
+  "cv_folds": 5,
+  "correlation_target": "best_accuracy",
+  "plots": [
+    "LINE_PLOT_TRAIN",
+    "LINE_PLOT_TEST",
+    "LINE_PLOT_MODELS_TRAIN",
+    "LINE_PLOT_MODELS_TEST",
+    "LINE_PLOT_COMPLEXITY_TRAIN",
+    "LINE_PLOT_COMPLEXITY_TEST",
+    "DATASETS_OVERVIEW"
+  ],
+  "run_mode": "complexity"
+}
