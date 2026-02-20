@@ -7,26 +7,25 @@ from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
-    ParameterSpec,
     RunMode,
 )
 
-# Configure experiment
-config = ExperimentConfig(
-    dataset=DatasetSpec(
-        dataset_type="Moons",
-        fixed_params={
+fixed_params={
             "num_samples": 400,
             "train_size": 0.5,
             "moons_noise": 0.1,
             "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-            },
-    ),
-    vary_parameter=ParameterSpec(
-        name="minority_reduce_scaler",
-        values=[1, 2, 4, 8, 16],
-        label_format="imbalance={value}x",
-    ),
+            }
+datasets = []
+for imbalance_factor in [1, 2, 4, 8, 16]:
+    dataset_params = fixed_params.copy()
+    dataset_params["minority_reduce_scaler"] = imbalance_factor
+    datasets.append(DatasetSpec("Moons", dataset_params, label=f"imbalance={imbalance_factor}x"))
+
+
+# Configure experiment
+config = ExperimentConfig(
+    datasets=datasets,
     name="moons_imbalance_complexity",
     run_mode=RunMode.COMPLEXITY_ONLY,
 )
