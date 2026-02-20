@@ -1,26 +1,78 @@
 {
   "experiment_name": "moons_noise_complexity",
-  "dataset": {
-    "type": "Moons",
-    "fixed_params": {
-      "num_samples": 400,
-      "train_size": 0.5,
-      "equal_test": true
+  "datasets": [
+    {
+      "label": "noise=0.05",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 0.05
+      }
+    },
+    {
+      "label": "noise=0.1",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 0.1
+      }
+    },
+    {
+      "label": "noise=0.25",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 0.25
+      }
+    },
+    {
+      "label": "noise=0.5",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 0.5
+      }
+    },
+    {
+      "label": "noise=1.0",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 1.0
+      }
+    },
+    {
+      "label": "noise=1.5",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 1.5
+      }
+    },
+    {
+      "label": "noise=2.0",
+      "type": "Moons",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "equal_test": true,
+        "moons_noise": 2.0
+      }
     }
-  },
-  "vary_parameter": {
-    "name": "moons_noise",
-    "values": [
-      "0.05",
-      "0.1",
-      "0.25",
-      "0.5",
-      "1.0",
-      "1.5",
-      "2.0"
-    ],
-    "label_format": "scale={value}"
-  },
+  ],
+  "x_label": "Dataset",
   "ml_models": [
     {
       "name": "LogisticRegression",
@@ -132,7 +184,11 @@
     "LINE_PLOT_MODELS_TEST",
     "LINE_PLOT_COMPLEXITY_TRAIN",
     "LINE_PLOT_COMPLEXITY_TEST",
-    "DATASETS_OVERVIEW"
+    "LINE_PLOT_MODELS_COMBINED",
+    "LINE_PLOT_COMPLEXITY_COMBINED",
+    "DATASETS_OVERVIEW",
+    "COMPLEXITY_CORRELATIONS",
+    "ML_CORRELATIONS"
   ],
   "run_mode": "complexity"
 }
