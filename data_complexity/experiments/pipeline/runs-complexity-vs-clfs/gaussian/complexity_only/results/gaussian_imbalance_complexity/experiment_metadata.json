@@ -1,27 +1,73 @@
 {
   "experiment_name": "gaussian_imbalance_complexity",
-  "dataset": {
-    "type": "Gaussian",
-    "fixed_params": {
-      "num_samples": 400,
-      "train_size": 0.5,
-      "class_separation": 1.0,
-      "cov_type": "spherical",
-      "cov_scale": 1.0,
-      "equal_test": true
+  "datasets": [
+    {
+      "label": "imbalance=1x",
+      "type": "Gaussian",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "class_separation": 1.0,
+        "cov_type": "spherical",
+        "cov_scale": 1.0,
+        "equal_test": true,
+        "minority_reduce_scaler": 1
+      }
+    },
+    {
+      "label": "imbalance=2x",
+      "type": "Gaussian",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "class_separation": 1.0,
+        "cov_type": "spherical",
+        "cov_scale": 1.0,
+        "equal_test": true,
+        "minority_reduce_scaler": 2
+      }
+    },
+    {
+      "label": "imbalance=4x",
+      "type": "Gaussian",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "class_separation": 1.0,
+        "cov_type": "spherical",
+        "cov_scale": 1.0,
+        "equal_test": true,
+        "minority_reduce_scaler": 4
+      }
+    },
+    {
+      "label": "imbalance=8x",
+      "type": "Gaussian",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "class_separation": 1.0,
+        "cov_type": "spherical",
+        "cov_scale": 1.0,
+        "equal_test": true,
+        "minority_reduce_scaler": 8
+      }
+    },
+    {
+      "label": "imbalance=16x",
+      "type": "Gaussian",
+      "params": {
+        "num_samples": 400,
+        "train_size": 0.5,
+        "class_separation": 1.0,
+        "cov_type": "spherical",
+        "cov_scale": 1.0,
+        "equal_test": true,
+        "minority_reduce_scaler": 16
+      }
     }
-  },
-  "vary_parameter": {
-    "name": "minority_reduce_scaler",
-    "values": [
-      "1",
-      "2",
-      "4",
-      "8",
-      "16"
-    ],
-    "label_format": "imbalance={value}x"
-  },
+  ],
+  "x_label": "Dataset",
   "ml_models": [
     {
       "name": "LogisticRegression",
@@ -133,7 +179,11 @@
     "LINE_PLOT_MODELS_TEST",
     "LINE_PLOT_COMPLEXITY_TRAIN",
     "LINE_PLOT_COMPLEXITY_TEST",
-    "DATASETS_OVERVIEW"
+    "LINE_PLOT_MODELS_COMBINED",
+    "LINE_PLOT_COMPLEXITY_COMBINED",
+    "DATASETS_OVERVIEW",
+    "COMPLEXITY_CORRELATIONS",
+    "ML_CORRELATIONS"
   ],
   "run_mode": "complexity"
 }

@@ -638,7 +638,6 @@ class Experiment:
         for pt in plot_types:
             if pt == PlotType.CORRELATIONS:
                 if run_mode != RunMode.BOTH:
-                    import warnings
                     warnings.warn(
                         f"Skipping {pt.name} plot: requires both complexity and ML results "
                         f"(run_mode={run_mode.value})."
@@ -652,7 +651,6 @@ class Experiment:
 
             elif pt == PlotType.SUMMARY:
                 if run_mode != RunMode.BOTH:
-                    import warnings
                     warnings.warn(
                         f"Skipping {pt.name} plot: requires both complexity and ML results "
                         f"(run_mode={run_mode.value})."
@@ -669,7 +667,6 @@ class Experiment:
 
             elif pt == PlotType.HEATMAP:
                 if run_mode != RunMode.BOTH:
-                    import warnings
                     warnings.warn(
                         f"Skipping {pt.name} plot: requires both complexity and ML results "
                         f"(run_mode={run_mode.value})."
@@ -913,6 +910,7 @@ class Experiment:
         # Save dataset visualizations to datasets/ subfolder
         # Create dual plot: full dataset + train/test split
         for label, dataset in self.datasets.items():
+            print(f"Saving dataset visualization for: {label}")
             # Try to create train/test split plot
             # Some datasets may not support splitting (e.g., minority_reduce_scaler=1)
             try:
