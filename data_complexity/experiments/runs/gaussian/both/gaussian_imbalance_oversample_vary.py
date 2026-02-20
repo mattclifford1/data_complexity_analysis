@@ -13,14 +13,14 @@ Two oversampling strategies are shown:
 """
 import numpy as np
 
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
     PlotType,
 )
-from data_complexity.model_experiments.classification import (
+from data_complexity.experiments.classification import (
     LogisticRegressionModel,
     SVMModel,
     RandomForestModel,

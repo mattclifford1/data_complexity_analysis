@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from sklearn.datasets import make_classification
 
-from data_complexity.model_experiments.classification import (
+from data_complexity.experiments.classification import (
     AbstractMLModel,
     LogisticRegressionModel,
     KNNModel,

@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from data_complexity.model_experiments.classification import (
+from data_complexity.experiments.classification import (
     AbstractMLModel,
     get_default_models,
     evaluate_models_train_test,
@@ -251,6 +251,7 @@ class ExperimentResultsContainer:
         self._test_ml_df: Optional[pd.DataFrame] = None
         self._complexity_correlations_df: Optional[pd.DataFrame] = None
         self._ml_correlations_df: Optional[pd.DataFrame] = None
+        self._per_classifier_correlations_df: Optional[pd.DataFrame] = None
 
     def _build_ml_row(
         self,
@@ -459,6 +460,16 @@ class ExperimentResultsContainer:
     def ml_correlations_df(self, df: pd.DataFrame) -> None:
         """Set pairwise ML metric correlation matrix."""
         self._ml_correlations_df = df
+
+    @property
+    def per_classifier_correlations_df(self) -> Optional[pd.DataFrame]:
+        """Get per-classifier aggregated complexity-vs-ML correlation DataFrame."""
+        return self._per_classifier_correlations_df
+
+    @per_classifier_correlations_df.setter
+    def per_classifier_correlations_df(self, df: pd.DataFrame) -> None:
+        """Set per-classifier aggregated complexity-vs-ML correlation DataFrame."""
+        self._per_classifier_correlations_df = df
 
     def get_param_values(self) -> List[Any]:
         """Get list of parameter values."""

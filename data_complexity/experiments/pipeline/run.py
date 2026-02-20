@@ -19,13 +19,13 @@ from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 from tqdm import tqdm
 
 from data_complexity.metrics import ComplexityMetrics
-from data_complexity.model_experiments.classification import (
+from data_complexity.experiments.classification import (
     get_default_models,
     evaluate_models_train_test,
     get_best_metric,
     get_metrics_from_names,
 )
-from data_complexity.model_experiments.plotting import (
+from data_complexity.experiments.plotting import (
     plot_correlations,
     plot_summary,
     plot_model_comparison,
@@ -38,7 +38,7 @@ from data_complexity.model_experiments.plotting import (
     plot_complexity_correlations_heatmap,
 )
 
-from data_complexity.model_experiments.experiment.utils import (
+from data_complexity.experiments.pipeline.utils import (
     DatasetSpec as DatasetSpec,
     ExperimentConfig,
     ExperimentResultsContainer,
@@ -492,6 +492,90 @@ class Experiment:
 
         return pd.concat(all_corrs, ignore_index=True)
 
+    def compute_per_classifier_correlations(
+        self,
+        complexity_source: str = "train",
+        ml_source: str = "test",
+    ) -> pd.DataFrame:
+        """
+        Compute complexity-vs-ML correlations aggregated per metric across classifiers.
+
+        For each ML metric type (e.g., 'accuracy', 'f1'), computes the Pearson
+        correlation between each complexity metric and every individual classifier's
+        column, then reports mean and std of those correlations.
+
+        Parameters
+        ----------
+        complexity_source : str
+            'train' or 'test'. Default: 'train'
+        ml_source : str
+            'train' or 'test'. Default: 'test'
+
+        Returns
+        -------
+        pd.DataFrame
+            Columns: complexity_metric, ml_metric, mean_correlation,
+                     std_correlation, abs_mean_correlation.
+            Sorted by abs_mean_correlation descending.
+        """
+        if self.results is None:
+            raise RuntimeError("Must run experiment before computing correlations.")
+
+        complexity_df = self.results._get_complexity_df(complexity_source)
+        ml_df = self.results._get_ml_df(ml_source)
+
+        complexity_cols = [
+            c for c in complexity_df.columns
+            if c not in ("param_value", "param_label") and not c.endswith("_std")
+        ]
+
+        rows = []
+        for metric_name in self.config.ml_metrics:
+            # Per-classifier columns: end with _{metric_name}, no best_/mean_ prefix, no _std suffix
+            classifier_cols = [
+                c for c in ml_df.columns
+                if c.endswith(f"_{metric_name}")
+                and not c.startswith("best_")
+                and not c.startswith("mean_")
+                and not c.endswith("_std")
+            ]
+
+            for complexity_col in complexity_cols:
+                comp_values = complexity_df[complexity_col].values
+                if np.std(comp_values) == 0 or np.any(np.isnan(comp_values)):
+                    continue
+
+                rs = []
+                for clf_col in classifier_cols:
+                    ml_values = ml_df[clf_col].values
+                    if np.std(ml_values) == 0 or np.any(np.isnan(ml_values)):
+                        continue
+                    with warnings.catch_warnings():
+                        warnings.simplefilter(
+                            "ignore", (NearConstantInputWarning, ConstantInputWarning)
+                        )
+                        r, _ = stats.pearsonr(comp_values, ml_values)
+                    if not np.isnan(r):
+                        rs.append(r)
+
+                if not rs:
+                    continue
+
+                mean_r = float(np.mean(rs))
+                rows.append(
+                    {
+                        "complexity_metric": complexity_col,
+                        "ml_metric": metric_name,
+                        "mean_correlation": mean_r,
+                        "std_correlation": float(np.std(rs)),
+                        "abs_mean_correlation": abs(mean_r),
+                    }
+                )
+
+        df = pd.DataFrame(rows).sort_values("abs_mean_correlation", ascending=False)
+        self.results.per_classifier_correlations_df = df
+        return df
+
     def _compute_single_correlation(self, ml_column: str) -> pd.DataFrame:
         """Compute correlations for a single ML column."""
         complexity_df = self.results.complexity_df
@@ -828,6 +912,11 @@ class Experiment:
                 data_dir / "ml_correlations.csv"
             )
 
+        if self.results.per_classifier_correlations_df is not None:
+            self.results.per_classifier_correlations_df.to_csv(
+                data_dir / "per_classifier_correlations.csv", index=False
+            )
+
         # Save plots to plots/ subfolder
         figures = self.plot()
         for plot_type, fig in figures.items():
@@ -898,6 +987,19 @@ class Experiment:
                 f"  {row['complexity_metric']:25s}: r={row['correlation']:+.3f} "
                 f"(p={row['p_value']:.3f}) {sig}"
             )
+
+        if self.results.per_classifier_correlations_df is not None:
+            df = self.results.per_classifier_correlations_df
+            for ml_metric in df["ml_metric"].unique():
+                subset = df[df["ml_metric"] == ml_metric].head(top_n)
+                print(f"\nTop {top_n} per-classifier correlations ({ml_metric}):")
+                print("-" * 60)
+                for _, row in subset.iterrows():
+                    print(
+                        f"  {row['complexity_metric']:25s}: "
+                        f"mean_r={row['mean_correlation']:+.3f} "
+                        f"± {row['std_correlation']:.3f}"
+                    )
 
     def _resolve_path(self, save_dir: Path, filename: str, subfolder: Optional[str] = None) -> Path:
         """
@@ -982,6 +1084,12 @@ class Experiment:
         )
         if test_ml_path.exists():
             self.results._test_ml_df = pd.read_csv(test_ml_path)
+
+        per_classifier_corr_path = self._resolve_path(
+            save_dir, "per_classifier_correlations.csv", "data"
+        )
+        if per_classifier_corr_path.exists():
+            self.results._per_classifier_correlations_df = pd.read_csv(per_classifier_corr_path)
 
         self.datasets = {}  # Clear since we don't have loaders for loaded results
 

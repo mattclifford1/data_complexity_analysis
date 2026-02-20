@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from data_complexity.metrics import ComplexityMetrics
-from data_complexity.model_experiments.experiment.utils import (
+from data_complexity.experiments.pipeline.utils import (
     _average_dicts,
 )
-from data_complexity.model_experiments.plotting import plot_complexity_correlations_heatmap
+from data_complexity.experiments.plotting import plot_complexity_correlations_heatmap
 
 
 @dataclass

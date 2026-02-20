@@ -7,7 +7,7 @@ utils   : Data classes, results container, and helper functions.
 run     : Experiment runner (Experiment class) and parallel worker.
 config  : Pre-defined experiment configurations.
 """
-from data_complexity.model_experiments.experiment.utils import (
+from data_complexity.experiments.pipeline.utils import (
     PlotType,
     RunMode,
     ParameterSpec,
@@ -20,11 +20,11 @@ from data_complexity.model_experiments.experiment.utils import (
     make_json_safe_dict,
     make_json_safe_list,
 )
-from data_complexity.model_experiments.experiment.run import (
+from data_complexity.experiments.pipeline.run import (
     Experiment,
     _run_param_value_worker,
 )
-from data_complexity.model_experiments.experiment.config import (
+from data_complexity.experiments.pipeline.config import (
     EXPERIMENT_CONFIGS,
     gaussian_variance_config,
     gaussian_separation_config,

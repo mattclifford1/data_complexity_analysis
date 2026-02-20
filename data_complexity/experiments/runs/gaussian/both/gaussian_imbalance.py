@@ -8,14 +8,14 @@ balanced (1x) to extreme imbalance (16x).
 Imbalance is applied to the training set after the train/test split, so
 complexity metrics reflect the actual imbalanced training data.
 """
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
     PlotType,
 )
-from data_complexity.model_experiments.classification import (
+from data_complexity.experiments.classification import (
     LogisticRegressionModel,
     SVMModel,
     RandomForestModel,

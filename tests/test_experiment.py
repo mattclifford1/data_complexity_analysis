@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     ParameterSpec,
     DatasetSpec,
     ExperimentConfig,
@@ -16,7 +16,7 @@ from data_complexity.model_experiments.experiment import (
     _average_ml_results,
     _std_dicts,
 )
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     gaussian_variance_config,
     gaussian_separation_config,
     gaussian_imbalance_config,
@@ -287,8 +287,8 @@ class TestExperimentRun:
         assert exp.config == simple_config
         assert exp.results is None
 
-    @patch("data_complexity.model_experiments.experiment.run.ComplexityMetrics")
-    @patch("data_complexity.model_experiments.experiment.run.evaluate_models_train_test")
+    @patch("data_complexity.experiments.pipeline.run.ComplexityMetrics")
+    @patch("data_complexity.experiments.pipeline.run.evaluate_models_train_test")
     def test_run_with_mocked_data_loaders(
         self, mock_evaluate, mock_complexity, simple_config
     ):
@@ -334,8 +334,8 @@ class TestExperimentRun:
         assert "LogisticRegression_accuracy_std" in results.train_ml_df.columns
         assert "LogisticRegression_accuracy_std" in results.test_ml_df.columns
 
-    @patch("data_complexity.model_experiments.experiment.run.ComplexityMetrics")
-    @patch("data_complexity.model_experiments.experiment.run.evaluate_models_train_test")
+    @patch("data_complexity.experiments.pipeline.run.ComplexityMetrics")
+    @patch("data_complexity.experiments.pipeline.run.evaluate_models_train_test")
     def test_compute_correlations(self, mock_evaluate, mock_complexity, simple_config):
         """Test correlation computation."""
         train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
@@ -378,8 +378,8 @@ class TestExperimentRun:
         assert "complexity_metric" in corr_df.columns
         assert len(corr_df) > 0
 
-    @patch("data_complexity.model_experiments.experiment.run.ComplexityMetrics")
-    @patch("data_complexity.model_experiments.experiment.run.evaluate_models_train_test")
+    @patch("data_complexity.experiments.pipeline.run.ComplexityMetrics")
+    @patch("data_complexity.experiments.pipeline.run.evaluate_models_train_test")
     def test_run_stores_train_test_separately(
         self, mock_evaluate, mock_complexity, simple_config
     ):
@@ -418,8 +418,8 @@ class TestExperimentRun:
         assert len(results.train_ml_df) == 2
         assert len(results.test_ml_df) == 2
 
-    @patch("data_complexity.model_experiments.experiment.run.ComplexityMetrics")
-    @patch("data_complexity.model_experiments.experiment.run.evaluate_models_train_test")
+    @patch("data_complexity.experiments.pipeline.run.ComplexityMetrics")
+    @patch("data_complexity.experiments.pipeline.run.evaluate_models_train_test")
     def test_correlation_sources(
         self, mock_evaluate, mock_complexity, simple_config
     ):
@@ -846,7 +846,7 @@ class TestParallelRun:
     @pytest.fixture
     def tiny_config(self):
         """Minimal config: 2 param values, 1 seed, small dataset — runs fast."""
-        from data_complexity.model_experiments.classification import LogisticRegressionModel, AccuracyMetric
+        from data_complexity.experiments.classification import LogisticRegressionModel, AccuracyMetric
         return ExperimentConfig(
             dataset=DatasetSpec(
                 dataset_type="Gaussian",
@@ -916,7 +916,7 @@ class TestEvaluateModelsTrainTest:
     """Tests for evaluate_models_train_test function."""
 
     def test_basic_evaluation(self):
-        from data_complexity.model_experiments.classification import (
+        from data_complexity.experiments.classification import (
             evaluate_models_train_test,
             LogisticRegressionModel,
             AccuracyMetric,

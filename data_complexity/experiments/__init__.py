@@ -1,4 +1,4 @@
-from data_complexity.model_experiments.complexity_collection import (
+from data_complexity.experiments.complexity_collection import (
     ComplexityCollection,
     DatasetEntry,
 )

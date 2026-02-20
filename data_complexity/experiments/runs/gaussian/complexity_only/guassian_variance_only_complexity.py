@@ -3,28 +3,13 @@ Example: Run Gaussian variance experiment with custom configuration.
 
 Demonstrates how to configure ML models, metrics, and plot types.
 """
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
-    PlotType,
+    RunMode,
 )
-from data_complexity.model_experiments.classification import (
-    LogisticRegressionModel,
-    SVMModel,
-    RandomForestModel,
-    KNNModel,
-)
-
-# Configure custom models (subset of available models)
-models = [
-    LogisticRegressionModel(),
-    SVMModel(kernel="rbf"),
-    SVMModel(kernel="linear"),
-    RandomForestModel(n_estimators=50),
-    KNNModel(n_neighbors=5),
-]
 
 # Configure experiment
 config = ExperimentConfig(
@@ -43,16 +28,11 @@ config = ExperimentConfig(
         values=[0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0],
         label_format="scale={value}",
     ),
-    models=models,
-    ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
-    cv_folds=5,
-    correlation_target="best_accuracy",
-    name="gaussian_variance_example",
+    name="gaussian_variance_complexity",
+    run_mode=RunMode.COMPLEXITY_ONLY,
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
     exp.run(n_jobs=-1)
-    exp.compute_correlations()
-    exp.print_summary(top_n=10)
     exp.save()
