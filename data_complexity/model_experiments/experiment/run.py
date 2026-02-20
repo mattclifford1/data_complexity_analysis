@@ -434,6 +434,42 @@ class Experiment:
         self.results.complexity_correlations_df = corr_matrix
         return corr_matrix
 
+    def compute_ml_correlations(
+        self,
+        source: str = "test",
+    ) -> pd.DataFrame:
+        """
+        Compute pairwise Pearson correlations between ML performance metrics.
+
+        Parameters
+        ----------
+        source : str
+            Which ML data to use: 'train' or 'test'. Default: 'test'
+
+        Returns
+        -------
+        pd.DataFrame
+            N×N symmetric correlation matrix indexed and columned by metric names.
+        """
+        if self.results is None:
+            raise RuntimeError("Must run experiment before computing correlations.")
+        if self.config.run_mode == RunMode.COMPLEXITY_ONLY:
+            raise RuntimeError(
+                "Cannot compute ML correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
+            )
+
+        ml_df = self.results._get_ml_df(source)
+        metric_cols = [
+            c for c in ml_df.columns
+            if c != "param_value" and not c.endswith("_std")
+        ]
+        # Drop constant metrics (zero std) — they produce NaN correlations
+        valid_cols = [c for c in metric_cols if ml_df[c].std() > 0]
+
+        corr_matrix = ml_df[valid_cols].corr(method="pearson")
+        self.results.ml_correlations_df = corr_matrix
+        return corr_matrix
+
     def compute_all_correlations(self) -> pd.DataFrame:
         """
         Compute correlations for all ML metric columns.
@@ -524,6 +560,10 @@ class Experiment:
 
         if PlotType.COMPLEXITY_CORRELATIONS in plot_types and self.results.complexity_correlations_df is None:
             self.compute_complexity_correlations()
+
+        if PlotType.ML_CORRELATIONS in plot_types and self.results.ml_correlations_df is None:
+            if self.config.run_mode != RunMode.COMPLEXITY_ONLY:
+                self.compute_ml_correlations()
 
         for pt in plot_types:
             if pt == PlotType.CORRELATIONS:
@@ -673,6 +713,21 @@ class Experiment:
                 )
                 figures[pt] = fig
 
+            elif pt == PlotType.ML_CORRELATIONS:
+                if self.config.run_mode == RunMode.COMPLEXITY_ONLY:
+                    warnings.warn(
+                        f"Skipping {pt.name} plot: requires ML results "
+                        f"(run_mode={self.config.run_mode.value})."
+                    )
+                    continue
+                if self.results.ml_correlations_df is None:
+                    self.compute_ml_correlations()
+                fig = plot_complexity_correlations_heatmap(
+                    self.results.ml_correlations_df,
+                    title=f"{self.config.name}: ML Metric Correlations",
+                )
+                figures[pt] = fig
+
         return figures
 
     def save(self, save_dir: Optional[Path] = None) -> None:
@@ -766,6 +821,11 @@ class Experiment:
         if self.results.complexity_correlations_df is not None:
             self.results.complexity_correlations_df.to_csv(
                 data_dir / "complexity_correlations.csv"
+            )
+
+        if self.results.ml_correlations_df is not None:
+            self.results.ml_correlations_df.to_csv(
+                data_dir / "ml_correlations.csv"
             )
 
         # Save plots to plots/ subfolder

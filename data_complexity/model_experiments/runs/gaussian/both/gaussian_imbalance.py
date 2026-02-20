@@ -58,14 +58,16 @@ config = ExperimentConfig(
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.DATASETS_OVERVIEW,
         PlotType.COMPLEXITY_CORRELATIONS,
+        PlotType.ML_CORRELATIONS,
         ],
     name="gaussian_imbalance_example",
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
-    exp.run()
+    exp.run(n_jobs=-1)
     # exp.compute_correlations()
     exp.compute_complexity_correlations(source='train')
-    exp.print_summary(top_n=10)
+    exp.compute_ml_correlations(source='train')
+    # exp.print_summary(top_n=10)
     exp.save()
