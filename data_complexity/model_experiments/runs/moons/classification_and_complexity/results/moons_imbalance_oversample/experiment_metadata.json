@@ -1,12 +1,13 @@
 {
-  "experiment_name": "moons_imbalance",
+  "experiment_name": "moons_imbalance_oversample",
   "dataset": {
     "type": "Moons",
     "fixed_params": {
       "num_samples": 400,
       "train_size": 0.5,
       "moons_noise": 0.1,
-      "equal_test": true
+      "equal_test": true,
+      "train_post_process": "RandomDuplicate(factor=equal, seed=True)"
     }
   },
   "vary_parameter": {

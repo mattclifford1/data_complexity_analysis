@@ -53,13 +53,17 @@ config = ExperimentConfig(
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
-    correlation_target="best_accuracy",
+    plots=[
+        PlotType.LINE_PLOT_MODELS_COMBINED,
+        PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
+        PlotType.DATASETS_OVERVIEW,
+        ],
     name="gaussian_imbalance_example",
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
     exp.run()
-    exp.compute_correlations()
+    # exp.compute_correlations()
     exp.print_summary(top_n=10)
     exp.save()

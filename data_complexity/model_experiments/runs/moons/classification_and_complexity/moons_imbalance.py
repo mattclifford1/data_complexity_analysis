@@ -10,6 +10,21 @@ from data_complexity.model_experiments.experiment import (
     ParameterSpec,
     RunMode,
 )
+from data_complexity.model_experiments.classification import (
+    LogisticRegressionModel,
+    SVMModel,
+    RandomForestModel,
+    KNNModel,
+)
+
+# Configure custom models (subset of available models)
+models = [
+    LogisticRegressionModel(),
+    SVMModel(kernel="rbf"),
+    SVMModel(kernel="linear"),
+    RandomForestModel(n_estimators=50),
+    KNNModel(n_neighbors=5),
+]
 
 # Configure experiment
 config = ExperimentConfig(
@@ -27,8 +42,10 @@ config = ExperimentConfig(
         values=[1, 2, 4, 8, 16],
         label_format="imbalance={value}x",
     ),
-    name="moons_imbalance",
     run_mode=RunMode.BOTH,
+    models=models,
+    ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
+    name="moons_imbalance",
 )
 
 if __name__ == "__main__":

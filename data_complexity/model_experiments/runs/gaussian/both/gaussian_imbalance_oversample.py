@@ -11,8 +11,6 @@ Two oversampling strategies are shown:
 - systematic_oversample: applied to test set, duplicates each minority
   class sample exactly once (2x the original minority count).
 """
-import numpy as np
-
 from data_complexity.model_experiments.experiment import (
     Experiment,
     ExperimentConfig,
@@ -49,32 +47,24 @@ config = ExperimentConfig(
             "cov_type": "spherical", 
             "cov_scale": 1.0,
             "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-            "minority_reduce_scaler": 5,
+            "train_post_process": RandomDuplicateMinorityUpsampler(factor="equal"),
         #   "test_post_process": systematic_oversample,
         },
     ),
     vary_parameter=ParameterSpec(
-        name="train_post_process",
-        values=[
-            RandomDuplicateMinorityUpsampler(factor=1), 
-            RandomDuplicateMinorityUpsampler(factor=2), 
-            RandomDuplicateMinorityUpsampler(factor=4), 
-            RandomDuplicateMinorityUpsampler(factor=8), 
-            RandomDuplicateMinorityUpsampler(factor=16)
-            ],
-        label_format="Random Oversample Balanced (factor={value})",
+        name="minority_reduce_scaler",
+        values=[1, 2, 4, 8, 16],
+        label_format="imbalance={value}x (Oversampled)",
     ),
     models=models,
-    ml_metrics=[
-        "accuracy", 
-        "f1", 
-        "precision", 
-        "recall", 
-        "balanced_accuracy"
-        ],
+    ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
-    correlation_target="best_accuracy",
-    name="gaussian_imbalance_vary_oversampling",
+    plots=[
+        PlotType.LINE_PLOT_MODELS_COMBINED,
+        PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
+        PlotType.DATASETS_OVERVIEW,
+        ],
+    name="gaussian_imbalance_oversample",
     
 )
 

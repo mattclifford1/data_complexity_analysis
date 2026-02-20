@@ -1,24 +1,14 @@
 """
-Example: Run Gaussian imbalance experiment with post-processing hooks.
+Example: Run Gaussian variance experiment with custom configuration.
 
-Demonstrates how to use train_postprocess and test_postprocess to apply
-data transformations after the train/test split and before complexity
-computation and ML training/evaluation.
-
-Two oversampling strategies are shown:
-- random_oversample_balanced: applied to train set, duplicates minority
-  class samples until 1:1 class balance is achieved.
-- systematic_oversample: applied to test set, duplicates each minority
-  class sample exactly once (2x the original minority count).
+Demonstrates how to configure ML models, metrics, and plot types.
 """
-import numpy as np
-
 from data_complexity.model_experiments.experiment import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
-    PlotType,
+    RunMode,
 )
 from data_complexity.model_experiments.classification import (
     LogisticRegressionModel,
@@ -27,7 +17,6 @@ from data_complexity.model_experiments.classification import (
     KNNModel,
 )
 from data_loaders.resampling import RandomDuplicateMinorityUpsampler
-
 
 # Configure custom models (subset of available models)
 models = [
@@ -38,37 +27,30 @@ models = [
     KNNModel(n_neighbors=5),
 ]
 
-# Configure experiment (mirrors run_gaussian_imbalance.py with postprocessors added)
+# Configure experiment
 config = ExperimentConfig(
     dataset=DatasetSpec(
-        dataset_type="Gaussian",
+        dataset_type="Moons",
         fixed_params={
             "num_samples": 400,
             "train_size": 0.5,
-            "class_separation": 1.0, 
-            "cov_type": "spherical", 
-            "cov_scale": 1.0,
+            "moons_noise": 0.1,
             "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
             "train_post_process": RandomDuplicateMinorityUpsampler(factor="equal"),
-        #   "test_post_process": systematic_oversample,
-        },
+            },
     ),
     vary_parameter=ParameterSpec(
         name="minority_reduce_scaler",
         values=[1, 2, 4, 8, 16],
-        label_format="imbalance={value}x (Oversampled)",
+        label_format="imbalance={value}x",
     ),
+    run_mode=RunMode.BOTH,
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
-    cv_folds=5,
-    correlation_target="best_accuracy",
-    name="gaussian_imbalance_oversample",
-    
+    name="moons_imbalance_oversample",
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
     exp.run(n_jobs=-1)
-    exp.compute_correlations()
-    exp.print_summary(top_n=10)
     exp.save()
