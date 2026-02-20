@@ -133,5 +133,5 @@
     "LINE_PLOT_COMPLEXITY_TEST",
     "DATASETS_OVERVIEW"
   ],
-  "run_mode": "complexity"
+  "run_mode": "both"
 }

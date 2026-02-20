@@ -28,7 +28,7 @@ config = ExperimentConfig(
         label_format="imbalance={value}x",
     ),
     name="moons_imbalance_complexity",
-    run_mode=RunMode.COMPLEXITY_ONLY,
+    # run_mode=RunMode.COMPLEXITY_ONLY,
 )
 
 if __name__ == "__main__":
