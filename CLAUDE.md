@@ -443,4 +443,4 @@ These train 10 classifiers via cross-validation and compute Pearson correlations
 always wise clear and consise code.
 
 ## documentation
-always document features in the readme and docstrings. Use type hints for clarity.
+always document features in the relevant README.md files and in code docstrings. Use type hints for clarity.

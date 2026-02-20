@@ -15,6 +15,7 @@ from data_complexity.experiments.pipeline import (
     _average_dicts,
     _average_ml_results,
     _std_dicts,
+    datasets_from_sweep,
 )
 from data_complexity.experiments.pipeline import (
     gaussian_variance_config,
@@ -65,29 +66,82 @@ class TestDatasetSpec:
         assert spec.fixed_params["num_samples"] == 200
         assert spec.fixed_params["train_size"] == 0.7
 
+    def test_explicit_label(self):
+        spec = DatasetSpec(dataset_type="Gaussian", label="my-label")
+        assert spec.label == "my-label"
+
+    def test_auto_label_with_params(self):
+        spec = DatasetSpec("Moons", {"moons_noise": 0.1})
+        assert spec.label == "Moons_moons_noise=0.1"
+
+    def test_auto_label_no_params(self):
+        spec = DatasetSpec("Gaussian")
+        assert spec.label == "Gaussian"
+
+
+class TestDatasetsFromSweep:
+    """Tests for datasets_from_sweep helper."""
+
+    def test_basic_sweep(self):
+        specs = datasets_from_sweep(
+            DatasetSpec("Moons", {}),
+            ParameterSpec("moons_noise", [0.1, 0.2, 0.3], "noise={value}"),
+        )
+        assert len(specs) == 3
+        assert specs[0].label == "noise=0.1"
+        assert specs[1].label == "noise=0.2"
+        assert specs[2].label == "noise=0.3"
+
+    def test_sweep_inherits_base_params(self):
+        specs = datasets_from_sweep(
+            DatasetSpec("Gaussian", {"cov_type": "spherical"}),
+            ParameterSpec("cov_scale", [1.0, 2.0], "scale={value}"),
+        )
+        assert specs[0].fixed_params["cov_type"] == "spherical"
+        assert specs[0].fixed_params["cov_scale"] == 1.0
+        assert specs[1].fixed_params["cov_scale"] == 2.0
+
+    def test_sweep_preserves_dataset_type(self):
+        specs = datasets_from_sweep(
+            DatasetSpec("Blobs", {}),
+            ParameterSpec("blobs_features", [2, 5], "d={value}"),
+        )
+        assert all(s.dataset_type == "Blobs" for s in specs)
+
+    def test_does_not_mutate_base_spec(self):
+        base = DatasetSpec("Gaussian", {"cov_type": "spherical"})
+        datasets_from_sweep(base, ParameterSpec("cov_scale", [1.0, 2.0], "scale={value}"))
+        assert "cov_scale" not in base.fixed_params
+
 
 class TestExperimentConfig:
     """Tests for ExperimentConfig dataclass."""
 
     def test_auto_name_generation(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[1.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("cov_scale", [1.0]),
+            ),
         )
-        assert config.name == "gaussian_cov_scale"
+        assert config.name == "gaussian_sweep"
 
     def test_explicit_name(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[1.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("cov_scale", [1.0]),
+            ),
             name="my_experiment",
         )
         assert config.name == "my_experiment"
 
     def test_auto_save_dir(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[1.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("cov_scale", [1.0]),
+            ),
             name="test_exp",
         )
         assert "test_exp" in str(config.save_dir)
@@ -96,24 +150,41 @@ class TestExperimentConfig:
     def test_explicit_save_dir(self):
         custom_dir = Path("/tmp/custom_dir")
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[1.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("cov_scale", [1.0]),
+            ),
             save_dir=custom_dir,
         )
         assert config.save_dir == custom_dir
 
     def test_default_values(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="x", values=[1]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         assert config.cv_folds == 5
         assert config.ml_metrics == ["accuracy", "f1"]
         assert config.correlation_target == "best_accuracy"
+        assert config.x_label == "Dataset"
         assert PlotType.LINE_PLOT_TRAIN in config.plots
         assert PlotType.LINE_PLOT_TEST in config.plots
         assert PlotType.LINE_PLOT_MODELS_TRAIN in config.plots
         assert PlotType.LINE_PLOT_MODELS_TEST in config.plots
+
+    def test_direct_multi_dataset(self):
+        """New capability: mix different dataset types in one experiment."""
+        config = ExperimentConfig(
+            datasets=[
+                DatasetSpec("Moons", {"moons_noise": 0.1}, label="moons-low"),
+                DatasetSpec("Gaussian", {"class_separation": 3.0}, label="gaussian-easy"),
+            ],
+            x_label="Dataset",
+            name="mixed_test",
+        )
+        assert len(config.datasets) == 2
+        assert config.datasets[0].label == "moons-low"
+        assert config.datasets[1].label == "gaussian-easy"
+        assert config.x_label == "Dataset"
 
 
 class TestExperimentResultsContainer:
@@ -122,8 +193,10 @@ class TestExperimentResultsContainer:
     @pytest.fixture
     def mock_config(self):
         return ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0, 2.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("scale", [1.0, 2.0]),
+            ),
             ml_metrics=["accuracy"],
         )
 
@@ -230,30 +303,34 @@ class TestExperimentConfigPresets:
     def test_gaussian_variance_config(self):
         config = gaussian_variance_config()
         assert config.name == "gaussian_variance"
-        assert config.dataset.dataset_type == "Gaussian"
-        assert config.vary_parameter.name == "cov_scale"
-        assert len(config.vary_parameter.values) > 3
+        assert config.datasets[0].dataset_type == "Gaussian"
+        assert config.x_label == "cov_scale"
+        assert len(config.datasets) > 3
+        # Labels should encode the swept value
+        assert "scale=" in config.datasets[0].label
 
     def test_gaussian_separation_config(self):
         config = gaussian_separation_config()
         assert config.name == "gaussian_separation"
-        assert config.vary_parameter.name == "class_separation"
+        assert config.x_label == "class_separation"
+        assert all(s.dataset_type == "Gaussian" for s in config.datasets)
 
     def test_gaussian_imbalance_config(self):
         config = gaussian_imbalance_config()
         assert config.name == "gaussian_imbalance"
-        assert config.vary_parameter.name == "minority_reduce_scaler"
+        assert config.x_label == "minority_reduce_scaler"
+        assert all("minority_reduce_scaler" in s.fixed_params for s in config.datasets)
 
     def test_moons_noise_config(self):
         config = moons_noise_config()
         assert config.name == "moons_noise"
-        assert config.dataset.dataset_type == "Moons"
-        assert config.vary_parameter.name == "moons_noise"
+        assert config.datasets[0].dataset_type == "Moons"
+        assert config.x_label == "moons_noise"
 
     def test_circles_noise_config(self):
         config = circles_noise_config()
         assert config.name == "circles_noise"
-        assert config.dataset.dataset_type == "Circles"
+        assert config.datasets[0].dataset_type == "Circles"
 
     def test_get_config(self):
         config = get_config("gaussian_variance")
@@ -270,17 +347,26 @@ class TestExperimentConfigPresets:
         assert len(configs) == len(EXPERIMENT_CONFIGS)
 
 
+def _make_simple_config(**kwargs):
+    """Helper to build a simple ExperimentConfig with 2 dataset specs."""
+    defaults = dict(
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian", {"num_samples": 50}),
+            ParameterSpec("cov_scale", [1.0, 2.0], "scale={value}"),
+        ),
+        cv_folds=2,
+        ml_metrics=["accuracy"],
+    )
+    defaults.update(kwargs)
+    return ExperimentConfig(**defaults)
+
+
 class TestExperimentRun:
     """Tests for Experiment.run() with mocked dependencies."""
 
     @pytest.fixture
     def simple_config(self):
-        return ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian", fixed_params={"num_samples": 50}),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[1.0, 2.0]),
-            cv_folds=2,
-            ml_metrics=["accuracy"],
-        )
+        return _make_simple_config()
 
     def test_experiment_init(self, simple_config):
         exp = Experiment(simple_config)
@@ -324,7 +410,7 @@ class TestExperimentRun:
         assert len(results.complexity_df) == 2
         assert len(results.ml_df) == 2
         assert mock_get_dataset.call_count == 2
-        # Each parameter value x cv_folds seeds
+        # Each dataset spec x cv_folds seeds
         assert mock_evaluate.call_count == 2 * simple_config.cv_folds
 
         # Std columns present in complexity and ML DFs
@@ -348,18 +434,18 @@ class TestExperimentRun:
         mock_complexity_instance = MagicMock()
         mock_complexity.return_value = mock_complexity_instance
 
-        # Called 2x per seed (train + test), cv_folds=2, 2 param values = 8 calls
-        # For param 1.0: train F1=0.3, test F1=0.3 (x2 seeds)
-        # For param 2.0: train F1=0.6, test F1=0.6 (x2 seeds)
+        # Called 2x per seed (train + test), cv_folds=2, 2 dataset specs = 8 calls
+        # For spec 0: train F1=0.3, test F1=0.3 (x2 seeds)
+        # For spec 1: train F1=0.6, test F1=0.6 (x2 seeds)
         complexity_values = [
-            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # param=1.0, seed=0
-            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # param=1.0, seed=1
-            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # param=2.0, seed=0
-            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # param=2.0, seed=1
+            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # spec=0, seed=0
+            {"F1": 0.3, "N3": 0.2}, {"F1": 0.3, "N3": 0.2},  # spec=0, seed=1
+            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # spec=1, seed=0
+            {"F1": 0.6, "N3": 0.4}, {"F1": 0.6, "N3": 0.4},  # spec=1, seed=1
         ]
         mock_complexity_instance.get_all_metrics_scalar.side_effect = complexity_values
 
-        # Return different accuracy values for param=1.0 vs param=2.0
+        # Return different accuracy values for spec=0 vs spec=1
         mock_evaluate.side_effect = [
             ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
             ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
@@ -412,11 +498,37 @@ class TestExperimentRun:
         assert results.train_ml_df is not None
         assert results.test_ml_df is not None
 
-        # Sizes correct
+        # Sizes correct: one row per dataset spec
         assert len(results.train_complexity_df) == 2
         assert len(results.test_complexity_df) == 2
         assert len(results.train_ml_df) == 2
         assert len(results.test_ml_df) == 2
+
+    @patch("data_complexity.experiments.pipeline.complexity_vs_clfs.ComplexityMetrics")
+    @patch("data_complexity.experiments.pipeline.complexity_vs_clfs.evaluate_models_train_test")
+    def test_run_datasets_keyed_by_label(self, mock_evaluate, mock_complexity, simple_config):
+        """Test that exp.datasets is keyed by label string."""
+        train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
+        test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
+
+        mock_dataset = MagicMock()
+        mock_dataset.get_train_test_split.return_value = (train_data, test_data)
+        mock_get_dataset = MagicMock(return_value=mock_dataset)
+
+        mock_complexity.return_value = MagicMock(
+            **{"get_all_metrics_scalar.return_value": {"F1": 0.5}}
+        )
+        mock_evaluate.return_value = (
+            {"Model": {"accuracy": {"mean": 0.9, "std": 0.0}}},
+            {"Model": {"accuracy": {"mean": 0.8, "std": 0.0}}},
+        )
+
+        exp = Experiment(simple_config)
+        exp._get_dataset = mock_get_dataset
+        exp.run(verbose=False)
+
+        expected_labels = [s.label for s in simple_config.datasets]
+        assert set(exp.datasets.keys()) == set(expected_labels)
 
     @patch("data_complexity.experiments.pipeline.complexity_vs_clfs.ComplexityMetrics")
     @patch("data_complexity.experiments.pipeline.complexity_vs_clfs.evaluate_models_train_test")
@@ -446,7 +558,7 @@ class TestExperimentRun:
         mock_complexity_instance.get_all_metrics_scalar.side_effect = side_effect_complexity
         mock_complexity.return_value = mock_complexity_instance
 
-        # Return different accuracy values for param=1.0 vs param=2.0 so ml_values isn't constant
+        # Return different accuracy values for spec=0 vs spec=1 so ml_values isn't constant
         mock_evaluate.side_effect = [
             ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
             ({"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}}, {"Model": {"accuracy": {"mean": 0.7, "std": 0.0}}}),
@@ -505,64 +617,75 @@ class TestAveragingHelpers:
         assert result["F1"] == 0.0
 
 
+def _make_results_with_data(ml_metrics=None):
+    """Helper: build a config + results container with 2 data points."""
+    ml_metrics = ml_metrics or ["accuracy"]
+    config = ExperimentConfig(
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian"),
+            ParameterSpec("scale", [1.0, 2.0], "scale={value}"),
+        ),
+        x_label="scale",
+        ml_metrics=ml_metrics,
+    )
+    results = ExperimentResultsContainer(config)
+
+    results.add_split_result(
+        "scale=1.0",
+        train_complexity_dict={"F1": 0.5, "N3": 0.3},
+        test_complexity_dict={"F1": 0.5, "N3": 0.3},
+        train_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
+        test_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
+    )
+    results.add_split_result(
+        "scale=2.0",
+        train_complexity_dict={"F1": 0.4, "N3": 0.5},
+        test_complexity_dict={"F1": 0.4, "N3": 0.5},
+        train_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
+        test_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
+    )
+    results.covert_to_df()
+
+    results.correlations_df = pd.DataFrame(
+        {
+            "complexity_metric": ["F1", "N3"],
+            "ml_metric": ["best_accuracy", "best_accuracy"],
+            "correlation": [-0.8, 0.6],
+            "p_value": [0.01, 0.05],
+            "abs_correlation": [0.8, 0.6],
+        }
+    )
+    return config, results
+
+
 class TestSaveLoad:
     """Tests for save/load round-trip."""
 
     @pytest.fixture
     def results_with_data(self):
-        config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0, 2.0]),
-            ml_metrics=["accuracy"],
-        )
-        results = ExperimentResultsContainer(config)
-
-        results.add_split_result(
-            1.0,
-            train_complexity_dict={"F1": 0.5, "N3": 0.3},
-            test_complexity_dict={"F1": 0.5, "N3": 0.3},
-            train_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
-            test_ml_results={"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
-        )
-        results.add_split_result(
-            2.0,
-            train_complexity_dict={"F1": 0.4, "N3": 0.5},
-            test_complexity_dict={"F1": 0.4, "N3": 0.5},
-            train_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
-            test_ml_results={"Model": {"accuracy": {"mean": 0.8, "std": 0.06}}},
-        )
-        results.covert_to_df()
-
-        results.correlations_df = pd.DataFrame(
-            {
-                "complexity_metric": ["F1", "N3"],
-                "ml_metric": ["best_accuracy", "best_accuracy"],
-                "correlation": [-0.8, 0.6],
-                "p_value": [0.01, 0.05],
-                "abs_correlation": [0.8, 0.6],
-            }
-        )
-
-        return config, results
+        return _make_results_with_data()
 
     @pytest.fixture
     def split_results_with_data(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0, 2.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("scale", [1.0, 2.0], "scale={value}"),
+            ),
+            x_label="scale",
             ml_metrics=["accuracy"],
         )
         results = ExperimentResultsContainer(config)
 
         results.add_split_result(
-            1.0,
+            "scale=1.0",
             {"F1": 0.5, "N3": 0.3},
             {"F1": 0.6, "N3": 0.4},
             {"Model": {"accuracy": {"mean": 0.95, "std": 0.0}}},
             {"Model": {"accuracy": {"mean": 0.85, "std": 0.0}}},
         )
         results.add_split_result(
-            2.0,
+            "scale=2.0",
             {"F1": 0.4, "N3": 0.5},
             {"F1": 0.5, "N3": 0.6},
             {"Model": {"accuracy": {"mean": 0.90, "std": 0.0}}},
@@ -658,8 +781,7 @@ class TestSaveLoad:
 
         # Load using new code
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
             ml_metrics=["accuracy"],
         )
         exp = Experiment(config)
@@ -711,9 +833,8 @@ class TestSaveLoad:
             metadata = json.load(f)
 
         assert metadata["experiment_name"] == config.name
-        # assert "timestamp" in metadata
-        assert metadata["dataset"]["type"] == "Gaussian"
-        assert metadata["vary_parameter"]["name"] == "scale"
+        assert metadata["datasets"][0]["type"] == "Gaussian"
+        assert metadata["x_label"] == "scale"
         assert metadata["ml_metrics"] == ["accuracy"]
         assert metadata["cv_folds"] == 5
         assert "ml_models" in metadata
@@ -726,15 +847,18 @@ class TestPlotting:
     @pytest.fixture
     def experiment_with_results(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0, 2.0, 3.0]),
+            datasets=datasets_from_sweep(
+                DatasetSpec("Gaussian"),
+                ParameterSpec("scale", [1.0, 2.0, 3.0], "scale={value}"),
+            ),
+            x_label="scale",
             ml_metrics=["accuracy"],
         )
         results = ExperimentResultsContainer(config)
 
-        for val in [1.0, 2.0, 3.0]:
+        for label, val in [("scale=1.0", 1.0), ("scale=2.0", 2.0), ("scale=3.0", 3.0)]:
             results.add_split_result(
-                val,
+                label,
                 train_complexity_dict={"F1": val * 0.2, "N3": 1.0 - val * 0.2},
                 test_complexity_dict={"F1": val * 0.2, "N3": 1.0 - val * 0.2},
                 train_ml_results={"Model": {"accuracy": {"mean": 1.0 - val * 0.1, "std": 0.05}}},
@@ -775,8 +899,7 @@ class TestPrintSummary:
     @pytest.fixture
     def experiment_with_correlations(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         results = ExperimentResultsContainer(config)
         results.add_result(
@@ -811,8 +934,7 @@ class TestErrorHandling:
 
     def test_compute_correlations_before_run(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         exp = Experiment(config)
 
@@ -821,8 +943,7 @@ class TestErrorHandling:
 
     def test_plot_before_run(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         exp = Experiment(config)
 
@@ -831,8 +952,7 @@ class TestErrorHandling:
 
     def test_save_before_run(self):
         config = ExperimentConfig(
-            dataset=DatasetSpec(dataset_type="Gaussian"),
-            vary_parameter=ParameterSpec(name="scale", values=[1.0]),
+            datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         exp = Experiment(config)
 
@@ -845,14 +965,17 @@ class TestParallelRun:
 
     @pytest.fixture
     def tiny_config(self):
-        """Minimal config: 2 param values, 1 seed, small dataset — runs fast."""
+        """Minimal config: 2 dataset specs, 1 seed, small dataset — runs fast."""
         from data_complexity.experiments.classification import LogisticRegressionModel, AccuracyMetric
         return ExperimentConfig(
-            dataset=DatasetSpec(
-                dataset_type="Gaussian",
-                fixed_params={"num_samples": 60, "cov_type": "spherical", "train_size": 0.5},
+            datasets=datasets_from_sweep(
+                DatasetSpec(
+                    "Gaussian",
+                    {"num_samples": 60, "cov_type": "spherical", "train_size": 0.5},
+                ),
+                ParameterSpec("cov_scale", [0.5, 2.0], "scale={value}"),
             ),
-            vary_parameter=ParameterSpec(name="cov_scale", values=[0.5, 2.0]),
+            x_label="cov_scale",
             cv_folds=1,
             ml_metrics=["accuracy"],
             models=[LogisticRegressionModel()],
@@ -895,13 +1018,13 @@ class TestParallelRun:
         """self.datasets should be populated after a parallel run."""
         exp = Experiment(tiny_config)
         exp.run(verbose=False, n_jobs=-1)
-        assert len(exp.datasets) == len(tiny_config.vary_parameter.values)
+        assert len(exp.datasets) == len(tiny_config.datasets)
 
     def test_sequential_datasets_populated(self, tiny_config):
         """self.datasets should be populated after a sequential run."""
         exp = Experiment(tiny_config)
         exp.run(verbose=False, n_jobs=1)
-        assert len(exp.datasets) == len(tiny_config.vary_parameter.values)
+        assert len(exp.datasets) == len(tiny_config.datasets)
 
     def test_n_jobs_2_returns_results(self, tiny_config):
         """n_jobs=2 (explicit worker count) should also work correctly."""
