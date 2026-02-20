@@ -281,7 +281,7 @@ results = exp2.load_results(Path("results/my_experiment/"))
 from data_complexity.experiments.pipeline import ExperimentConfig, datasets_from_sweep, DatasetSpec, ParameterSpec
 from data_complexity.experiments.classification import (
     LogisticRegressionModel, SVMModel, RandomForestModel,
-    AccuracyMetric, F1Metric, BalancedAccuracyMetric,
+    AccuracyMetric, F1Metric, AccuracyBalancedMetric,
 )
 
 config = ExperimentConfig(

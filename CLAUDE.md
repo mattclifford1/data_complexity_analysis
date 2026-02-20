@@ -20,16 +20,29 @@ Always use PDM (Python Dependency Manager) for environment and dependency manage
 
 ```
 data_complexity/
-├── metrics.py              # Main wrapper class (complexity_metrics)
-├── abstract_metrics.py     # Base class for custom metrics
-├── plotting/                  # Visualization utilities
+├── metrics.py                # Main wrapper class (complexity_metrics)
+├── abstract_metrics.py       # Base class for custom metrics
+├── plotting/                 # Visualization utilities
 │   └── plot_multiple_datasets.py
-├── model_experiments/      # Parameter study scripts
-└── pycol/
-    ├── complexity.py       # Core implementation (~3000 lines, 50+ measures)
-    ├── dataset/            # Test datasets (ARFF, CSV, pickle)
-    └── use_cases/          # Example implementations
+└── experiments/
+    ├── __init__.py           # Exports ComplexityCollection, DatasetEntry
+    ├── pipeline/             # Experiment framework
+    │   ├── __init__.py       # Public API
+    │   ├── complexity_vs_clfs.py  # Experiment class
+    │   ├── complexity_over_datasets.py  # ComplexityCollection
+    │   ├── config.py         # Pre-defined configs
+    │   ├── utils.py          # Data classes & results container
+    │   └── README.md         # Detailed framework docs
+    ├── classification/       # ML evaluation module
+    │   ├── models.py
+    │   ├── classification_metrics.py
+    │   ├── evaluation.py
+    │   ├── model_pipeline.py
+    │   └── __init__.py
+    └── plotting.py           # Reusable plotting functions
 ```
+
+Note: `model_experiments/` still exists with legacy experiment scripts.
 
 ### Core Pattern
 
@@ -48,6 +61,10 @@ feature = complexity.feature_overlap_scalar()
 instance = complexity.instance_overlap_scalar()
 structural = complexity.structural_overlap_scalar()
 multiresolution = complexity.multiresolution_overlap_full()
+
+# Classical measures (e.g. imbalance ratio)
+classical = complexity.classical_measures_scalar()  # {'IR': imbalance_ratio}
+classical_full = complexity.classical_measures_full()
 ```
 
 ### Direct PyCol Usage
@@ -72,6 +89,7 @@ overlap = comp.deg_overlap()
 - **Instance Overlap (13):** R-value, Raug, degOver, N3, SI, N4, kDN, D3, CM, wCM, dwCM, Borderline Examples, IPoints
 - **Structural Overlap (9):** N1, T1, Clust, ONB, LSCAvg, DBC, N2, NSG, ICSV
 - **Multiresolution Overlap (5):** MRCA, C1, C2, Purity, Neighbourhood Separability
+- **Classical Measures (1):** IR (Imbalance Ratio)
 
 ## Testing
 
@@ -91,18 +109,18 @@ Tests are in `tests/` (not `pycol/` which is external code):
 
 ## ML Model Evaluation
 
-The `model_experiments/ml/` module provides a modular architecture for ML model evaluation with three main components: models, evaluation strategies, and orchestration.
+The `experiments/classification/` module provides a modular architecture for ML model evaluation with three main components: models, evaluation strategies, and orchestration.
 
 ### Quick Start
 
 ```python
-from data_complexity.model_experiments.ml import evaluate_models, evaluate_single_model
+from data_complexity.experiments.classification import evaluate_models, evaluate_single_model
 
 # Evaluate all default models
 results = evaluate_models({"X": X, "y": y})
 
 # Evaluate a single model
-from data_complexity.model_experiments.ml import LogisticRegressionModel
+from data_complexity.experiments.classification import LogisticRegressionModel
 model = LogisticRegressionModel()
 metrics = evaluate_single_model(model, {"X": X, "y": y}, cv_folds=5)
 print(metrics["accuracy"]["mean"])
@@ -111,7 +129,7 @@ print(metrics["accuracy"]["mean"])
 ### Architecture
 
 ```
-model_experiments/ml/
+experiments/classification/
 ├── models.py           # Model classes (AbstractMLModel + 8 concrete models)
 ├── classification_metrics.py       # Metrics for classification (accuracy, F1, precision, recall, balanced accuracy etc.)
 ├── evaluation.py       # Evaluator classes e.g. cross validation
@@ -140,7 +158,7 @@ model_experiments/ml/
 ### Model Factory Functions
 
 ```python
-from data_complexity.model_experiments.ml import get_model_by_name, get_default_models
+from data_complexity.experiments.classification import get_model_by_name, get_default_models
 
 # Get model by name
 model = get_model_by_name("svm", kernel="linear")
@@ -152,8 +170,9 @@ models = get_default_models()
 ### Evaluation Metrics
 
 ```python
-from data_complexity.model_experiments.ml import (
+from data_complexity.experiments.classification import (
     AccuracyMetric,
+    AccuracyBalancedMetric,
     F1Metric,
     PrecisionMetric,
     RecallMetric,
@@ -168,23 +187,23 @@ metrics = get_default_metrics()
 metrics = [AccuracyMetric(), F1Metric()]
 
 # Get sklearn scoring dict
-scoring = get_metrics_dict(metrics)  # {'accuracy': 'accuracy', 'f1': 'f1'}
+scoring = get_metrics_dict(metrics)  # {'accuracy': <callable>, 'f1': <callable>}
 ```
 
 #### How get_metrics_dict Works
 
 The `get_metrics_dict` function converts metric instances to sklearn-compatible scorers:
-- **Custom metrics** (minority_accuracy, geometric_mean, etc.) are automatically wrapped with `make_scorer` we treat all metrics as custom for simplicity and consistency.
+- All metrics are wrapped with `make_scorer` for simplicity and consistency.
 
 ```python
 # Mix built-in and custom metrics
-from data_complexity.model_experiments.ml import AccuracyMetric, AccuracyMinorityMetric, GeometricMeanMetric
+from data_complexity.experiments.classification import AccuracyMetric, AccuracyMinorityMetric, GeometricMeanMetric
 
 metrics = [AccuracyMetric(), AccuracyMinorityMetric(), GeometricMeanMetric()]
 scoring = get_metrics_dict(metrics)
 # {'accuracy': <callable>, 'minority_accuracy': <callable>, 'geometric_mean': <callable>}
 
-from sklearn.model_validation import cross_validate
+from sklearn.model_selection import cross_validate
 results = cross_validate(model, X, y, cv=5, scoring=scoring)
 # All metrics work correctly
 ```
@@ -194,7 +213,7 @@ results = cross_validate(model, X, y, cv=5, scoring=scoring)
 For convenience, you can create metrics from string names:
 
 ```python
-from data_complexity.model_experiments.ml import get_metric_by_name, get_metrics_from_names
+from data_complexity.experiments.classification import get_metric_by_name, get_metrics_from_names
 
 # Single metric
 metric = get_metric_by_name('accuracy')
@@ -214,7 +233,7 @@ This is particularly useful when configuring experiments that accept metric name
 ### Evaluators
 
 ```python
-from data_complexity.model_experiments.ml import (
+from data_complexity.experiments.classification import (
     CrossValidationEvaluator,
     TrainTestSplitEvaluator,
     get_default_evaluator,
@@ -235,7 +254,7 @@ evaluator = get_default_evaluator(cv_folds=5)
 ### Pipeline Orchestration
 
 ```python
-from data_complexity.model_experiments.ml import (
+from data_complexity.experiments.classification import (
     evaluate_models,
     evaluate_models_train_test,
     evaluate_single_model,
@@ -275,40 +294,37 @@ print_evaluation_results(results, "accuracy")
 
 ## Experiments
 
-Experiment scripts in `data_complexity/model_experiments/` study how dataset parameters affect complexity metrics.
+Experiment scripts in `data_complexity/experiments/` study how dataset parameters affect complexity metrics.
 
 ```
-model_experiments/
-├── experiment.py           # Generic experiment framework
-├── experiment_configs.py   # Pre-defined experiment configurations
-├── plotting.py             # Reusable plotting functions
-├── ml/                     # ML evaluation module
-│   ├── models.py           # Model classes
-│   ├── classification_metrics.py # Classification metrics
-│   ├── model_pipeline.py   # Orchestration functions
-│   └── __init__.py         # Public API
-├── exp_complexity_vs_ml.py # Legacy: Gaussian variance experiment
-├── exp_separation_vs_ml.py # Legacy: Class separation experiment
-├── exp_moons_vs_ml.py      # Legacy: Moons noise experiment
-├── exp_comprehensive_correlation.py  # Combined analysis
-├── results/                # Output directory for CSVs and plots
-├── synthetic/              # Synthetic dataset studies
-└── real/                   # Real dataset studies
+experiments/
+├── __init__.py             # Exports ComplexityCollection, DatasetEntry
+├── pipeline/               # Generic experiment framework
+│   ├── complexity_vs_clfs.py  # Experiment class
+│   ├── complexity_over_datasets.py  # ComplexityCollection
+│   ├── config.py           # Pre-defined configs
+│   ├── utils.py            # Data classes & results container
+│   └── README.md           # Full framework docs
+├── classification/         # ML evaluation module
+└── plotting.py             # Reusable plotting functions
 ```
 
 ### Experiment Framework
 
-The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments. All experiments use **train/test splits**: for each parameter value, data is split into train/test sets using the dataset's built-in `proportional_split()` method (which supports `minority_reduce_scaler` for imbalance experiments), complexity is computed on both, and ML models are trained on train and evaluated on both. Multiple random seeds (`cv_folds`) control reproducibility.
+The generic experiment framework provides a configurable, reusable approach to running complexity vs ML performance experiments. All experiments use **train/test splits**: for each dataset spec, data is split into train/test sets, complexity is computed on both, and ML models are trained on train and evaluated on both. Multiple random seeds (`cv_folds`) control reproducibility.
 
 #### Quick Start
 
 ```python
-from data_complexity.model_experiments.experiment import Experiment
-from data_complexity.model_experiments.experiment_configs import gaussian_variance_config
+from data_complexity.experiments.pipeline import Experiment, get_config, run_experiment
 
-# Run a pre-defined experiment
-exp = Experiment(gaussian_variance_config())
-exp.run()
+# Run a pre-defined experiment by name
+exp = run_experiment("moons_noise")   # runs, computes correlations, saves
+
+# Or get a config and run manually
+config = get_config("gaussian_variance")
+exp = Experiment(config)
+exp.run(verbose=True, n_jobs=-1)   # parallel across dataset specs
 exp.compute_correlations()
 exp.print_summary()
 exp.save()
@@ -317,7 +333,7 @@ exp.save()
 #### Pre-defined Configurations
 
 ```python
-from data_complexity.model_experiments.experiment_configs import (
+from data_complexity.experiments.pipeline import (
     gaussian_variance_config,    # Vary Gaussian covariance scale
     gaussian_separation_config,  # Vary class separation distance
     gaussian_correlation_config, # Vary feature correlation
@@ -331,10 +347,6 @@ from data_complexity.model_experiments.experiment_configs import (
     run_all_experiments,         # Run all experiments
 )
 
-# Run by name
-from data_complexity.model_experiments.experiment_configs import run_experiment
-exp = run_experiment("gaussian_variance")
-
 # List available configs
 print(list_configs())
 # ['gaussian_variance', 'gaussian_separation', 'gaussian_correlation',
@@ -343,28 +355,25 @@ print(list_configs())
 
 #### Custom Experiments
 
+`ExperimentConfig` takes a **list of `DatasetSpec`** objects. Each spec is one point on the x-axis of the resulting plots. Use `datasets_from_sweep` to generate specs from a parameter sweep:
+
 ```python
-from data_complexity.model_experiments.experiment import (
+from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
     ParameterSpec,
     PlotType,
+    RunMode,
+    datasets_from_sweep,
 )
 
-# Define custom experiment
 config = ExperimentConfig(
-    dataset=DatasetSpec(
-        dataset_type="Gaussian",
-        fixed_params={"cov_type": "spherical"},
-        num_samples=500,
-        train_size=0.5,  # Train/test split ratio
+    datasets=datasets_from_sweep(
+        DatasetSpec("Gaussian", {"cov_type": "spherical"}),
+        ParameterSpec("class_separation", [1.0, 2.0, 3.0, 4.0, 5.0], label_format="sep={value}"),
     ),
-    vary_parameter=ParameterSpec(
-        name="class_separation",
-        values=[1.0, 2.0, 3.0, 4.0, 5.0],
-        label_format="sep={value}",
-    ),
+    x_label="class_separation",
     cv_folds=5,           # Number of random seeds for train/test splitting
     ml_metrics=["accuracy", "f1"],
     correlation_target="best_accuracy",
@@ -376,62 +385,137 @@ config = ExperimentConfig(
 exp = Experiment(config)
 exp.run(verbose=True)
 correlations = exp.compute_correlations()
-exp.save()  # Saves to model_experiments/results/my_custom_experiment/
+exp.save()  # Saves to experiments/results/my_custom_experiment/
+```
+
+#### Run Modes
+
+```python
+from data_complexity.experiments.pipeline import RunMode
+
+# Only compute complexity (skip ML evaluation — much faster)
+config = ExperimentConfig(datasets=..., run_mode=RunMode.COMPLEXITY_ONLY)
+
+# Only evaluate ML models (skip complexity computation)
+config = ExperimentConfig(datasets=..., run_mode=RunMode.ML_ONLY)
+
+# Both (default)
+config = ExperimentConfig(datasets=..., run_mode=RunMode.BOTH)
+```
+
+#### Parallel Execution
+
+```python
+exp.run(verbose=True, n_jobs=-1)   # use all CPU cores
+exp.run(verbose=True, n_jobs=4)    # explicit worker count
 ```
 
 #### Experiment Results
 
-Results are organized into subfolders within `model_experiments/results/{experiment_name}/`:
+Results are organized into subfolders within `results/{experiment_name}/`:
 - `experiment_metadata.json` - Complete experiment configuration and parameters
 - `data/` - CSV files (see below)
-- `plots-{name}/` - Analysis visualizations (correlations.png, summary.png, heatmap.png, line_plot_train.png, line_plot_test.png, line_plot_models_train.png, line_plot_models_test.png, line_plot_complexity_train.png, line_plot_complexity_test.png)
-- `datasets/` - Dataset visualization PNGs (one per parameter value)
-
-Metadata file (`experiment_metadata.json`) contains:
-- Experiment name and timestamp
-- Dataset configuration (type, samples, train_size, parameters)
-- Varied parameter specification
-- ML models used (with their parameters)
-- ML metrics computed
-- Number of CV folds
-- Correlation target
+- `plots-{name}/` - Analysis visualizations
+- `datasets/` - Dataset visualization PNGs (one per dataset spec)
 
 CSV files in `data/`:
-- `complexity_metrics.csv` - Train complexity (backward compat alias)
-- `ml_performance.csv` - Test ML performance (backward compat alias)
 - `train_complexity_metrics.csv` - Complexity metrics on training data
 - `test_complexity_metrics.csv` - Complexity metrics on test data
 - `train_ml_performance.csv` - ML performance on training data
 - `test_ml_performance.csv` - ML performance on test data
-- `correlations.csv` - Correlation results
+- `complexity_metrics.csv` - Train complexity (backward compat alias)
+- `ml_performance.csv` - Test ML performance (backward compat alias)
+- `correlations.csv` - Complexity–ML correlation results
+- `complexity_correlations.csv` - Pairwise complexity metric correlations
+- `ml_correlations.csv` - Pairwise ML metric correlations
+- `per_classifier_correlations.csv` - Per-classifier aggregated correlations
 
 Results are stored in pandas DataFrames:
 
 ```python
 # After running
-exp.results.complexity_df       # Train complexity (backward compat)
-exp.results.ml_df               # Test ML performance (backward compat)
 exp.results.train_complexity_df # Complexity on training data
 exp.results.test_complexity_df  # Complexity on test data
 exp.results.train_ml_df         # ML performance on training data
 exp.results.test_ml_df          # ML performance on test data
+exp.results.complexity_df       # Train complexity (backward compat)
+exp.results.ml_df               # Test ML performance (backward compat)
 exp.results.correlations_df     # Correlation results
 
-# Correlations with source control
+# Complexity–ML correlations (Pearson)
 exp.compute_correlations(
     complexity_source="train",  # 'train' or 'test'
     ml_source="test",           # 'train' or 'test'
 )
 
+# Additional correlation methods
+exp.compute_complexity_correlations(source="train")  # pairwise among complexity metrics
+exp.compute_ml_correlations(source="test")           # pairwise among ML metrics
+exp.compute_per_classifier_correlations()            # per-classifier aggregated correlations
+
 # Load previous results (supports both new hierarchical and legacy flat structure)
-exp.load_results(Path("model_experiments/results/gaussian_variance/"))
+exp.load_results(Path("results/gaussian_variance/"))
 ```
 
-**Note:** The framework maintains backwards compatibility with results saved in the legacy flat structure, so existing experiment results remain accessible. The `complexity_df` property returns train complexity and `ml_df` returns test ML, matching the standard approach of correlating training data complexity with generalization performance.
+**Note:** `complexity_df` returns train complexity and `ml_df` returns test ML, matching the standard approach of correlating training data complexity with generalization performance.
+
+#### Available Plot Types
+
+```python
+from data_complexity.experiments.pipeline import PlotType
+```
+
+| `PlotType` | Description |
+|---|---|
+| `LINE_PLOT_TRAIN` | Complexity + best-model accuracy vs x-axis (train) |
+| `LINE_PLOT_TEST` | Complexity + best-model accuracy vs x-axis (test) |
+| `LINE_PLOT_MODELS_TRAIN` | Per-model accuracy vs x-axis (train) |
+| `LINE_PLOT_MODELS_TEST` | Per-model accuracy vs x-axis (test) |
+| `LINE_PLOT_COMPLEXITY_TRAIN` | Each complexity metric vs x-axis (train) |
+| `LINE_PLOT_COMPLEXITY_TEST` | Each complexity metric vs x-axis (test) |
+| `LINE_PLOT_MODELS_COMBINED` | Train vs test per-model accuracy, side by side |
+| `LINE_PLOT_COMPLEXITY_COMBINED` | Train vs test complexity, side by side |
+| `DATASETS_OVERVIEW` | Grid of scatter plots for each dataset spec |
+| `CORRELATIONS` | Bar chart of top complexity–ML correlations |
+| `COMPLEXITY_CORRELATIONS` | Heatmap of pairwise complexity metric correlations |
+| `ML_CORRELATIONS` | Heatmap of pairwise ML metric correlations |
+| `SUMMARY` | Combined summary panel |
+| `HEATMAP` | Per-model correlation heatmap |
+
+### ComplexityCollection
+
+`ComplexityCollection` computes complexity metrics across multiple datasets without ML evaluation — useful for comparing real and synthetic datasets.
+
+```python
+from data_complexity.experiments.pipeline import ComplexityCollection
+
+collection = ComplexityCollection(seeds=5, train_size=0.5)
+
+# Add a real dataset
+collection.add_dataset("iris", {"X": X, "y": y})
+
+# Add a synthetic dataset
+collection.add_synthetic("gaussian", "Gaussian", {"class_separation": 4.0})
+
+# Add a parameter sweep
+collection.add_synthetic_sweep("moons", "Moons", {}, "moons_noise", [0.05, 0.1, 0.2])
+
+# Compute complexity metrics (returns DataFrame)
+metrics_df = collection.compute()
+
+# Correlation matrix among complexity metrics
+corr_matrix = collection.compute_correlations()
+
+# Heatmap figure
+fig = collection.plot_heatmap()
+
+# Save results
+collection.save(Path("results/"))
+```
 
 ### Legacy Experiments
 
-The original experiment scripts still work for backwards compatibility:
+The original experiment scripts in `model_experiments/` still work for backwards compatibility:
 
 ```bash
 pdm run python data_complexity/model_experiments/exp_complexity_vs_ml.py
@@ -440,7 +524,7 @@ pdm run python data_complexity/model_experiments/exp_complexity_vs_ml.py
 These train 10 classifiers via cross-validation and compute Pearson correlations between each complexity metric and ML accuracy. Outputs are saved to `model_experiments/results/`.
 
 ## coding style
-always wise clear and consise code.
+always write clear and concise code.
 
 ## documentation
 always document features in the relevant README.md files and in code docstrings. Use type hints for clarity.
