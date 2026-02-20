@@ -389,9 +389,9 @@ class TestSave:
         with _patch_complexity(mock_metrics):
             coll.save(tmp_path)
 
-        assert (tmp_path / "complexity_metrics.csv").exists()
-        assert (tmp_path / "complexity_correlations.csv").exists()
-        assert (tmp_path / "complexity_correlations_heatmap.png").exists()
+        assert (tmp_path / "data" / "complexity_metrics.csv").exists()
+        assert (tmp_path / "data" / "complexity_correlations.csv").exists()
+        assert (tmp_path / "plots" / "complexity_correlations_heatmap.png").exists()
 
     def test_creates_directory(self, tmp_path, simple_data, mock_metrics):
         save_dir = tmp_path / "nested" / "dir"
@@ -412,7 +412,7 @@ class TestSave:
         with _patch_complexity(mock_metrics):
             coll.save(tmp_path)
 
-        df = pd.read_csv(tmp_path / "complexity_metrics.csv", index_col=0)
+        df = pd.read_csv(tmp_path / "data" / "complexity_metrics.csv", index_col=0)
         assert df.shape == (2, len(mock_metrics))
         assert list(df.index) == ["ds1", "ds2"]
 
@@ -424,5 +424,5 @@ class TestSave:
         with _patch_complexity(mock_metrics):
             coll.save(tmp_path)
 
-        corr = pd.read_csv(tmp_path / "complexity_correlations.csv", index_col=0)
+        corr = pd.read_csv(tmp_path / "data" / "complexity_correlations.csv", index_col=0)
         assert corr.shape[0] == corr.shape[1]
