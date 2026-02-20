@@ -84,7 +84,8 @@
   "plots": [
     "LINE_PLOT_MODELS_COMBINED",
     "LINE_PLOT_COMPLEXITY_COMBINED",
-    "DATASETS_OVERVIEW"
+    "DATASETS_OVERVIEW",
+    "COMPLEXITY_CORRELATIONS"
   ],
   "run_mode": "both"
 }

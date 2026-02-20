@@ -36,6 +36,7 @@ class PlotType(Enum):
     LINE_PLOT_MODELS_COMBINED = auto()
     LINE_PLOT_COMPLEXITY_COMBINED = auto()
     DATASETS_OVERVIEW = auto()
+    COMPLEXITY_CORRELATIONS = auto()
 
 
 class RunMode(Enum):
@@ -145,6 +146,7 @@ class ExperimentConfig:
             PlotType.LINE_PLOT_MODELS_COMBINED,
             PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
             PlotType.DATASETS_OVERVIEW,
+            PlotType.COMPLEXITY_CORRELATIONS,
         ]
     )
     correlation_target: str = "best_accuracy"
@@ -245,6 +247,7 @@ class ExperimentResultsContainer:
         self._test_complexity_df: Optional[pd.DataFrame] = None
         self._train_ml_df: Optional[pd.DataFrame] = None
         self._test_ml_df: Optional[pd.DataFrame] = None
+        self._complexity_correlations_df: Optional[pd.DataFrame] = None
 
     def _build_ml_row(
         self,
@@ -433,6 +436,16 @@ class ExperimentResultsContainer:
     def correlations_df(self, df: pd.DataFrame) -> None:
         """Set correlations DataFrame."""
         self._correlations_df = df
+
+    @property
+    def complexity_correlations_df(self) -> Optional[pd.DataFrame]:
+        """Get pairwise complexity metric correlation matrix (N×N DataFrame)."""
+        return self._complexity_correlations_df
+
+    @complexity_correlations_df.setter
+    def complexity_correlations_df(self, df: pd.DataFrame) -> None:
+        """Set pairwise complexity metric correlation matrix."""
+        self._complexity_correlations_df = df
 
     def get_param_values(self) -> List[Any]:
         """Get list of parameter values."""

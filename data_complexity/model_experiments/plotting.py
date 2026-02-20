@@ -942,6 +942,49 @@ def plot_datasets_overview(
     return fig
 
 
+def plot_complexity_correlations_heatmap(
+    corr_matrix: pd.DataFrame,
+    title: str = "Complexity Metric Correlations",
+) -> plt.Figure:
+    """
+    Plot a heatmap of pairwise Pearson correlations between complexity metrics.
+
+    Parameters
+    ----------
+    corr_matrix : pd.DataFrame
+        N×N symmetric correlation matrix (from DataFrame.corr()).
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    n = len(corr_matrix)
+    fig_size = max(8, n * 0.5)
+    fig, ax = plt.subplots(figsize=(fig_size, fig_size * 0.85))
+
+    im = ax.imshow(corr_matrix.values, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+    plt.colorbar(im, ax=ax, label="Pearson r")
+
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(corr_matrix.columns, rotation=90, fontsize=8)
+    ax.set_yticklabels(corr_matrix.index, fontsize=8)
+
+    for i in range(n):
+        for j in range(n):
+            val = corr_matrix.iloc[i, j]
+            text_color = "white" if abs(val) > 0.7 else "black"
+            ax.text(j, i, f"{val:.2f}", ha="center", va="center",
+                    fontsize=6, color=text_color)
+
+    ax.set_title(title)
+    fig.tight_layout()
+    return fig
+
+
 def plot_model_comparison(
     all_correlations_df: pd.DataFrame,
     complexity_metrics: Optional[List[str]] = None,
