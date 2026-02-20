@@ -33,6 +33,8 @@ class PlotType(Enum):
     LINE_PLOT_MODELS_TEST = auto()
     LINE_PLOT_COMPLEXITY_TRAIN = auto()
     LINE_PLOT_COMPLEXITY_TEST = auto()
+    LINE_PLOT_MODELS_COMBINED = auto()
+    LINE_PLOT_COMPLEXITY_COMBINED = auto()
     DATASETS_OVERVIEW = auto()
 
 
@@ -140,6 +142,8 @@ class ExperimentConfig:
             PlotType.LINE_PLOT_MODELS_TEST,
             PlotType.LINE_PLOT_COMPLEXITY_TRAIN,
             PlotType.LINE_PLOT_COMPLEXITY_TEST,
+            PlotType.LINE_PLOT_MODELS_COMBINED,
+            PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
             PlotType.DATASETS_OVERVIEW,
         ]
     )

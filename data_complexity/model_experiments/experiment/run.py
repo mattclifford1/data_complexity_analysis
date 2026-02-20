@@ -32,6 +32,8 @@ from data_complexity.model_experiments.plotting import (
     plot_metrics_vs_parameter,
     plot_models_vs_parameter,
     plot_complexity_metrics_vs_parameter,
+    plot_models_vs_parameter_combined,
+    plot_complexity_metrics_vs_parameter_combined,
     plot_datasets_overview,
 )
 
@@ -592,6 +594,29 @@ class Experiment:
                         param_label_col="param_value",
                         x_label=self.config.vary_parameter.name,
                         title=f"{self.config.name}: Complexity (Test) vs {self.config.vary_parameter.name}",
+                    )
+                    figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_MODELS_COMBINED:
+                if self.results.train_ml_df is not None and self.results.test_ml_df is not None:
+                    fig = plot_models_vs_parameter_combined(
+                        train_ml_df=self.results.train_ml_df,
+                        test_ml_df=self.results.test_ml_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
+                        title=f"{self.config.name}: Models (Train vs Test) vs {self.config.vary_parameter.name}",
+                        ml_metrics=self.config.ml_metrics,
+                    )
+                    figures[pt] = fig
+
+            elif pt == PlotType.LINE_PLOT_COMPLEXITY_COMBINED:
+                if self.results.train_complexity_df is not None and self.results.test_complexity_df is not None:
+                    fig = plot_complexity_metrics_vs_parameter_combined(
+                        train_complexity_df=self.results.train_complexity_df,
+                        test_complexity_df=self.results.test_complexity_df,
+                        param_label_col="param_value",
+                        x_label=self.config.vary_parameter.name,
+                        title=f"{self.config.name}: Complexity (Train vs Test) vs {self.config.vary_parameter.name}",
                     )
                     figures[pt] = fig
 

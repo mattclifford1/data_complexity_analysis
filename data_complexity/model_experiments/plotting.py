@@ -600,6 +600,250 @@ def plot_complexity_metrics_vs_parameter(
     return fig
 
 
+def plot_models_vs_parameter_combined(
+    train_ml_df: pd.DataFrame,
+    test_ml_df: pd.DataFrame,
+    param_label_col: str = "param_label",
+    title: str = "Models vs Parameter (Train vs Test)",
+    ml_metrics: Optional[List[str]] = None,
+    x_label: str = "Parameter value",
+) -> plt.Figure:
+    """
+    Line plots showing each ML model in its own subplot, overlaying train and test.
+
+    Train data is plotted with solid lines; test data with dashed lines.  Both
+    use the same colour per metric so train/test pairs are visually linked.
+
+    Parameters
+    ----------
+    train_ml_df : pd.DataFrame
+        ML performance on the training set.
+    test_ml_df : pd.DataFrame
+        ML performance on the test set.
+    param_label_col : str
+        Column used as x-axis tick labels. Default: 'param_label'
+    title : str
+        Overall figure title.
+    ml_metrics : list of str, optional
+        Metric names to plot.  Inferred from column names if None.
+    x_label : str
+        X-axis label.
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    col = param_label_col if param_label_col in train_ml_df.columns else "param_value"
+    x_labels = train_ml_df[col].tolist()
+    x = np.arange(len(x_labels))
+
+    exclude_prefixes = ("best_", "mean_", "param_")
+    candidate_cols = [
+        c for c in train_ml_df.columns
+        if not any(c.startswith(p) for p in exclude_prefixes)
+        and not c.endswith("_std")
+        and c != param_label_col
+    ]
+
+    if ml_metrics is None:
+        all_suffixes: set = set()
+        for c in candidate_cols:
+            parts = c.rsplit("_", 1)
+            if len(parts) == 2:
+                all_suffixes.add(parts[1])
+        ml_metrics = sorted(all_suffixes)
+
+    model_metric_cols: dict = {}
+    for c in candidate_cols:
+        for metric in ml_metrics:
+            if c.endswith(f"_{metric}"):
+                model_name = c[: -len(f"_{metric}")]
+                model_metric_cols.setdefault(model_name, {})[metric] = c
+                break
+
+    model_names = sorted(model_metric_cols.keys())
+    n_models = len(model_names)
+    if n_models == 0:
+        fig, ax = plt.subplots()
+        ax.set_title("No per-model columns found")
+        return fig
+
+    cols = min(3, n_models)
+    rows = (n_models + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
+    flat_axes = axes.flatten()
+
+    cmap = plt.get_cmap("tab10")
+    metric_colors = {m: cmap(i / max(len(ml_metrics), 1)) for i, m in enumerate(ml_metrics)}
+
+    for idx, model_name in enumerate(model_names):
+        ax = flat_axes[idx]
+        metric_cols = model_metric_cols[model_name]
+
+        for metric, data_col in metric_cols.items():
+            color = metric_colors[metric]
+            std_col = f"{data_col}_std"
+
+            # Train — solid
+            train_values = train_ml_df[data_col].values.astype(float)
+            train_yerr = train_ml_df[std_col].values.astype(float) if std_col in train_ml_df.columns else None
+            ax.errorbar(
+                x, train_values,
+                yerr=train_yerr,
+                marker="o",
+                linestyle="-",
+                color=color,
+                label=f"{metric} (train)",
+                linewidth=1.5,
+                capsize=3,
+                elinewidth=0.8,
+            )
+
+            # Test — dashed
+            if data_col in test_ml_df.columns:
+                test_values = test_ml_df[data_col].values.astype(float)
+                test_yerr = test_ml_df[std_col].values.astype(float) if std_col in test_ml_df.columns else None
+                ax.errorbar(
+                    x, test_values,
+                    yerr=test_yerr,
+                    marker="s",
+                    linestyle="--",
+                    color=color,
+                    label=f"{metric} (test)",
+                    linewidth=1.5,
+                    capsize=3,
+                    elinewidth=0.8,
+                )
+
+        ax.set_title(model_name)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        ax.set_ylim(0, 1)
+        ax.set_ylabel("Score")
+        ax.set_xlabel(x_label)
+        ax.legend(fontsize=8)
+
+    for idx in range(n_models, len(flat_axes)):
+        flat_axes[idx].axis("off")
+
+    fig.suptitle(title, y=1.01)
+    plt.tight_layout()
+    return fig
+
+
+def plot_complexity_metrics_vs_parameter_combined(
+    train_complexity_df: pd.DataFrame,
+    test_complexity_df: pd.DataFrame,
+    param_label_col: str = "param_label",
+    title: str = "Complexity Metrics vs Parameter (Train vs Test)",
+    x_label: str = "Parameter value",
+) -> plt.Figure:
+    """
+    Plot each complexity metric in its own subplot overlaying train and test data.
+
+    Train data is plotted with a solid line; test data with a dashed line.  Both
+    share the same default colour cycle colour so the pair is visually linked.
+
+    Parameters
+    ----------
+    train_complexity_df : pd.DataFrame
+        Complexity metrics computed on the training set.
+    test_complexity_df : pd.DataFrame
+        Complexity metrics computed on the test set.
+    param_label_col : str
+        Column used as x-axis tick labels. Default: 'param_label'
+    title : str
+        Overall figure title.
+    x_label : str
+        X-axis label applied to bottom-row subplots.
+
+    Returns
+    -------
+    plt.Figure
+        The matplotlib figure.
+    """
+    col = param_label_col if param_label_col in train_complexity_df.columns else "param_value"
+    x_labels = train_complexity_df[col].tolist()
+    x = np.arange(len(x_labels))
+
+    exclude_cols = {"param_value", "param_label"}
+    metric_cols = [
+        c for c in train_complexity_df.columns
+        if c not in exclude_cols and not c.endswith("_std")
+    ]
+
+    n_metrics = len(metric_cols)
+    if n_metrics == 0:
+        fig, ax = plt.subplots()
+        ax.set_title("No complexity metric columns found")
+        return fig
+
+    cols = min(3, n_metrics)
+    rows = (n_metrics + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
+    flat_axes = axes.flatten()
+
+    cmap = plt.get_cmap("tab10")
+
+    for idx, metric in enumerate(metric_cols):
+        ax = flat_axes[idx]
+        color = cmap(0)  # single colour per subplot; train/test distinguished by linestyle
+
+        # Train — solid
+        train_values = train_complexity_df[metric].values.astype(float)
+        std_col = f"{metric}_std"
+        train_yerr = (
+            train_complexity_df[std_col].values.astype(float)
+            if std_col in train_complexity_df.columns
+            else None
+        )
+        ax.errorbar(
+            x, train_values,
+            yerr=train_yerr,
+            marker="o",
+            linestyle="-",
+            color=color,
+            label="train",
+            linewidth=1.5,
+            capsize=3,
+            elinewidth=0.8,
+        )
+
+        # Test — dashed
+        if metric in test_complexity_df.columns:
+            test_values = test_complexity_df[metric].values.astype(float)
+            test_yerr = (
+                test_complexity_df[std_col].values.astype(float)
+                if std_col in test_complexity_df.columns
+                else None
+            )
+            ax.errorbar(
+                x, test_values,
+                yerr=test_yerr,
+                marker="s",
+                linestyle="--",
+                color=color,
+                label="test",
+                linewidth=1.5,
+                capsize=3,
+                elinewidth=0.8,
+            )
+
+        ax.set_title(metric)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        ax.set_xlabel(x_label)
+        ax.legend(fontsize=8)
+
+    for idx in range(n_metrics, len(flat_axes)):
+        flat_axes[idx].axis("off")
+
+    fig.suptitle(title, y=1.01)
+    plt.tight_layout()
+    return fig
+
+
 def plot_datasets_overview(
     datasets: Dict[Any, Any],
     format_label: Callable[[Any], str],
