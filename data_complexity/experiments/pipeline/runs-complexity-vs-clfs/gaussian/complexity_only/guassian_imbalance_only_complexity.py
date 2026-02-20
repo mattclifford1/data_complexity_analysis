@@ -7,9 +7,7 @@ from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
-    ParameterSpec,
     RunMode,
-    datasets_from_sweep,
 )
 
 fixed_params={
@@ -30,16 +28,11 @@ for imbalance_factor in [1, 2, 4, 8, 16]:
 # Configure experiment
 config = ExperimentConfig(
     datasets=datasets,
-    # vary_parameter=ParameterSpec(
-    #     name="minority_reduce_scaler",
-    #     values=[1, 2, 4, 8, 16],
-    #     label_format="imbalance={value}x",
-    # ),
     name="gaussian_imbalance_complexity",
     run_mode=RunMode.COMPLEXITY_ONLY,
 )
 
 if __name__ == "__main__":
     exp = Experiment(config)
-    exp.run(n_jobs=1)
+    exp.run(n_jobs=-1)
     exp.save()

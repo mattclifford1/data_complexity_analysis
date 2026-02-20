@@ -910,7 +910,6 @@ class Experiment:
         # Save dataset visualizations to datasets/ subfolder
         # Create dual plot: full dataset + train/test split
         for label, dataset in self.datasets.items():
-            print(f"Saving dataset visualization for: {label}")
             # Try to create train/test split plot
             # Some datasets may not support splitting (e.g., minority_reduce_scaler=1)
             try:
