@@ -63,7 +63,7 @@ class ComplexityCollection:
 
     Examples
     --------
-    >>> from data_complexity.model_experiments import ComplexityCollection
+    >>> from data_complexity.experiments import ComplexityCollection
     >>> collection = (
     ...     ComplexityCollection(seeds=5, train_size=0.5)
     ...     .add_dataset("iris", {"X": X_iris, "y": y_iris})

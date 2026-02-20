@@ -20,7 +20,7 @@ from data_complexity.experiments.pipeline.utils import (
     make_json_safe_dict,
     make_json_safe_list,
 )
-from data_complexity.experiments.pipeline.run import (
+from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     Experiment,
     _run_param_value_worker,
 )

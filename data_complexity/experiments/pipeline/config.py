@@ -6,7 +6,7 @@ across different dataset types and parameter variations.
 """
 from typing import Dict
 
-from data_complexity.experiments.pipeline.run import (
+from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     DatasetSpec,
     ParameterSpec,
     ExperimentConfig,
