@@ -1,5 +1,5 @@
 {
-  "experiment_name": "moons_imbalance_complexity",
+  "experiment_name": "moons_imbalance",
   "dataset": {
     "type": "Moons",
     "fixed_params": {
@@ -135,5 +135,5 @@
     "LINE_PLOT_COMPLEXITY_COMBINED",
     "DATASETS_OVERVIEW"
   ],
-  "run_mode": "complexity"
+  "run_mode": "both"
 }
