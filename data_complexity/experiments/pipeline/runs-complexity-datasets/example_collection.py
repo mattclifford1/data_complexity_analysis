@@ -1,7 +1,7 @@
 
 
 from pathlib import Path
-from data_complexity.experiments import ComplexityCollection
+from data_complexity.experiments.pipeline import ComplexityCollection
 
 collection = (
      ComplexityCollection(seeds=5, train_size=0.5)
@@ -21,4 +21,4 @@ fig = collection.plot_heatmap()
 # get this file path and save the collection results to a directory called "results/my_study/"
 this_file_path = Path(__file__).resolve().parent
 
-collection.save(this_file_path / "results" / "my_study")
+collection.save(this_file_path / "example_collection_results")

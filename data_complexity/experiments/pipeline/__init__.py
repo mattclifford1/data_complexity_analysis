@@ -24,6 +24,10 @@ from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     Experiment,
     _run_param_value_worker,
 )
+from data_complexity.experiments.pipeline.complexity_over_datasets import (
+    ComplexityCollection,
+    DatasetEntry,
+)
 from data_complexity.experiments.pipeline.config import (
     EXPERIMENT_CONFIGS,
     gaussian_variance_config,
@@ -55,6 +59,9 @@ __all__ = [
     # run
     "Experiment",
     "_run_param_value_worker",
+    # complexity_over_datasets
+    "ComplexityCollection",
+    "DatasetEntry",
     # config
     "EXPERIMENT_CONFIGS",
     "gaussian_variance_config",
