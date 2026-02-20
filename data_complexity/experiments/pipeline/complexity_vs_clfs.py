@@ -56,18 +56,18 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
 
-def _run_param_value_worker(
-    param_value: Any,
+def _run_dataset_spec_worker(
+    dataset_spec: "DatasetSpec",
     config: "ExperimentConfig",
     models: List,
     metrics: List,
 ) -> Dict[str, Any]:
-    """Worker executed in a subprocess for one parameter value.
+    """Worker executed in a subprocess for one DatasetSpec.
 
     Parameters
     ----------
-    param_value :
-        The value of the varied parameter for this worker.
+    dataset_spec : DatasetSpec
+        The dataset specification for this worker.
     config : ExperimentConfig
         Experiment configuration (must be picklable — no callable fields).
     models : list
@@ -78,15 +78,15 @@ def _run_param_value_worker(
     Returns
     -------
     dict
-        Averaged results across all seeds for this parameter value.
+        Averaged results across all seeds for this dataset spec.
     """
     from data_loaders import get_dataset  # type: ignore
 
-    data_params = dict(config.dataset.fixed_params)
-    data_params[config.vary_parameter.name] = param_value
-    data_params["name"] = config.vary_parameter.format_label(param_value)
-
-    dataset = get_dataset(dataset_name=config.dataset.dataset_type, **data_params)
+    dataset = get_dataset(
+        dataset_name=dataset_spec.dataset_type,
+        name=dataset_spec.label,
+        **dataset_spec.fixed_params,
+    )
 
     run_mode = config.run_mode
     train_complexity_accum: List[Dict[str, float]] = []
@@ -111,7 +111,7 @@ def _run_param_value_worker(
             test_ml_accum.append(test_ml)
 
     return {
-        "param_value": param_value,
+        "label": dataset_spec.label,
         "avg_train_complexity": _average_dicts(train_complexity_accum) if train_complexity_accum else None,
         "avg_test_complexity": _average_dicts(test_complexity_accum) if test_complexity_accum else None,
         "std_train_complexity": _std_dicts(train_complexity_accum) if train_complexity_accum else None,
@@ -119,6 +119,10 @@ def _run_param_value_worker(
         "avg_train_ml": _average_ml_results(train_ml_accum) if train_ml_accum else None,
         "avg_test_ml": _average_ml_results(test_ml_accum) if test_ml_accum else None,
     }
+
+
+# Keep old name as alias for backwards compatibility
+_run_param_value_worker = _run_dataset_spec_worker
 
 
 class Experiment:
@@ -186,12 +190,10 @@ class Experiment:
 
         if verbose:
             print(f"Running experiment: {self.config.name}")
-            print(f"  Dataset: {self.config.dataset.dataset_type}")
-            print(f"  Fixed data params:")
-            for k, v in self.config.dataset.fixed_params.items():
-                print(f"        {k}: {v}")
-            print(f"  Varying: {self.config.vary_parameter.name}")
-            print(f"  Values: {self.config.vary_parameter.values}")
+            print(f"  Datasets ({len(self.config.datasets)}):")
+            for spec in self.config.datasets:
+                print(f"    {spec.label}: {spec.dataset_type} {spec.fixed_params}")
+            print(f"  x_label: {self.config.x_label}")
             print(f"  Seeds: {cv_folds}")
             if n_jobs != 1:
                 print(f"  Parallel workers: {n_jobs if n_jobs > 0 else 'auto'}")
@@ -199,18 +201,15 @@ class Experiment:
 
         if n_jobs == 1:
             # --- sequential loop ---
-            for param_value in tqdm(self.config.vary_parameter.values, desc="All Parameter values"):
-                # Build dataset params
-                data_params = dict(self.config.dataset.fixed_params)
-                data_params[self.config.vary_parameter.name] = param_value
-                data_params["name"] = self.config.vary_parameter.format_label(param_value)
-                # build the dataset (with internal train/test split and postprocessing etc. all handled by the dataset object)
+            for dataset_spec in tqdm(self.config.datasets, desc="Datasets"):
+                # Build the dataset (train/test split and postprocessing handled by dataset object)
                 dataset = self._get_dataset(
-                    dataset_name=self.config.dataset.dataset_type,
-                    **data_params
+                    dataset_name=dataset_spec.dataset_type,
+                    name=dataset_spec.label,
+                    **dataset_spec.fixed_params,
                 )
-                # Store dataset for visualization later (keyed by param_value for easy lookup)
-                self.datasets[param_value] = dataset
+                # Store dataset for visualization later (keyed by label string)
+                self.datasets[dataset_spec.label] = dataset
 
                 # Accumulate results across seeds
                 run_mode = self.config.run_mode
@@ -219,7 +218,7 @@ class Experiment:
                 train_ml_accum: List[Dict] = []
                 test_ml_accum: List[Dict] = []
 
-                for seed_i in tqdm(range(cv_folds), desc=f"Param {data_params['name']}", leave=False):
+                for seed_i in tqdm(range(cv_folds), desc=f"Dataset {dataset_spec.label}", leave=False):
                     # Use dataset's built-in proportional_split with all params already set
                     train_data, test_data = dataset.get_train_test_split(seed=42 + seed_i)
 
@@ -245,7 +244,7 @@ class Experiment:
                 avg_test_ml = _average_ml_results(test_ml_accum) if test_ml_accum else None
 
                 self.results.add_split_result(
-                    param_value=param_value,
+                    param_value=dataset_spec.label,
                     train_complexity_dict=avg_train_complexity,
                     test_complexity_dict=avg_test_complexity,
                     train_ml_results=avg_train_ml,
@@ -256,7 +255,7 @@ class Experiment:
 
                 if verbose and run_mode != RunMode.COMPLEXITY_ONLY and avg_test_ml:
                     best_acc = get_best_metric(avg_test_ml, "accuracy")
-                    print(f"  {data_params['name']}: best_test_accuracy={best_acc:.3f}")
+                    print(f"  {dataset_spec.label}: best_test_accuracy={best_acc:.3f}")
 
         else:
             # --- parallel branch ---
@@ -265,31 +264,27 @@ class Experiment:
             max_workers = n_jobs if n_jobs > 0 else None
             futures = {}
             with ProcessPoolExecutor(max_workers=max_workers) as pool:
-                for param_value in self.config.vary_parameter.values:
+                for dataset_spec in self.config.datasets:
                     future = pool.submit(
-                        _run_param_value_worker,
-                        param_value, self.config, models, metrics,
+                        _run_dataset_spec_worker,
+                        dataset_spec, self.config, models, metrics,
                     )
-                    futures[future] = param_value
+                    futures[future] = dataset_spec
 
-                results_by_param: Dict[Any, Dict[str, Any]] = {}
+                results_by_label: Dict[str, Dict[str, Any]] = {}
                 for future in tqdm(
                     as_completed(futures),
                     total=len(futures),
-                    desc="All Parameter values (parallel)",
+                    desc="Datasets (parallel)",
                 ):
                     result = future.result()  # re-raises worker exceptions in main process
-                    # Key by the *original* param_value (from futures map), not the
-                    # deserialized copy returned by the worker, so that object identity
-                    # is preserved for types that don't implement __eq__/__hash__.
-                    original_param_value = futures[future]
-                    results_by_param[original_param_value] = result
+                    results_by_label[result["label"]] = result
 
             # Restore original order then store
-            for param_value in self.config.vary_parameter.values:
-                r = results_by_param[param_value]
+            for dataset_spec in self.config.datasets:
+                r = results_by_label[dataset_spec.label]
                 self.results.add_split_result(
-                    param_value=r["param_value"],
+                    param_value=dataset_spec.label,
                     train_complexity_dict=r["avg_train_complexity"],
                     test_complexity_dict=r["avg_test_complexity"],
                     train_ml_results=r["avg_train_ml"],
@@ -299,29 +294,20 @@ class Experiment:
                 )
                 if verbose and self.config.run_mode != RunMode.COMPLEXITY_ONLY and r["avg_test_ml"]:
                     best_acc = get_best_metric(r["avg_test_ml"], "accuracy")
-                    param_label = self.config.vary_parameter.format_label(param_value)
-                    print(f"  {param_label}: best_test_accuracy={best_acc:.3f}")
+                    print(f"  {dataset_spec.label}: best_test_accuracy={best_acc:.3f}")
 
             # Regenerate datasets in the main process for visualisation.
             # Dataset construction is cheap; we only need the objects for plotting.
-            for param_value in self.config.vary_parameter.values:
-                data_params = dict(self.config.dataset.fixed_params)
-                data_params[self.config.vary_parameter.name] = param_value
-                data_params["name"] = self.config.vary_parameter.format_label(param_value)
-                self.datasets[param_value] = self._get_dataset(
-                    dataset_name=self.config.dataset.dataset_type,
-                    **data_params,
+            for dataset_spec in self.config.datasets:
+                self.datasets[dataset_spec.label] = self._get_dataset(
+                    dataset_name=dataset_spec.dataset_type,
+                    name=dataset_spec.label,
+                    **dataset_spec.fixed_params,
                 )
 
         # Convert accumulated results to DataFrames
         self.results.covert_to_df()
         return self.results
-
-    def _get_minority_reduce_scaler(self, param_value: Any) -> Optional[float]:
-        """Determine minority_reduce_scaler for the current iteration."""
-        if self.config.vary_parameter.name == "minority_reduce_scaler":
-            return param_value
-        return self.config.dataset.fixed_params.get("minority_reduce_scaler")
 
     def compute_correlations(
         self,
@@ -699,8 +685,8 @@ class Experiment:
                         complexity_df=self.results.train_complexity_df,
                         ml_df=self.results.train_ml_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Train — metrics vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Train — metrics vs {self.config.x_label}",
                     )
                     figures[pt] = fig
 
@@ -710,8 +696,8 @@ class Experiment:
                         complexity_df=self.results.test_complexity_df,
                         ml_df=self.results.test_ml_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Test — metrics vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Test — metrics vs {self.config.x_label}",
                     )
                     figures[pt] = fig
 
@@ -720,8 +706,8 @@ class Experiment:
                     fig = plot_models_vs_parameter(
                         ml_df=self.results.train_ml_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Models (Train) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Models (Train) vs {self.config.x_label}",
                         ml_metrics=self.config.ml_metrics,
                     )
                     figures[pt] = fig
@@ -731,8 +717,8 @@ class Experiment:
                     fig = plot_models_vs_parameter(
                         ml_df=self.results.test_ml_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Models (Test) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Models (Test) vs {self.config.x_label}",
                         ml_metrics=self.config.ml_metrics,
                     )
                     figures[pt] = fig
@@ -742,8 +728,8 @@ class Experiment:
                     fig = plot_complexity_metrics_vs_parameter(
                         complexity_df=self.results.train_complexity_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Complexity (Train) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Complexity (Train) vs {self.config.x_label}",
                     )
                     figures[pt] = fig
 
@@ -752,8 +738,8 @@ class Experiment:
                     fig = plot_complexity_metrics_vs_parameter(
                         complexity_df=self.results.test_complexity_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Complexity (Test) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Complexity (Test) vs {self.config.x_label}",
                     )
                     figures[pt] = fig
 
@@ -763,8 +749,8 @@ class Experiment:
                         train_ml_df=self.results.train_ml_df,
                         test_ml_df=self.results.test_ml_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Models (Train vs Test) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Models (Train vs Test) vs {self.config.x_label}",
                         ml_metrics=self.config.ml_metrics,
                     )
                     figures[pt] = fig
@@ -775,8 +761,8 @@ class Experiment:
                         train_complexity_df=self.results.train_complexity_df,
                         test_complexity_df=self.results.test_complexity_df,
                         param_label_col="param_value",
-                        x_label=self.config.vary_parameter.name,
-                        title=f"{self.config.name}: Complexity (Train vs Test) vs {self.config.vary_parameter.name}",
+                        x_label=self.config.x_label,
+                        title=f"{self.config.name}: Complexity (Train vs Test) vs {self.config.x_label}",
                     )
                     figures[pt] = fig
 
@@ -784,7 +770,7 @@ class Experiment:
                 if self.datasets:
                     fig = plot_datasets_overview(
                         datasets=self.datasets,
-                        format_label=self.config.vary_parameter.format_label,
+                        format_label=lambda label: label,
                     )
                     figures[pt] = fig
 
@@ -845,15 +831,15 @@ class Experiment:
         models = self.config.models or get_default_models()
         metadata = {
             "experiment_name": self.config.name,
-            "dataset": {
-                "type": self.config.dataset.dataset_type,
-                "fixed_params": make_json_safe_dict(self.config.dataset.fixed_params)
-            },
-            "vary_parameter": {
-                "name": self.config.vary_parameter.name,
-                "values": make_json_safe_list(self.config.vary_parameter.values),
-                "label_format": self.config.vary_parameter.label_format,
-            },
+            "datasets": [
+                {
+                    "label": spec.label,
+                    "type": spec.dataset_type,
+                    "params": make_json_safe_dict(spec.fixed_params),
+                }
+                for spec in self.config.datasets
+            ],
+            "x_label": self.config.x_label,
             "ml_models": [
                 {
                     "name": model.name,
@@ -926,9 +912,7 @@ class Experiment:
 
         # Save dataset visualizations to datasets/ subfolder
         # Create dual plot: full dataset + train/test split
-        for param_value, dataset in self.datasets.items():
-            param_label = self.config.vary_parameter.format_label(param_value)
-
+        for label, dataset in self.datasets.items():
             # Try to create train/test split plot
             # Some datasets may not support splitting (e.g., minority_reduce_scaler=1)
             try:
@@ -941,18 +925,18 @@ class Experiment:
                 # Middle & Right: Train/test split
                 dataset.plot_train_test_split(ax=(axes[1], axes[2]))
 
-                # Add overall title with parameter value
-                fig.suptitle(f"Dataset: {param_label}", fontsize=14, fontweight='bold', y=1.02)
+                # Add overall title with dataset label
+                fig.suptitle(f"Dataset: {label}", fontsize=14, fontweight='bold', y=1.02)
 
             except (ValueError, AttributeError):
                 # Fallback: single plot if train/test split not supported
                 plt.close(fig)  # Close the 3-panel figure
                 fig, ax = plt.subplots(figsize=(8, 6))
                 dataset.plot_dataset(ax=ax)
-                ax.set_title(f"Full Dataset: {param_label}", fontsize=12, fontweight='bold')
+                ax.set_title(f"Full Dataset: {label}", fontsize=12, fontweight='bold')
 
             # Sanitize label for filename (replace = with _)
-            safe_label = param_label.replace("=", "_").replace(" ", "_")
+            safe_label = label.replace("=", "_").replace(" ", "_")
             filename = f"dataset_{safe_label}.png"
             fig.savefig(datasets_dir / filename, dpi=150, bbox_inches="tight")
             plt.close(fig)

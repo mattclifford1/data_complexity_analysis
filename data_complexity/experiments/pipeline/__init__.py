@@ -22,7 +22,8 @@ from data_complexity.experiments.pipeline.utils import (
 )
 from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     Experiment,
-    _run_param_value_worker,
+    _run_dataset_spec_worker,
+    _run_param_value_worker,  # backwards-compat alias
 )
 from data_complexity.experiments.pipeline.complexity_over_datasets import (
     ComplexityCollection,
@@ -30,6 +31,7 @@ from data_complexity.experiments.pipeline.complexity_over_datasets import (
 )
 from data_complexity.experiments.pipeline.config import (
     EXPERIMENT_CONFIGS,
+    datasets_from_sweep,
     gaussian_variance_config,
     gaussian_separation_config,
     gaussian_correlation_config,
@@ -58,12 +60,14 @@ __all__ = [
     "make_json_safe_list",
     # run
     "Experiment",
-    "_run_param_value_worker",
+    "_run_dataset_spec_worker",
+    "_run_param_value_worker",  # backwards-compat alias
     # complexity_over_datasets
     "ComplexityCollection",
     "DatasetEntry",
     # config
     "EXPERIMENT_CONFIGS",
+    "datasets_from_sweep",
     "gaussian_variance_config",
     "gaussian_separation_config",
     "gaussian_correlation_config",

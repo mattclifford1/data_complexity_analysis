@@ -4,15 +4,61 @@ Pre-defined experiment configurations for common analysis scenarios.
 Provides ready-to-use configurations for studying complexity vs ML performance
 across different dataset types and parameter variations.
 """
-from typing import Dict
+from typing import Dict, List
 
-from data_complexity.experiments.pipeline.complexity_vs_clfs import (
+from data_complexity.experiments.pipeline.utils import (
     DatasetSpec,
     ParameterSpec,
     ExperimentConfig,
+)
+from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     Experiment,
     PlotType,
 )
+
+
+def datasets_from_sweep(
+    base_spec: DatasetSpec,
+    param_spec: ParameterSpec,
+) -> List[DatasetSpec]:
+    """
+    Build a list of DatasetSpecs from a base spec and a parameter sweep.
+
+    Each value in ``param_spec.values`` produces one DatasetSpec whose
+    ``fixed_params`` extend the base spec's params with the swept parameter,
+    and whose ``label`` is set by ``param_spec.format_label(value)``.
+
+    Parameters
+    ----------
+    base_spec : DatasetSpec
+        Base dataset specification (type and any fixed parameters).
+    param_spec : ParameterSpec
+        Parameter to sweep over (name, values, and label format).
+
+    Returns
+    -------
+    list of DatasetSpec
+        One spec per value in param_spec.values, ordered the same way.
+
+    Examples
+    --------
+    >>> specs = datasets_from_sweep(
+    ...     DatasetSpec("Moons", {}),
+    ...     ParameterSpec("moons_noise", [0.05, 0.1, 0.2], "noise={value}"),
+    ... )
+    >>> [s.label for s in specs]
+    ['noise=0.05', 'noise=0.1', 'noise=0.2']
+    """
+    specs = []
+    for value in param_spec.values:
+        params = dict(base_spec.fixed_params)
+        params[param_spec.name] = value
+        specs.append(DatasetSpec(
+            dataset_type=base_spec.dataset_type,
+            fixed_params=params,
+            label=param_spec.format_label(value),
+        ))
+    return specs
 
 
 def gaussian_variance_config() -> ExperimentConfig:
@@ -22,15 +68,11 @@ def gaussian_variance_config() -> ExperimentConfig:
     Varies cov_scale from 0.5 to 5.0 with fixed class separation.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Gaussian",
-            fixed_params={"class_separation": 4.0, "cov_type": "spherical"},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian", {"class_separation": 4.0, "cov_type": "spherical"}),
+            ParameterSpec("cov_scale", [0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0], "scale={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="cov_scale",
-            values=[0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0],
-            label_format="scale={value}",
-        ),
+        x_label="cov_scale",
         name="gaussian_variance",
     )
 
@@ -42,15 +84,11 @@ def gaussian_separation_config() -> ExperimentConfig:
     Varies class_separation from 1.0 to 8.0 with fixed variance.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Gaussian",
-            fixed_params={"cov_type": "spherical", "cov_scale": 1.0},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian", {"cov_type": "spherical", "cov_scale": 1.0}),
+            ParameterSpec("class_separation", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0], "sep={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="class_separation",
-            values=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
-            label_format="sep={value}",
-        ),
+        x_label="class_separation",
         name="gaussian_separation",
     )
 
@@ -62,15 +100,11 @@ def gaussian_correlation_config() -> ExperimentConfig:
     Varies cov_correlation from -0.8 to 0.8 with symmetric covariance.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Gaussian",
-            fixed_params={"class_separation": 4.0, "cov_type": "symmetric"},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian", {"class_separation": 4.0, "cov_type": "symmetric"}),
+            ParameterSpec("cov_correlation", [-0.8, -0.5, -0.2, 0.0, 0.2, 0.5, 0.8], "corr={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="cov_correlation",
-            values=[-0.8, -0.5, -0.2, 0.0, 0.2, 0.5, 0.8],
-            label_format="corr={value}",
-        ),
+        x_label="cov_correlation",
         name="gaussian_correlation",
     )
 
@@ -90,15 +124,11 @@ def gaussian_imbalance_config() -> ExperimentConfig:
     - 16 = 94%-6%
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Gaussian",
-            fixed_params={"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Gaussian", {"class_separation": 4.0, "cov_type": "spherical", "cov_scale": 1.0}),
+            ParameterSpec("minority_reduce_scaler", [1, 2, 4, 8, 16], "imbalance={value}x"),
         ),
-        vary_parameter=ParameterSpec(
-            name="minority_reduce_scaler",
-            values=[1, 2, 4, 8, 16],
-            label_format="imbalance={value}x",
-        ),
+        x_label="minority_reduce_scaler",
         name="gaussian_imbalance",
     )
 
@@ -110,15 +140,11 @@ def moons_noise_config() -> ExperimentConfig:
     Varies noise from 0.05 to 0.5.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Moons",
-            fixed_params={},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Moons", {}),
+            ParameterSpec("moons_noise", [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5], "noise={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="moons_noise",
-            values=[0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5],
-            label_format="noise={value}",
-        ),
+        x_label="moons_noise",
         name="moons_noise",
     )
 
@@ -130,15 +156,11 @@ def circles_noise_config() -> ExperimentConfig:
     Varies noise from 0.02 to 0.3.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Circles",
-            fixed_params={},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Circles", {}),
+            ParameterSpec("circles_noise", [0.02, 0.05, 0.1, 0.15, 0.2, 0.3], "noise={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="circles_noise",
-            values=[0.02, 0.05, 0.1, 0.15, 0.2, 0.3],
-            label_format="noise={value}",
-        ),
+        x_label="circles_noise",
         name="circles_noise",
     )
 
@@ -150,15 +172,11 @@ def blobs_features_config() -> ExperimentConfig:
     Varies number of features from 2 to 20.
     """
     return ExperimentConfig(
-        dataset=DatasetSpec(
-            dataset_type="Blobs",
-            fixed_params={},
+        datasets=datasets_from_sweep(
+            DatasetSpec("Blobs", {}),
+            ParameterSpec("blobs_features", [2, 3, 5, 10, 15, 20], "d={value}"),
         ),
-        vary_parameter=ParameterSpec(
-            name="blobs_features",
-            values=[2, 3, 5, 10, 15, 20],
-            label_format="d={value}",
-        ),
+        x_label="blobs_features",
         name="blobs_features",
     )
 

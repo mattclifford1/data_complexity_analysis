@@ -75,21 +75,30 @@ class ParameterSpec:
 @dataclass
 class DatasetSpec:
     """
-    Specification for the dataset type and fixed parameters.
+    Specification for a dataset in an experiment.
 
     Parameters
     ----------
     dataset_type : str
         Type of dataset ('Gaussian', 'Moons', 'Circles', 'Blobs', 'XOR').
     fixed_params : dict
-        Parameters that remain constant across experiment iterations.
+        Parameters passed to the dataset generator (e.g. cov_scale, moons_noise).
+    label : str
+        Human-readable label for this dataset point used as the x-axis tick and dict key.
+        Auto-generated from dataset_type and first fixed_param if not provided.
     """
 
     dataset_type: str
-    # fixed_params can include any parameters accepted by the dataset generation functions
-    # e.g.: for Gaussian: class_separation, cov_type, cov_scale, equal_test
-    #     or train_size, num_samples (if we want to fix those instead of varying them)
     fixed_params: Dict[str, Any] = field(default_factory=dict)
+    label: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.label:
+            if self.fixed_params:
+                k, v = next(iter(self.fixed_params.items()))
+                self.label = f"{self.dataset_type}_{k}={v}"
+            else:
+                self.label = self.dataset_type
 
 
 @dataclass
@@ -97,12 +106,18 @@ class ExperimentConfig:
     """
     Configuration for a complexity vs ML experiment.
 
+    The experiment loops over a list of ``DatasetSpec`` objects — each fully
+    self-describing (type, params, and label).  Use ``datasets_from_sweep()``
+    in ``config.py`` to build the list from a parameter sweep, which is the
+    same pattern the pre-defined configs use.
+
     Parameters
     ----------
-    dataset : DatasetSpec
-        Dataset specification.
-    vary_parameter : ParameterSpec
-        Parameter to vary across experiment iterations.
+    datasets : list of DatasetSpec
+        Ordered list of dataset specifications to iterate over.
+    x_label : str
+        Label for the x-axis in plots (e.g. the name of the varied parameter).
+        Default: "Dataset"
     models : list of AbstractMLModel, optional
         ML models to evaluate. Default: get_default_models()
     ml_metrics : list of str
@@ -114,7 +129,7 @@ class ExperimentConfig:
     save_dir : Path, optional
         Directory to save results. Default: results/{name}/
     plots : list of PlotType
-        Plot types to generate. Default: [CORRELATIONS, SUMMARY]
+        Plot types to generate.
     correlation_target : str
         ML metric to correlate against. Default: 'best_accuracy'
     equal_test : bool
@@ -126,8 +141,8 @@ class ExperimentConfig:
         ``RunMode.ML_ONLY`` skips complexity computation. Default: RunMode.BOTH
     """
 
-    dataset: DatasetSpec
-    vary_parameter: ParameterSpec
+    datasets: List[DatasetSpec]
+    x_label: str = "Dataset"
     models: Optional[List[AbstractMLModel]] = None
     ml_metrics: List[str] = field(default_factory=lambda: ["accuracy", "f1"])
     cv_folds: int = 5
@@ -135,9 +150,6 @@ class ExperimentConfig:
     save_dir: Optional[Path] = None
     plots: List[PlotType] = field(
         default_factory=lambda: [
-            # PlotType.CORRELATIONS,
-            # PlotType.SUMMARY,
-            # PlotType.HEATMAP,
             PlotType.LINE_PLOT_TRAIN,
             PlotType.LINE_PLOT_TEST,
             PlotType.LINE_PLOT_MODELS_TRAIN,
@@ -155,7 +167,7 @@ class ExperimentConfig:
     equal_test: bool = False  # If True, ensures test set is balanced for imbalance experiments
     run_mode: RunMode = RunMode.BOTH
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Generate name and save_dir if not provided."""
         if self.name is None:
             self.name = self._generate_name()
@@ -167,8 +179,10 @@ class ExperimentConfig:
             self.save_dir = base / "results" / self.name
 
     def _generate_name(self) -> str:
-        """Generate experiment name from dataset type and varied parameter."""
-        return f"{self.dataset.dataset_type.lower()}_{self.vary_parameter.name}"
+        """Generate experiment name from first dataset type."""
+        if not self.datasets:
+            return "experiment"
+        return f"{self.datasets[0].dataset_type.lower()}_sweep"
 
 
 def _average_dicts(dicts: List[Dict[str, float]]) -> Dict[str, float]:
@@ -279,7 +293,7 @@ class ExperimentResultsContainer:
         """Build a complexity row dict, optionally including per-metric std columns."""
         row = {
             "param_value": param_value,
-            "param_label": self.config.vary_parameter.format_label(param_value),
+            "param_label": str(param_value),
         }
         row.update(complexity_metrics_dict)
         if std_dict:
