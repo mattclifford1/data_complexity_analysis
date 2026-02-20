@@ -1,5 +1,5 @@
 """
-Example: Run Gaussian variance experiment with custom configuration.
+Example: Run moons imbalance experiment with custom configuration.
 
 Demonstrates how to configure ML models, metrics, and plot types.
 """
@@ -7,7 +7,6 @@ from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
-    ParameterSpec,
     RunMode,
 )
 from data_complexity.experiments.classification import (
@@ -26,22 +25,21 @@ models = [
     KNNModel(n_neighbors=5),
 ]
 
+fixed_params = {
+    "num_samples": 400,
+    "train_size": 0.5,
+    "moons_noise": 0.1,
+    "equal_test": True,  # Ensure test set is balanced for fair evaluation of imbalance effects
+}
+datasets = []
+for value in [1, 2, 4, 8, 16]:
+    dataset_params = fixed_params.copy()
+    dataset_params["minority_reduce_scaler"] = value
+    datasets.append(DatasetSpec("Moons", dataset_params, label=f"imbalance={value}x"))
+
 # Configure experiment
 config = ExperimentConfig(
-    dataset=DatasetSpec(
-        dataset_type="Moons",
-        fixed_params={
-            "num_samples": 400,
-            "train_size": 0.5,
-            "moons_noise": 0.1,
-            "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-            },
-    ),
-    vary_parameter=ParameterSpec(
-        name="minority_reduce_scaler",
-        values=[1, 2, 4, 8, 16],
-        label_format="imbalance={value}x",
-    ),
+    datasets=datasets,
     run_mode=RunMode.BOTH,
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],

@@ -15,7 +15,6 @@ from data_complexity.experiments.pipeline import (
     Experiment,
     ExperimentConfig,
     DatasetSpec,
-    ParameterSpec,
     PlotType,
 )
 from data_complexity.experiments.classification import (
@@ -36,26 +35,25 @@ models = [
     KNNModel(n_neighbors=5),
 ]
 
+fixed_params = {
+    "num_samples": 400,
+    "train_size": 0.5,
+    "class_separation": 1.0,
+    "cov_type": "spherical",
+    "cov_scale": 1.0,
+    "equal_test": True,  # Ensure test set is balanced for fair evaluation of imbalance effects
+    "train_post_process": RandomDuplicateMinorityUpsampler(factor="equal"),
+    #   "test_post_process": systematic_oversample,
+}
+datasets = []
+for value in [1, 2, 4, 8, 16]:
+    dataset_params = fixed_params.copy()
+    dataset_params["minority_reduce_scaler"] = value
+    datasets.append(DatasetSpec("Gaussian", dataset_params, label=f"imbalance={value}x (Oversampled)"))
+
 # Configure experiment (mirrors run_gaussian_imbalance.py with postprocessors added)
 config = ExperimentConfig(
-    dataset=DatasetSpec(
-        dataset_type="Gaussian",
-        fixed_params={
-            "num_samples": 400,
-            "train_size": 0.5,
-            "class_separation": 1.0, 
-            "cov_type": "spherical", 
-            "cov_scale": 1.0,
-            "equal_test": True, # Ensure test set is balanced for fair evaluation of imbalance effects
-            "train_post_process": RandomDuplicateMinorityUpsampler(factor="equal"),
-        #   "test_post_process": systematic_oversample,
-        },
-    ),
-    vary_parameter=ParameterSpec(
-        name="minority_reduce_scaler",
-        values=[1, 2, 4, 8, 16],
-        label_format="imbalance={value}x (Oversampled)",
-    ),
+    datasets=datasets,
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
@@ -63,9 +61,8 @@ config = ExperimentConfig(
         PlotType.LINE_PLOT_MODELS_COMBINED,
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.DATASETS_OVERVIEW,
-        ],
+    ],
     name="gaussian_imbalance_oversample",
-    
 )
 
 if __name__ == "__main__":
