@@ -6,11 +6,13 @@ averages over multiple random seeds, and computes pairwise correlations
 between complexity metrics across the dataset collection.
 """
 import copy
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from data_complexity.metrics import ComplexityMetrics
@@ -54,6 +56,11 @@ class ComplexityCollection:
     DataFrame, which can then be correlated column-wise to understand how
     complexity measures relate to each other across a dataset benchmark.
 
+    ``save()`` writes CSVs, a correlation heatmap, per-dataset PNG plots in a
+    ``datasets/`` subdirectory, and a ``datasets_overview.png`` grid. Synthetic
+    datasets produce a 3-panel figure (Full | Train | Test); real (pre-loaded)
+    datasets produce a 2-feature scatter plot.
+
     Parameters
     ----------
     seeds : int
@@ -80,14 +87,23 @@ class ComplexityCollection:
     >>> corr_matrix = collection.compute_correlations()  # (n_metrics × n_metrics)
     >>> fig = collection.plot_heatmap()
     >>> collection.save(Path("results/my_study/"))
+    # Saves: complexity_metrics.csv, complexity_correlations.csv,
+    #        complexity_correlations_heatmap.png, datasets_overview.png,
+    #        datasets/dataset_<name>.png  (one per entry)
     """
 
-    def __init__(self, seeds: int = 5, train_size: float = 0.5) -> None:
+    def __init__(self, 
+                 seeds: int = 5, 
+                 train_size: float = 0.5,
+                 name: str = 'complexity_collection',
+                 ) -> None:
         self.seeds = seeds
         self.train_size = train_size
+        self.name = name
         self._entries: List[DatasetEntry] = []
         self._metrics_df: Optional[pd.DataFrame] = None
         self._correlations_df: Optional[pd.DataFrame] = None
+        self._datasets: Dict[str, Any] = {}
 
     def add_dataset(self, name: str, data: Dict[str, Any]) -> "ComplexityCollection":
         """
@@ -193,6 +209,151 @@ class ComplexityCollection:
         """Clear cached computed results when entries change."""
         self._metrics_df = None
         self._correlations_df = None
+        self._datasets = {}
+
+    def _get_representative_dataset(self, entry: DatasetEntry) -> Any:
+        """
+        Return one dataset object (or raw dict) for plotting.
+
+        For pre-loaded real datasets, returns the raw data dict.
+        For synthetic datasets, calls ``get_dataset()`` and returns the dataset
+        object (which has ``plot_dataset`` / ``plot_train_test_split``).
+
+        Parameters
+        ----------
+        entry : DatasetEntry
+            The dataset entry.
+
+        Returns
+        -------
+        Any
+            Dataset object (synthetic) or raw dict (real).
+        """
+        if entry.data is not None:
+            return entry.data
+
+        from data_loaders import get_dataset  # type: ignore
+
+        return get_dataset(
+            dataset_name=entry.dataset_type,
+            train_size=self.train_size,
+            **entry.dataset_params,
+        )
+
+    def _plot_single_dataset(self, name: str, dataset_or_data: Any) -> plt.Figure:
+        """
+        Create a visualization figure for one dataset entry.
+
+        Synthetic datasets (those with a ``plot_dataset`` attribute) get a
+        3-panel layout: Full | Train | Test.  Real datasets (raw dicts) get a
+        single scatter panel of the first two features.
+
+        Parameters
+        ----------
+        name : str
+            Dataset name used as the figure title.
+        dataset_or_data : Any
+            Either a dataset object (synthetic) or a raw dict with 'X'/'y'.
+
+        Returns
+        -------
+        plt.Figure
+            The matplotlib figure.
+        """
+        if hasattr(dataset_or_data, "plot_dataset"):
+            try:
+                fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+                dataset_or_data.plot_dataset(ax=axes[0])
+                axes[0].set_title("Full Dataset", fontsize=12, fontweight="bold")
+                dataset_or_data.plot_train_test_split(ax=(axes[1], axes[2]))
+                fig.suptitle(f"Dataset: {name}", fontsize=14, fontweight="bold", y=1.02)
+            except (ValueError, AttributeError):
+                plt.close(fig)
+                fig, ax = plt.subplots(figsize=(8, 6))
+                dataset_or_data.plot_dataset(ax=ax)
+                ax.set_title(f"Full Dataset: {name}", fontsize=12, fontweight="bold")
+        else:
+            X = dataset_or_data["X"]
+            y = dataset_or_data["y"]
+            fig, ax = plt.subplots(figsize=(8, 6))
+            for label in np.unique(y):
+                mask = y == label
+                ax.scatter(X[mask, 0], X[mask, 1], label=f"Class {label}", alpha=0.6, s=20)
+            ax.set_title(f"Dataset: {name}", fontsize=12, fontweight="bold")
+            ax.set_xlabel("Feature 0")
+            ax.set_ylabel("Feature 1")
+            ax.legend()
+
+        return fig
+
+    def _plot_datasets_overview(self) -> plt.Figure:
+        """
+        Create a grid overview of all datasets (one subplot each).
+
+        Synthetic datasets use ``plot_dataset()``. Real datasets get a scatter
+        of the first two features.
+
+        Returns
+        -------
+        plt.Figure
+            The composite overview figure.
+        """
+        n_datasets = len(self._datasets)
+        n_cols = min(4, n_datasets)
+        n_rows = math.ceil(n_datasets / n_cols)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
+
+        flat_axes = np.array(axes).flatten() if n_datasets > 1 else [axes]
+
+        for idx, (name, dataset_or_data) in enumerate(self._datasets.items()):
+            ax = flat_axes[idx]
+            if hasattr(dataset_or_data, "plot_dataset"):
+                try:
+                    dataset_or_data.plot_dataset(ax=ax)
+                except Exception:
+                    ax.text(0.5, 0.5, name, ha="center", va="center", transform=ax.transAxes)
+            else:
+                X = dataset_or_data["X"]
+                y = dataset_or_data["y"]
+                for label in np.unique(y):
+                    mask = y == label
+                    ax.scatter(X[mask, 0], X[mask, 1], label=f"Class {label}", alpha=0.6, s=15)
+            ax.set_title(name, fontsize=10, fontweight="bold")
+
+        for idx in range(n_datasets, len(flat_axes)):
+            flat_axes[idx].axis("off")
+
+        fig.suptitle("All Datasets", fontsize=14, fontweight="bold")
+        plt.tight_layout()
+        return fig
+
+    def _save_dataset_plots(self, path: Path) -> None:
+        """
+        Save per-dataset plots and a combined overview to ``path``.
+
+        Creates a ``datasets/`` subdirectory under ``path`` containing one PNG
+        per entry.  Also writes ``datasets_overview.png`` directly to ``path``.
+
+        Parameters
+        ----------
+        path : Path
+            Output directory (must already exist).
+        """
+        datasets_dir = path / "datasets"
+        plots_dir = path / "plots"
+        datasets_dir.mkdir(parents=True, exist_ok=True)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        for name, dataset_or_data in self._datasets.items():
+            safe_name = name.replace("=", "_").replace(" ", "_")
+            fig = self._plot_single_dataset(name, dataset_or_data)
+            fig.savefig(datasets_dir / f"dataset_{safe_name}.png", dpi=150, bbox_inches="tight")
+            plt.close(fig)
+
+        fig = self._plot_datasets_overview()
+
+        fig.savefig(plots_dir / "datasets_overview.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
 
     def _compute_entry(self, entry: DatasetEntry) -> Dict[str, float]:
         """
@@ -253,10 +414,12 @@ class ComplexityCollection:
             complexity metric. The index is the dataset name.
         """
         rows = []
+        self._datasets = {}
         for entry in self._entries:
             avg_metrics = self._compute_entry(entry)
             row = {"dataset": entry.name, **avg_metrics}
             rows.append(row)
+            self._datasets[entry.name] = self._get_representative_dataset(entry)
 
         self._metrics_df = pd.DataFrame(rows).set_index("dataset")
         self._correlations_df = None  # Invalidate correlation cache
@@ -313,7 +476,7 @@ class ComplexityCollection:
 
     def save(self, path: Path) -> None:
         """
-        Save results to CSV files and a heatmap PNG.
+        Save results to CSV files, a heatmap PNG, and dataset visualizations.
 
         Writes the following files to ``path``:
 
@@ -321,6 +484,8 @@ class ComplexityCollection:
           (n_datasets × n_metrics, indexed by dataset name)
         - ``complexity_correlations.csv`` — N×N Pearson correlation matrix
         - ``complexity_correlations_heatmap.png`` — heatmap visualization
+        - ``datasets/`` — subdirectory with one PNG per dataset entry
+        - ``datasets_overview.png`` — grid overview of all datasets
 
         Calls ``compute()`` and ``compute_correlations()`` automatically if
         results have not been computed yet.
@@ -331,21 +496,26 @@ class ComplexityCollection:
             Directory to save results to. Created if it does not exist.
         """
         path = Path(path)
-        path.mkdir(parents=True, exist_ok=True)
+        data_dir = path / "data"
+        plots_dir = path / "plots"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        plots_dir.mkdir(parents=True, exist_ok=True)
 
         if self._metrics_df is None:
             self.compute()
         if self._correlations_df is None:
             self.compute_correlations()
 
-        self._metrics_df.to_csv(path / "complexity_metrics.csv")
-        self._correlations_df.to_csv(path / "complexity_correlations.csv")
+        self._metrics_df.to_csv(data_dir / "complexity_metrics.csv")
+        self._correlations_df.to_csv(data_dir / "complexity_correlations.csv")
 
-        fig = self.plot_heatmap()
+        fig = self.plot_heatmap(title=f"{self.name}")
         fig.savefig(
-            path / "complexity_correlations_heatmap.png", dpi=150, bbox_inches="tight"
+            plots_dir / "complexity_correlations_heatmap.png", dpi=150, bbox_inches="tight"
         )
         plt.close(fig)
+
+        self._save_dataset_plots(path)
 
         n_datasets = len(self._metrics_df)
         n_metrics = len(self._metrics_df.columns)
@@ -354,3 +524,5 @@ class ComplexityCollection:
         print(f"  - complexity_metrics.csv ({n_datasets} datasets × {n_metrics} metrics)")
         print(f"  - complexity_correlations.csv ({n_corr}×{n_corr} matrix)")
         print(f"  - complexity_correlations_heatmap.png")
+        print(f"  - datasets/   ({n_datasets} dataset plots)")
+        print(f"  - datasets_overview.png")
