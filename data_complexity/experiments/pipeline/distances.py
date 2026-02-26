@@ -146,12 +146,13 @@ def compute_complexity_pairwise_distances(
             c for c in complexity_df.columns
             if c not in ("param_value", "param_label") and not c.endswith("_std")
         ]
-        valid_cols = [c for c in metric_cols if complexity_df[c].std() > 0]
-        if not valid_cols:
+        if not metric_cols:
             return None
-        return complexity_df[valid_cols].corr(
-            method=lambda x, y: measure.compute(x, y)[0]
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
+            return complexity_df[metric_cols].corr(
+                method=lambda x, y: measure.compute(x, y)[0]
+            )
 
     for measure in measures:
         train_mat = _compute_for_source("train", measure)

@@ -984,7 +984,11 @@ def plot_pairwise_heatmap(
     fig_size = max(8, n * 0.5)
     fig, ax = plt.subplots(figsize=(fig_size, fig_size * 0.85))
 
-    im = ax.imshow(corr_matrix.values, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+    values = corr_matrix.values.astype(float)
+    masked_values = np.ma.masked_invalid(values)
+    cmap = plt.cm.RdBu_r.copy()
+    cmap.set_bad("lightgray")
+    im = ax.imshow(masked_values, cmap=cmap, vmin=-1, vmax=1, aspect="auto")
     plt.colorbar(im, ax=ax, label="Distance")
 
     ax.set_xticks(range(n))
@@ -995,9 +999,11 @@ def plot_pairwise_heatmap(
     for i in range(n):
         for j in range(n):
             val = corr_matrix.iloc[i, j]
-            text_color = "white" if abs(val) > 0.7 else "black"
-            ax.text(j, i, f"{val:.2f}", ha="center", va="center",
-                    fontsize=6, color=text_color)
+            if np.isnan(val):
+                ax.text(j, i, "\u2014", ha="center", va="center", fontsize=6, color="gray")
+            else:
+                text_color = "white" if abs(val) > 0.7 else "black"
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=6, color=text_color)
 
     ax.set_title(title)
     fig.tight_layout()
