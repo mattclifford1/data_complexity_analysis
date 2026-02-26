@@ -2,10 +2,10 @@
 """
 Feature overlap complexity metrics.
 """
-from data_complexity.data_metrics.abstract_metrics import AbstractComplexityMetric
+from data_complexity.data_metrics.abstract_metrics import PyColAbstractMetric
 
 
-class F1Metric(AbstractComplexityMetric):
+class F1Metric(PyColAbstractMetric):
     """Maximum Fisher's Discriminant Ratio."""
 
     @property
@@ -16,7 +16,7 @@ class F1Metric(AbstractComplexityMetric):
         return complexity.F1()
 
 
-class F1vMetric(AbstractComplexityMetric):
+class F1vMetric(PyColAbstractMetric):
     """Directional-vector Maximum Fisher's Discriminant Ratio."""
 
     @property
@@ -27,7 +27,7 @@ class F1vMetric(AbstractComplexityMetric):
         return complexity.F1v()
 
 
-class F2Metric(AbstractComplexityMetric):
+class F2Metric(PyColAbstractMetric):
     """Volume of Overlapping Region."""
 
     @property
@@ -38,7 +38,7 @@ class F2Metric(AbstractComplexityMetric):
         return complexity.F2()
 
 
-class F3Metric(AbstractComplexityMetric):
+class F3Metric(PyColAbstractMetric):
     """Maximum Individual Feature Efficiency."""
 
     @property
@@ -49,7 +49,7 @@ class F3Metric(AbstractComplexityMetric):
         return complexity.F3()
 
 
-class F4Metric(AbstractComplexityMetric):
+class F4Metric(PyColAbstractMetric):
     """Collective Feature Efficiency."""
 
     @property

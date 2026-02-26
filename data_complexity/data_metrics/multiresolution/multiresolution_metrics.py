@@ -2,10 +2,10 @@
 """
 Multiresolution overlap complexity metrics.
 """
-from data_complexity.data_metrics.abstract_metrics import AbstractComplexityMetric
+from data_complexity.data_metrics.abstract_metrics import PyColAbstractMetric
 
 
-class MRCAMetric(AbstractComplexityMetric):
+class MRCAMetric(PyColAbstractMetric):
     """Multiresolution Class Aggregate (MRCA)."""
 
     @property
@@ -16,7 +16,7 @@ class MRCAMetric(AbstractComplexityMetric):
         return complexity.MRCA()
 
 
-class C1Metric(AbstractComplexityMetric):
+class C1Metric(PyColAbstractMetric):
     """Entropy of class proportions (C1)."""
 
     @property
@@ -27,7 +27,7 @@ class C1Metric(AbstractComplexityMetric):
         return complexity.C1()
 
 
-class PurityMetric(AbstractComplexityMetric):
+class PurityMetric(PyColAbstractMetric):
     """Purity measure."""
 
     @property

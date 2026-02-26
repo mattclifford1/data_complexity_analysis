@@ -3,10 +3,10 @@
 Classical dataset measures.
 """
 import numpy as np
-from data_complexity.data_metrics.abstract_metrics import AbstractComplexityMetric
+from data_complexity.data_metrics.abstract_metrics import PyColAbstractMetric
 
 
-class ImbalanceRatioMetric(AbstractComplexityMetric):
+class ImbalanceRatioMetric(PyColAbstractMetric):
     """
     Imbalance Ratio (IR).
 

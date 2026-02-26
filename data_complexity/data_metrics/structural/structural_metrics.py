@@ -2,10 +2,10 @@
 """
 Structural overlap complexity metrics.
 """
-from data_complexity.data_metrics.abstract_metrics import AbstractComplexityMetric
+from data_complexity.data_metrics.abstract_metrics import PyColAbstractMetric
 
 
-class N1Metric(AbstractComplexityMetric):
+class N1Metric(PyColAbstractMetric):
     """Fraction of borderline points (N1)."""
 
     @property
@@ -16,7 +16,7 @@ class N1Metric(AbstractComplexityMetric):
         return complexity.N1()
 
 
-class T1Metric(AbstractComplexityMetric):
+class T1Metric(PyColAbstractMetric):
     """Fraction of hyperspheres covering data (T1)."""
 
     @property
@@ -27,7 +27,7 @@ class T1Metric(AbstractComplexityMetric):
         return complexity.T1()
 
 
-class ClustMetric(AbstractComplexityMetric):
+class ClustMetric(PyColAbstractMetric):
     """Number of clusters per class (Clust)."""
 
     @property

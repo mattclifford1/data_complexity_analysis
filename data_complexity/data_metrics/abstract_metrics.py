@@ -28,7 +28,7 @@ class AbstractMetric(ABC):
         pass
 
 
-class AbstractComplexityMetric(AbstractMetric):
+class PyColAbstractMetric(AbstractMetric):
     """Base class for PyCol-backed complexity metrics.
 
     Subclasses implement compute_from_complexity(). The compute(X, y) method
