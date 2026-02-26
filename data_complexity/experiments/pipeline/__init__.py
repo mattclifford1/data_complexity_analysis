@@ -23,7 +23,6 @@ from data_complexity.experiments.pipeline.utils import (
 from data_complexity.experiments.pipeline.experiment import Experiment
 from data_complexity.experiments.pipeline.runner import (
     _run_dataset_spec_worker,
-    _run_param_value_worker,  # backwards-compat alias
 )
 from data_complexity.experiments.pipeline.legacy_complexity_over_datasets import (
     ComplexityCollection,
@@ -61,8 +60,6 @@ __all__ = [
     # run
     "Experiment",
     "_run_dataset_spec_worker",
-    "_run_param_value_worker",  # backwards-compat alias
-    # legacy_complexity_over_datasets
     "ComplexityCollection",
     "DatasetEntry",
     # config

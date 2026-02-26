@@ -94,10 +94,6 @@ def _run_dataset_spec_worker(
     }
 
 
-# Keep old name as alias for backwards compatibility
-_run_param_value_worker = _run_dataset_spec_worker
-
-
 def run(experiment: "Experiment", verbose: bool = True, n_jobs: int = 1) -> ExperimentResultsContainer:
     """
     Execute the experiment loop with train/test splits.

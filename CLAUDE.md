@@ -532,7 +532,7 @@ pdm run python data_complexity/model_experiments/exp_complexity_vs_ml.py
 These train 10 classifiers via cross-validation and compute Pearson correlations between each complexity metric and ML accuracy. Outputs are saved to `model_experiments/results/`.
 
 ## coding style
-always write clear and concise code.
+always write clear and concise code. when making changes, we dont care about backwards compatibility since this repo is the only codebase using these modules. feel free to refactor and rename things for clarity. prioritize splitting code out into separate files where it improves readability and organization. avoid large files with multiple classes or functions. aim for 1 class or 1 main function per file where possible.
 
 ## documentation
 always document features in the relevant README.md files and in code docstrings. Use type hints for clarity.
