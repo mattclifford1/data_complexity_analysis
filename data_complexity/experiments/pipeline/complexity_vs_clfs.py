@@ -8,7 +8,7 @@ on both splits independently, and ML models are trained on the training set
 and evaluated on both.
 """
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import warnings
 
@@ -395,30 +395,45 @@ class Experiment:
         """
         Compute pairwise Pearson correlations between complexity metrics.
 
+        Always computes correlations for both train and test data (when available).
+        Train correlations are stored in ``results.complexity_correlations_df`` (backward compat);
+        test correlations are stored in ``results.complexity_correlations_test_df``.
+
         Parameters
         ----------
         source : str
-            Which complexity data to use: 'train' or 'test'. Default: 'train'
+            Which correlation matrix to return: 'train' or 'test'. Default: 'train'
 
         Returns
         -------
         pd.DataFrame
-            N×N symmetric correlation matrix indexed and columned by metric names.
+            N×N symmetric correlation matrix for the requested source.
         """
         if self.results is None:
             raise RuntimeError("Must run experiment before computing correlations.")
 
-        complexity_df = self.results._get_complexity_df(source)
-        metric_cols = [
-            c for c in complexity_df.columns
-            if c not in ("param_value", "param_label") and not c.endswith("_std")
-        ]
-        # Drop constant metrics (zero std) — they produce NaN correlations
-        valid_cols = [c for c in metric_cols if complexity_df[c].std() > 0]
+        def _compute_for_source(src: str) -> Optional[pd.DataFrame]:
+            complexity_df = self.results._get_complexity_df(src)
+            if complexity_df is None:
+                return None
+            metric_cols = [
+                c for c in complexity_df.columns
+                if c not in ("param_value", "param_label") and not c.endswith("_std")
+            ]
+            valid_cols = [c for c in metric_cols if complexity_df[c].std() > 0]
+            if not valid_cols:
+                return None
+            return complexity_df[valid_cols].corr(method="pearson")
 
-        corr_matrix = complexity_df[valid_cols].corr(method="pearson")
-        self.results.complexity_correlations_df = corr_matrix
-        return corr_matrix
+        train_corr = _compute_for_source("train")
+        if train_corr is not None:
+            self.results.complexity_correlations_df = train_corr
+
+        test_corr = _compute_for_source("test")
+        if test_corr is not None:
+            self.results.complexity_correlations_test_df = test_corr
+
+        return train_corr if source == "train" else test_corr
 
     def compute_ml_correlations(
         self,
@@ -604,7 +619,7 @@ class Experiment:
 
     def plot(
         self, plot_types: Optional[List[PlotType]] = None
-    ) -> Dict[PlotType, "plt.Figure"]:
+    ) -> Dict[Union[PlotType, str], "plt.Figure"]:
         """
         Generate experiment plots.
 
@@ -616,7 +631,9 @@ class Experiment:
         Returns
         -------
         dict
-            PlotType -> matplotlib Figure
+            PlotType or str -> matplotlib Figure. String keys are used when a single
+            PlotType generates multiple figures (e.g. COMPLEXITY_CORRELATIONS produces
+            'complexity_correlations_train' and 'complexity_correlations_test').
         """
         if self.results is None:
             raise RuntimeError("Must run experiment before plotting.")
@@ -774,11 +791,18 @@ class Experiment:
             elif pt == PlotType.COMPLEXITY_CORRELATIONS:
                 if self.results.complexity_correlations_df is None:
                     self.compute_complexity_correlations()
-                fig = plot_complexity_correlations_heatmap(
-                    self.results.complexity_correlations_df,
-                    title=f"{self.config.name}: Complexity Metric Correlations",
-                )
-                figures[pt] = fig
+                if self.results.complexity_correlations_df is not None:
+                    fig_train = plot_complexity_correlations_heatmap(
+                        self.results.complexity_correlations_df,
+                        title=f"{self.config.name}: Complexity Metric Correlations (Train)",
+                    )
+                    figures["complexity_correlations_train"] = fig_train
+                if self.results.complexity_correlations_test_df is not None:
+                    fig_test = plot_complexity_correlations_heatmap(
+                        self.results.complexity_correlations_test_df,
+                        title=f"{self.config.name}: Complexity Metric Correlations (Test)",
+                    )
+                    figures["complexity_correlations_test"] = fig_test
 
             elif pt == PlotType.ML_CORRELATIONS:
                 if self.config.run_mode == RunMode.COMPLEXITY_ONLY:
@@ -890,6 +914,11 @@ class Experiment:
                 data_dir / "complexity_correlations.csv"
             )
 
+        if self.results.complexity_correlations_test_df is not None:
+            self.results.complexity_correlations_test_df.to_csv(
+                data_dir / "complexity_correlations_test.csv"
+            )
+
         if self.results.ml_correlations_df is not None:
             self.results.ml_correlations_df.to_csv(
                 data_dir / "ml_correlations.csv"
@@ -903,7 +932,8 @@ class Experiment:
         # Save plots to plots/ subfolder
         figures = self.plot()
         for plot_type, fig in figures.items():
-            filename = f"{plot_type.name.lower()}.png"
+            stem = plot_type.name.lower() if isinstance(plot_type, PlotType) else plot_type
+            filename = f"{stem}.png"
             fig.savefig(plots_dir / filename, dpi=150, bbox_inches="tight")
             plt.close(fig)
 

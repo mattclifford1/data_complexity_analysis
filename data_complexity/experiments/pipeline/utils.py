@@ -264,6 +264,7 @@ class ExperimentResultsContainer:
         self._train_ml_df: Optional[pd.DataFrame] = None
         self._test_ml_df: Optional[pd.DataFrame] = None
         self._complexity_correlations_df: Optional[pd.DataFrame] = None
+        self._complexity_correlations_test_df: Optional[pd.DataFrame] = None
         self._ml_correlations_df: Optional[pd.DataFrame] = None
         self._per_classifier_correlations_df: Optional[pd.DataFrame] = None
 
@@ -464,6 +465,16 @@ class ExperimentResultsContainer:
     def complexity_correlations_df(self, df: pd.DataFrame) -> None:
         """Set pairwise complexity metric correlation matrix."""
         self._complexity_correlations_df = df
+
+    @property
+    def complexity_correlations_test_df(self) -> Optional[pd.DataFrame]:
+        """Get pairwise complexity metric correlation matrix for test data (N×N DataFrame)."""
+        return self._complexity_correlations_test_df
+
+    @complexity_correlations_test_df.setter
+    def complexity_correlations_test_df(self, df: pd.DataFrame) -> None:
+        """Set pairwise complexity metric correlation matrix for test data."""
+        self._complexity_correlations_test_df = df
 
     @property
     def ml_correlations_df(self) -> Optional[pd.DataFrame]:

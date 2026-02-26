@@ -1,4 +1,4 @@
-from data_complexity.experiments.pipeline.complexity_over_datasets import (
+from data_complexity.experiments.pipeline.legacy_complexity_over_datasets import (
     ComplexityCollection,
     DatasetEntry,
 )

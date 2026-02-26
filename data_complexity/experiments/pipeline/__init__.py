@@ -25,7 +25,7 @@ from data_complexity.experiments.pipeline.complexity_vs_clfs import (
     _run_dataset_spec_worker,
     _run_param_value_worker,  # backwards-compat alias
 )
-from data_complexity.experiments.pipeline.complexity_over_datasets import (
+from data_complexity.experiments.pipeline.legacy_complexity_over_datasets import (
     ComplexityCollection,
     DatasetEntry,
 )
@@ -62,7 +62,7 @@ __all__ = [
     "Experiment",
     "_run_dataset_spec_worker",
     "_run_param_value_worker",  # backwards-compat alias
-    # complexity_over_datasets
+    # legacy_complexity_over_datasets
     "ComplexityCollection",
     "DatasetEntry",
     # config
