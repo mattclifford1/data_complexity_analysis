@@ -8,6 +8,7 @@ distance are also available.
 """
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -37,15 +38,15 @@ class DistanceBetweenMetrics(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        """Human-readable name for this measure (used as axis labels)."""
+    def display_name(self) -> str:
+        """Human-readable label for plot titles (e.g. 'Pearson r')."""
         ...
 
     @property
-    @abstractmethod
-    def slug(self) -> str:
-        """Filesystem-safe identifier, e.g. 'pearson_r'."""
-        ...
+    def name(self) -> str:
+        """Filesystem-safe identifier derived from display_name (e.g. 'pearson_r')."""
+        n = self.display_name.lower().replace("ρ", "rho").replace("τ", "tau")
+        return re.sub(r"[^a-z0-9]+", "_", n).strip("_")
 
     @property
     def signed(self) -> bool:
@@ -61,12 +62,8 @@ class PearsonCorrelation(DistanceBetweenMetrics):
         return float(r), float(p)
 
     @property
-    def name(self) -> str:
+    def display_name(self) -> str:
         return "Pearson r"
-
-    @property
-    def slug(self) -> str:
-        return "pearson_r"
 
     @property
     def signed(self) -> bool:
@@ -81,12 +78,8 @@ class SpearmanCorrelation(DistanceBetweenMetrics):
         return float(r), float(p)
 
     @property
-    def name(self) -> str:
+    def display_name(self) -> str:
         return "Spearman ρ"
-
-    @property
-    def slug(self) -> str:
-        return "spearman_rho"
 
     @property
     def signed(self) -> bool:
@@ -101,12 +94,8 @@ class KendallTau(DistanceBetweenMetrics):
         return float(tau), float(p)
 
     @property
-    def name(self) -> str:
+    def display_name(self) -> str:
         return "Kendall τ"
-
-    @property
-    def slug(self) -> str:
-        return "kendall_tau"
 
     @property
     def signed(self) -> bool:
@@ -123,12 +112,8 @@ class MutualInformation(DistanceBetweenMetrics):
         return float(mi), None
 
     @property
-    def name(self) -> str:
+    def display_name(self) -> str:
         return "Mutual Information"
-
-    @property
-    def slug(self) -> str:
-        return "mutual_information"
 
 
 class EuclideanDistance(DistanceBetweenMetrics):
@@ -142,9 +127,5 @@ class EuclideanDistance(DistanceBetweenMetrics):
         return float(np.linalg.norm(x_norm - y_norm)), None
 
     @property
-    def name(self) -> str:
+    def display_name(self) -> str:
         return "Euclidean Distance"
-
-    @property
-    def slug(self) -> str:
-        return "euclidean_distance"

@@ -79,7 +79,7 @@ def plot(
             fig = plot_distances(
                 experiment.results.distances_df,
                 title=f"{experiment.config.name}: Complexity vs {experiment.config.correlation_target}",
-                distance_name=_default_distance.name,
+                distance_name=_default_distance.display_name,
                 signed=_default_distance.signed,
             )
             figures[pt] = fig
@@ -210,23 +210,23 @@ def plot(
             if not experiment.results.complexity_pairwise_distances:
                 experiment.compute_complexity_pairwise_distances()
 
-            slug_to_name = {m.slug: m.name for m in experiment.config.pairwise_distance_measures}
+            name_to_display = {m.name: m.display_name for m in experiment.config.pairwise_distance_measures}
 
-            for slug, matrix in experiment.results.complexity_pairwise_distances.items():
-                dist_name = slug_to_name.get(slug, slug)
+            for name, matrix in experiment.results.complexity_pairwise_distances.items():
+                dist_name = name_to_display.get(name, name)
                 fig = plot_pairwise_heatmap(
                     matrix,
                     title=f"{experiment.config.name}: Complexity Pairwise ({dist_name}) — Train",
                 )
-                figures[f"complexity-distances/{slug}_train"] = fig
+                figures[f"complexity-distances/{name}_train"] = fig
 
-            for slug, matrix in experiment.results.complexity_pairwise_distances_test.items():
-                dist_name = slug_to_name.get(slug, slug)
+            for name, matrix in experiment.results.complexity_pairwise_distances_test.items():
+                dist_name = name_to_display.get(name, name)
                 fig = plot_pairwise_heatmap(
                     matrix,
                     title=f"{experiment.config.name}: Complexity Pairwise ({dist_name}) — Test",
                 )
-                figures[f"complexity-distances/{slug}_test"] = fig
+                figures[f"complexity-distances/{name}_test"] = fig
 
         elif pt == PlotType.ML_CORRELATIONS:
             if experiment.config.run_mode == RunMode.COMPLEXITY_ONLY:
@@ -238,14 +238,14 @@ def plot(
             if not experiment.results.ml_pairwise_distances:
                 experiment.compute_ml_pairwise_distances()
 
-            slug_to_name = {m.slug: m.name for m in experiment.config.pairwise_distance_measures}
+            name_to_display = {m.name: m.display_name for m in experiment.config.pairwise_distance_measures}
 
-            for slug, matrix in experiment.results.ml_pairwise_distances.items():
-                dist_name = slug_to_name.get(slug, slug)
+            for name, matrix in experiment.results.ml_pairwise_distances.items():
+                dist_name = name_to_display.get(name, name)
                 fig = plot_pairwise_heatmap(
                     matrix,
                     title=f"{experiment.config.name}: ML Pairwise ({dist_name})",
                 )
-                figures[f"ml-distances/{slug}"] = fig
+                figures[f"ml-distances/{name}"] = fig
 
     return figures

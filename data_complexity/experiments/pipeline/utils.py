@@ -465,17 +465,17 @@ class ExperimentResultsContainer:
 
     @property
     def complexity_pairwise_distances(self) -> Dict[str, pd.DataFrame]:
-        """Get pairwise complexity metric distance matrices, keyed by measure slug."""
+        """Get pairwise complexity metric distance matrices, keyed by measure name."""
         return self._complexity_pairwise_distances
 
     @property
     def complexity_pairwise_distances_test(self) -> Dict[str, pd.DataFrame]:
-        """Get pairwise complexity metric distance matrices for test data, keyed by measure slug."""
+        """Get pairwise complexity metric distance matrices for test data, keyed by measure name."""
         return self._complexity_pairwise_distances_test
 
     @property
     def ml_pairwise_distances(self) -> Dict[str, pd.DataFrame]:
-        """Get pairwise ML metric distance matrices, keyed by measure slug."""
+        """Get pairwise ML metric distance matrices, keyed by measure name."""
         return self._ml_pairwise_distances
 
     @property

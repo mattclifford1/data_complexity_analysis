@@ -134,7 +134,7 @@ class Experiment:
 
         Always computes for both train and test data (when available).
         Results stored in ``results.complexity_pairwise_distances`` and
-        ``results.complexity_pairwise_distances_test``, keyed by measure slug.
+        ``results.complexity_pairwise_distances_test``, keyed by measure name.
 
         Parameters
         ----------
@@ -146,7 +146,7 @@ class Experiment:
         Returns
         -------
         dict
-            slug -> N×N symmetric DataFrame for the requested source.
+            name -> N×N symmetric DataFrame for the requested source.
         """
         return _distances.compute_complexity_pairwise_distances(
             self, source=source, distances=distances
@@ -160,7 +160,7 @@ class Experiment:
         """
         Compute pairwise distances between ML performance metrics for all requested measures.
 
-        Results stored in ``results.ml_pairwise_distances``, keyed by measure slug.
+        Results stored in ``results.ml_pairwise_distances``, keyed by measure name.
 
         Parameters
         ----------

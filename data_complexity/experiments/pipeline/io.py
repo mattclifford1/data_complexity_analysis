@@ -112,7 +112,7 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
         "correlation_target": experiment.config.correlation_target,
         "plots": [pt.name for pt in experiment.config.plots],
         "run_mode": experiment.config.run_mode.value,
-        "pairwise_distance_measures": [m.name for m in experiment.config.pairwise_distance_measures],
+        "pairwise_distance_measures": [m.display_name for m in experiment.config.pairwise_distance_measures],
     }
 
     with open(save_dir / "experiment_metadata.json", "w") as f:
@@ -145,14 +145,14 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
     if experiment.results.distances_df is not None:
         experiment.results.distances_df.to_csv(data_dir / "distances.csv", index=False)
 
-    for slug, matrix in experiment.results.complexity_pairwise_distances.items():
-        matrix.to_csv(data_dir / f"complexity_pairwise_distances_{slug}.csv")
+    for name, matrix in experiment.results.complexity_pairwise_distances.items():
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_{name}.csv")
 
-    for slug, matrix in experiment.results.complexity_pairwise_distances_test.items():
-        matrix.to_csv(data_dir / f"complexity_pairwise_distances_test_{slug}.csv")
+    for name, matrix in experiment.results.complexity_pairwise_distances_test.items():
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_test_{name}.csv")
 
-    for slug, matrix in experiment.results.ml_pairwise_distances.items():
-        matrix.to_csv(data_dir / f"ml_pairwise_distances_{slug}.csv")
+    for name, matrix in experiment.results.ml_pairwise_distances.items():
+        matrix.to_csv(data_dir / f"ml_pairwise_distances_{name}.csv")
 
     if experiment.results.per_classifier_distances_df is not None:
         experiment.results.per_classifier_distances_df.to_csv(

@@ -195,7 +195,7 @@ corr_df = exp.compute_correlations(
     ml_column="best_accuracy",  # optional override for correlation_target
 )
 
-# Pairwise distances among complexity metrics (returns dict: slug -> N×N DataFrame)
+# Pairwise distances among complexity metrics (returns dict: name -> N×N DataFrame)
 # Uses config.pairwise_distance_measures by default, or pass a custom list
 pairwise = exp.compute_complexity_pairwise_distances()
 # pairwise["pearson_r"]      -> N×N matrix
@@ -238,7 +238,7 @@ exp.save()  # writes one PNG + one CSV per measure per source
 
 Available measures (importable from `data_complexity.experiments.pipeline`):
 
-| Class | `slug` | Description |
+| Class | `name` | Description |
 |---|---|---|
 | `PearsonCorrelation` | `pearson_r` | Pearson product-moment r |
 | `SpearmanCorrelation` | `spearman_rho` | Spearman rank ρ |
@@ -302,9 +302,9 @@ exp.save(save_dir=Path("/my/dir"))  # custom directory
 #     complexity_metrics.csv        ← alias for train (backwards compat)
 #     ml_performance.csv            ← alias for test (backwards compat)
 #     distances.csv
-#     complexity_pairwise_distances_{slug}.csv   ← one per measure (train)
-#     complexity_pairwise_distances_test_{slug}.csv  ← one per measure (test)
-#     ml_pairwise_distances_{slug}.csv           ← one per measure
+#     complexity_pairwise_distances_{name}.csv   ← one per measure (train)
+#     complexity_pairwise_distances_test_{name}.csv  ← one per measure (test)
+#     ml_pairwise_distances_{name}.csv           ← one per measure
 #   plots-{name}/
 #     line_plot_train.png, ...
 #     complexity-distances/

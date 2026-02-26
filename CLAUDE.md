@@ -438,9 +438,9 @@ CSV files in `data/`:
 - `complexity_metrics.csv` - Train complexity (backward compat alias)
 - `ml_performance.csv` - Test ML performance (backward compat alias)
 - `distances.csv` - Complexity–ML correlation results
-- `complexity_pairwise_distances_{slug}.csv` - Pairwise complexity metric distances per measure (train)
-- `complexity_pairwise_distances_test_{slug}.csv` - Pairwise complexity metric distances per measure (test)
-- `ml_pairwise_distances_{slug}.csv` - Pairwise ML metric distances per measure
+- `complexity_pairwise_distances_{name}.csv` - Pairwise complexity metric distances per measure (train)
+- `complexity_pairwise_distances_test_{name}.csv` - Pairwise complexity metric distances per measure (test)
+- `ml_pairwise_distances_{name}.csv` - Pairwise ML metric distances per measure
 - `per_classifier_distances.csv` - Per-classifier aggregated distances
 
 Results are stored in pandas DataFrames:
@@ -461,7 +461,7 @@ exp.compute_correlations(
     ml_source="test",           # 'train' or 'test'
 )
 
-# Pairwise distances among complexity/ML metrics (returns dict: slug -> N×N DataFrame)
+# Pairwise distances among complexity/ML metrics (returns dict: name -> N×N DataFrame)
 exp.compute_complexity_pairwise_distances()  # uses config.pairwise_distance_measures
 exp.compute_ml_pairwise_distances()
 exp.compute_per_classifier_distances()       # per-classifier aggregated distances

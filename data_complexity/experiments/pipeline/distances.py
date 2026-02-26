@@ -117,7 +117,7 @@ def compute_complexity_pairwise_distances(
 
     Always computes for both train and test data (when available).
     Results stored in ``results.complexity_pairwise_distances`` and
-    ``results.complexity_pairwise_distances_test``, keyed by measure slug.
+    ``results.complexity_pairwise_distances_test``, keyed by measure name.
 
     Parameters
     ----------
@@ -131,7 +131,7 @@ def compute_complexity_pairwise_distances(
     Returns
     -------
     dict
-        slug -> N×N symmetric DataFrame for the requested source.
+        name -> N×N symmetric DataFrame for the requested source.
     """
     if experiment.results is None:
         raise RuntimeError("Must run experiment before computing distances.")
@@ -157,11 +157,11 @@ def compute_complexity_pairwise_distances(
     for measure in measures:
         train_mat = _compute_for_source("train", measure)
         if train_mat is not None:
-            experiment.results.complexity_pairwise_distances[measure.slug] = train_mat
+            experiment.results.complexity_pairwise_distances[measure.name] = train_mat
 
         test_mat = _compute_for_source("test", measure)
         if test_mat is not None:
-            experiment.results.complexity_pairwise_distances_test[measure.slug] = test_mat
+            experiment.results.complexity_pairwise_distances_test[measure.name] = test_mat
 
     return (
         experiment.results.complexity_pairwise_distances
@@ -178,7 +178,7 @@ def compute_ml_pairwise_distances(
     """
     Compute pairwise distances between ML performance metrics for all requested measures.
 
-    Results stored in ``results.ml_pairwise_distances``, keyed by measure slug.
+    Results stored in ``results.ml_pairwise_distances``, keyed by measure name.
 
     Parameters
     ----------
@@ -192,7 +192,7 @@ def compute_ml_pairwise_distances(
     Returns
     -------
     dict
-        slug -> N×N symmetric DataFrame.
+        name -> N×N symmetric DataFrame.
     """
     if experiment.results is None:
         raise RuntimeError("Must run experiment before computing distances.")
@@ -213,7 +213,7 @@ def compute_ml_pairwise_distances(
         distance_matrix = ml_df[valid_cols].corr(
             method=lambda x, y: measure.compute(x, y)[0]
         )
-        experiment.results.ml_pairwise_distances[measure.slug] = distance_matrix
+        experiment.results.ml_pairwise_distances[measure.name] = distance_matrix
 
     return experiment.results.ml_pairwise_distances
 
