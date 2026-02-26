@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from data_complexity.metrics import ComplexityMetrics
+from data_complexity.data_metrics.metrics import ComplexityMetrics
 from data_complexity.experiments.pipeline.utils import (
     _average_dicts,
 )

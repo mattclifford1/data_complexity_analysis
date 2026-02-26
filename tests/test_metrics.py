@@ -7,7 +7,7 @@ behavior, not the underlying PyCol metric calculations.
 """
 import pytest
 import numpy as np
-from data_complexity.metrics import ComplexityMetrics
+from data_complexity.data_metrics.metrics import ComplexityMetrics
 
 
 class TestComplexityMetricsInit:

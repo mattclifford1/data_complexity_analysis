@@ -6,7 +6,7 @@ Sparse sampling may miss boundary details.
 """
 import data_loaders
 from data_loaders import get_dataset
-from data_complexity.metrics import ComplexityMetrics
+from data_complexity.data_metrics.metrics import ComplexityMetrics
 from data_complexity.plotting.plot_multiple_datasets import plot_metrics
 
 

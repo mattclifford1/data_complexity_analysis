@@ -6,7 +6,7 @@ for custom metric implementations.
 """
 import pytest
 import numpy as np
-from data_complexity.abstract_metrics import AbstractMetric
+from data_complexity.data_metrics.abstract_metrics import AbstractMetric
 
 
 class TestAbstractMetricInterface:
