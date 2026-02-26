@@ -7,7 +7,7 @@ from typing import Union
 import numpy as np
 
 
-class AbstractMetric(ABC):
+class BaseAbstractMetric(ABC):
     @abstractmethod
     def compute(self, X: np.ndarray, y: np.ndarray) -> Union[float, dict]:
         """
@@ -28,7 +28,7 @@ class AbstractMetric(ABC):
         pass
 
 
-class PyColAbstractMetric(AbstractMetric):
+class PyColAbstractMetric(BaseAbstractMetric):
     """Base class for PyCol-backed complexity metrics.
 
     Subclasses implement compute_from_complexity(). The compute(X, y) method
