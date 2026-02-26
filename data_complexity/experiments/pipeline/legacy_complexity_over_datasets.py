@@ -19,7 +19,7 @@ from data_complexity.data_metrics.metrics import ComplexityMetrics
 from data_complexity.experiments.pipeline.utils import (
     _average_dicts,
 )
-from data_complexity.experiments.plotting import plot_complexity_correlations_heatmap
+from data_complexity.experiments.plotting import plot_pairwise_heatmap
 
 
 @dataclass
@@ -469,7 +469,7 @@ class ComplexityCollection:
         if self._correlations_df is None:
             self.compute_correlations()
 
-        return plot_complexity_correlations_heatmap(
+        return plot_pairwise_heatmap(
             corr_matrix=self._correlations_df,
             title=title,
         )

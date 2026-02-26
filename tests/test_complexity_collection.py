@@ -365,7 +365,7 @@ class TestPlotHeatmap:
 
         with _patch_complexity(mock_metrics), patch(
             "data_complexity.experiments.pipeline.legacy_complexity_over_datasets"
-            ".plot_complexity_correlations_heatmap"
+            ".plot_pairwise_heatmap"
         ) as mock_plot:
             mock_plot.return_value = MagicMock()
             coll.plot_heatmap(title="My Custom Title")

@@ -141,27 +141,27 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
             data_dir / "test_ml_performance.csv", index=False
         )
 
-    if experiment.results.correlations_df is not None:
-        experiment.results.correlations_df.to_csv(data_dir / "correlations.csv", index=False)
+    if experiment.results.distances_df is not None:
+        experiment.results.distances_df.to_csv(data_dir / "distances.csv", index=False)
 
-    if experiment.results.complexity_correlations_df is not None:
-        experiment.results.complexity_correlations_df.to_csv(
-            data_dir / "complexity_correlations.csv"
+    if experiment.results.complexity_pairwise_distances_df is not None:
+        experiment.results.complexity_pairwise_distances_df.to_csv(
+            data_dir / "complexity_pairwise_distances.csv"
         )
 
-    if experiment.results.complexity_correlations_test_df is not None:
-        experiment.results.complexity_correlations_test_df.to_csv(
-            data_dir / "complexity_correlations_test.csv"
+    if experiment.results.complexity_pairwise_distances_test_df is not None:
+        experiment.results.complexity_pairwise_distances_test_df.to_csv(
+            data_dir / "complexity_pairwise_distances_test.csv"
         )
 
-    if experiment.results.ml_correlations_df is not None:
-        experiment.results.ml_correlations_df.to_csv(
-            data_dir / "ml_correlations.csv"
+    if experiment.results.ml_pairwise_distances_df is not None:
+        experiment.results.ml_pairwise_distances_df.to_csv(
+            data_dir / "ml_pairwise_distances.csv"
         )
 
-    if experiment.results.per_classifier_correlations_df is not None:
-        experiment.results.per_classifier_correlations_df.to_csv(
-            data_dir / "per_classifier_correlations.csv", index=False
+    if experiment.results.per_classifier_distances_df is not None:
+        experiment.results.per_classifier_distances_df.to_csv(
+            data_dir / "per_classifier_distances.csv", index=False
         )
 
     # Save plots to plots/ subfolder
@@ -234,14 +234,14 @@ def load_results(
     # Resolve paths with backwards compatibility for flat structure
     complexity_path = _resolve_path(save_dir, "complexity_metrics.csv", "data")
     ml_path = _resolve_path(save_dir, "ml_performance.csv", "data")
-    corr_path = _resolve_path(save_dir, "correlations.csv", "data")
+    corr_path = _resolve_path(save_dir, "distances.csv", "data")
 
     experiment.results = ExperimentResultsContainer(experiment.config)
     experiment.results._complexity_df = pd.read_csv(complexity_path)
     experiment.results._ml_df = pd.read_csv(ml_path)
 
     if corr_path.exists():
-        experiment.results._correlations_df = pd.read_csv(corr_path)
+        experiment.results._distances_df = pd.read_csv(corr_path)
 
     # Load train/test CSVs if present
     train_complexity_path = _resolve_path(
@@ -268,11 +268,11 @@ def load_results(
     if test_ml_path.exists():
         experiment.results._test_ml_df = pd.read_csv(test_ml_path)
 
-    per_classifier_corr_path = _resolve_path(
-        save_dir, "per_classifier_correlations.csv", "data"
+    per_classifier_dist_path = _resolve_path(
+        save_dir, "per_classifier_distances.csv", "data"
     )
-    if per_classifier_corr_path.exists():
-        experiment.results._per_classifier_correlations_df = pd.read_csv(per_classifier_corr_path)
+    if per_classifier_dist_path.exists():
+        experiment.results._per_classifier_distances_df = pd.read_csv(per_classifier_dist_path)
 
     experiment.datasets = {}  # Clear since we don't have loaders for loaded results
 

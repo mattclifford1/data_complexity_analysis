@@ -248,7 +248,7 @@ def run_experiment(name: str, verbose: bool = True, save: bool = True) -> Experi
     config = get_config(name)
     exp = Experiment(config)
     exp.run(verbose=verbose)
-    exp.compute_correlations()
+    exp.compute_distances()
 
     if save:
         exp.save()

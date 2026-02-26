@@ -7,6 +7,14 @@ utils   : Data classes, results container, and helper functions.
 run     : Experiment runner (Experiment class) and parallel worker.
 config  : Pre-defined experiment configurations.
 """
+from data_complexity.experiments.pipeline.metric_distance import (
+    DistanceBetweenMetrics,
+    PearsonCorrelation,
+    SpearmanCorrelation,
+    KendallTau,
+    MutualInformation,
+    EuclideanDistance,
+)
 from data_complexity.experiments.pipeline.utils import (
     PlotType,
     RunMode,
@@ -45,6 +53,13 @@ from data_complexity.experiments.pipeline.config import (
 )
 
 __all__ = [
+    # metric_distance
+    "DistanceBetweenMetrics",
+    "PearsonCorrelation",
+    "SpearmanCorrelation",
+    "KendallTau",
+    "MutualInformation",
+    "EuclideanDistance",
     # utils
     "PlotType",
     "RunMode",

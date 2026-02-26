@@ -1,5 +1,5 @@
 """
-Correlation computation for experiment results.
+Distance computation for experiment results.
 
 Standalone functions that accept an ``Experiment`` instance as their first
 argument — following the same delegation pattern as runner.py, plotting.py, and io.py.
@@ -11,51 +11,59 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 
+from data_complexity.experiments.pipeline.metric_distance import (
+    DistanceBetweenMetrics,
+    PearsonCorrelation,
+)
 from data_complexity.experiments.pipeline.utils import RunMode
 
 if TYPE_CHECKING:
     from data_complexity.experiments.pipeline.experiment import Experiment
 
 
-def compute_correlations(
+def compute_distances(
     experiment: "Experiment",
     ml_column: Optional[str] = None,
     complexity_source: str = "train",
     ml_source: str = "test",
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
 ) -> pd.DataFrame:
     """
-    Compute correlations between complexity metrics and ML performance.
+    Compute distances between complexity metrics and ML performance.
 
     Parameters
     ----------
     experiment : Experiment
         The experiment instance holding config and results.
     ml_column : str, optional
-        ML metric column to correlate against. Default: config.correlation_target
+        ML metric column to measure against. Default: config.correlation_target
     complexity_source : str
         Which complexity to use: 'train' or 'test'. Default: 'train'
     ml_source : str
         Which ML results to use: 'train' or 'test'. Default: 'test'
+    distance : DistanceBetweenMetrics
+        Distance/association measure to use. Default: PearsonCorrelation()
 
     Returns
     -------
     pd.DataFrame
-        Correlation results sorted by absolute correlation.
+        Results sorted by abs_distance descending.
+        Columns: complexity_metric, ml_metric, distance, p_value, abs_distance.
+        p_value is NaN when the measure does not produce a significance test.
     """
     if experiment.results is None:
-        raise RuntimeError("Must run experiment before computing correlations.")
+        raise RuntimeError("Must run experiment before computing distances.")
 
     run_mode = experiment.config.run_mode
     if run_mode == RunMode.COMPLEXITY_ONLY:
         raise RuntimeError(
-            "Cannot compute correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
+            "Cannot compute distances with run_mode=COMPLEXITY_ONLY (no ML results)."
         )
     if run_mode == RunMode.ML_ONLY:
         raise RuntimeError(
-            "Cannot compute correlations with run_mode=ML_ONLY (no complexity results)."
+            "Cannot compute distances with run_mode=ML_ONLY (no complexity results)."
         )
 
     ml_column = ml_column or experiment.config.correlation_target
@@ -69,11 +77,11 @@ def compute_correlations(
     results = []
 
     if np.std(ml_values) == 0:
-        correlations_df = pd.DataFrame(
-            columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
+        distances_df = pd.DataFrame(
+            columns=["complexity_metric", "ml_metric", "distance", "p_value", "abs_distance"]
         )
-        experiment.results.correlations_df = correlations_df
-        return correlations_df
+        experiment.results.distances_df = distances_df
+        return distances_df
 
     for metric in metric_cols:
         values = complexity_df[metric].values
@@ -83,47 +91,50 @@ def compute_correlations(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
-            r, p = stats.pearsonr(values, ml_values)
+            d, p = distance.compute(values, ml_values)
         results.append(
             {
                 "complexity_metric": metric,
                 "ml_metric": ml_column,
-                "correlation": r,
-                "p_value": p,
-                "abs_correlation": abs(r),
+                "distance": d,
+                "p_value": p if p is not None else float("nan"),
+                "abs_distance": abs(d),
             }
         )
 
-    correlations_df = pd.DataFrame(results).sort_values("abs_correlation", ascending=False)
-    experiment.results.correlations_df = correlations_df
-    return correlations_df
+    distances_df = pd.DataFrame(results).sort_values("abs_distance", ascending=False)
+    experiment.results.distances_df = distances_df
+    return distances_df
 
 
-def compute_complexity_correlations(
+def compute_complexity_pairwise_distances(
     experiment: "Experiment",
     source: str = "train",
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
 ) -> Optional[pd.DataFrame]:
     """
-    Compute pairwise Pearson correlations between complexity metrics.
+    Compute pairwise distances between complexity metrics.
 
-    Always computes correlations for both train and test data (when available).
-    Train correlations are stored in ``results.complexity_correlations_df`` (backward compat);
-    test correlations are stored in ``results.complexity_correlations_test_df``.
+    Always computes for both train and test data (when available).
+    Train results stored in ``results.complexity_pairwise_distances_df``;
+    test results stored in ``results.complexity_pairwise_distances_test_df``.
 
     Parameters
     ----------
     experiment : Experiment
         The experiment instance holding config and results.
     source : str
-        Which correlation matrix to return: 'train' or 'test'. Default: 'train'
+        Which matrix to return: 'train' or 'test'. Default: 'train'
+    distance : DistanceBetweenMetrics
+        Distance/association measure to use. Default: PearsonCorrelation()
 
     Returns
     -------
     pd.DataFrame or None
-        N×N symmetric correlation matrix for the requested source.
+        N×N symmetric matrix for the requested source.
     """
     if experiment.results is None:
-        raise RuntimeError("Must run experiment before computing correlations.")
+        raise RuntimeError("Must run experiment before computing distances.")
 
     def _compute_for_source(src: str) -> Optional[pd.DataFrame]:
         complexity_df = experiment.results._get_complexity_df(src)
@@ -136,25 +147,28 @@ def compute_complexity_correlations(
         valid_cols = [c for c in metric_cols if complexity_df[c].std() > 0]
         if not valid_cols:
             return None
-        return complexity_df[valid_cols].corr(method="pearson")
+        return complexity_df[valid_cols].corr(
+            method=lambda x, y: distance.compute(x, y)[0]
+        )
 
-    train_corr = _compute_for_source("train")
-    if train_corr is not None:
-        experiment.results.complexity_correlations_df = train_corr
+    train_mat = _compute_for_source("train")
+    if train_mat is not None:
+        experiment.results.complexity_pairwise_distances_df = train_mat
 
-    test_corr = _compute_for_source("test")
-    if test_corr is not None:
-        experiment.results.complexity_correlations_test_df = test_corr
+    test_mat = _compute_for_source("test")
+    if test_mat is not None:
+        experiment.results.complexity_pairwise_distances_test_df = test_mat
 
-    return train_corr if source == "train" else test_corr
+    return train_mat if source == "train" else test_mat
 
 
-def compute_ml_correlations(
+def compute_ml_pairwise_distances(
     experiment: "Experiment",
     source: str = "test",
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
 ) -> pd.DataFrame:
     """
-    Compute pairwise Pearson correlations between ML performance metrics.
+    Compute pairwise distances between ML performance metrics.
 
     Parameters
     ----------
@@ -162,17 +176,19 @@ def compute_ml_correlations(
         The experiment instance holding config and results.
     source : str
         Which ML data to use: 'train' or 'test'. Default: 'test'
+    distance : DistanceBetweenMetrics
+        Distance/association measure to use. Default: PearsonCorrelation()
 
     Returns
     -------
     pd.DataFrame
-        N×N symmetric correlation matrix indexed and columned by metric names.
+        N×N symmetric matrix indexed and columned by metric names.
     """
     if experiment.results is None:
-        raise RuntimeError("Must run experiment before computing correlations.")
+        raise RuntimeError("Must run experiment before computing distances.")
     if experiment.config.run_mode == RunMode.COMPLEXITY_ONLY:
         raise RuntimeError(
-            "Cannot compute ML correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
+            "Cannot compute ML distances with run_mode=COMPLEXITY_ONLY (no ML results)."
         )
 
     ml_df = experiment.results._get_ml_df(source)
@@ -180,53 +196,60 @@ def compute_ml_correlations(
         c for c in ml_df.columns
         if c != "param_value" and not c.endswith("_std")
     ]
-    # Drop constant metrics (zero std) — they produce NaN correlations
     valid_cols = [c for c in metric_cols if ml_df[c].std() > 0]
 
-    corr_matrix = ml_df[valid_cols].corr(method="pearson")
-    experiment.results.ml_correlations_df = corr_matrix
-    return corr_matrix
+    distance_matrix = ml_df[valid_cols].corr(
+        method=lambda x, y: distance.compute(x, y)[0]
+    )
+    experiment.results.ml_pairwise_distances_df = distance_matrix
+    return distance_matrix
 
 
-def compute_all_correlations(experiment: "Experiment") -> pd.DataFrame:
+def compute_all_distances(
+    experiment: "Experiment",
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
+) -> pd.DataFrame:
     """
-    Compute correlations for all ML metric columns.
+    Compute distances for all ML metric columns.
 
     Parameters
     ----------
     experiment : Experiment
         The experiment instance holding config and results.
+    distance : DistanceBetweenMetrics
+        Distance/association measure to use. Default: PearsonCorrelation()
 
     Returns
     -------
     pd.DataFrame
-        All correlations combined.
+        All distances combined.
     """
     if experiment.results is None:
-        raise RuntimeError("Must run experiment before computing correlations.")
+        raise RuntimeError("Must run experiment before computing distances.")
 
     ml_df = experiment.results.ml_df
     ml_cols = [c for c in ml_df.columns if c != "param_value"]
 
-    all_corrs = []
+    all_distances = []
     for ml_col in ml_cols:
-        corr_df = _compute_single_correlation(experiment, ml_col)
-        all_corrs.append(corr_df)
+        dist_df = _compute_single_distance(experiment, ml_col, distance=distance)
+        all_distances.append(dist_df)
 
-    return pd.concat(all_corrs, ignore_index=True)
+    return pd.concat(all_distances, ignore_index=True)
 
 
-def compute_per_classifier_correlations(
+def compute_per_classifier_distances(
     experiment: "Experiment",
     complexity_source: str = "train",
     ml_source: str = "test",
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
 ) -> pd.DataFrame:
     """
-    Compute complexity-vs-ML correlations aggregated per metric across classifiers.
+    Compute complexity-vs-ML distances aggregated per metric across classifiers.
 
-    For each ML metric type (e.g., 'accuracy', 'f1'), computes the Pearson
-    correlation between each complexity metric and every individual classifier's
-    column, then reports mean and std of those correlations.
+    For each ML metric type (e.g., 'accuracy', 'f1'), computes the distance
+    between each complexity metric and every individual classifier's column,
+    then reports mean and std of those values.
 
     Parameters
     ----------
@@ -236,16 +259,18 @@ def compute_per_classifier_correlations(
         'train' or 'test'. Default: 'train'
     ml_source : str
         'train' or 'test'. Default: 'test'
+    distance : DistanceBetweenMetrics
+        Distance/association measure to use. Default: PearsonCorrelation()
 
     Returns
     -------
     pd.DataFrame
-        Columns: complexity_metric, ml_metric, mean_correlation,
-                 std_correlation, abs_mean_correlation.
-        Sorted by abs_mean_correlation descending.
+        Columns: complexity_metric, ml_metric, mean_distance,
+                 std_distance, abs_mean_distance.
+        Sorted by abs_mean_distance descending.
     """
     if experiment.results is None:
-        raise RuntimeError("Must run experiment before computing correlations.")
+        raise RuntimeError("Must run experiment before computing distances.")
 
     complexity_df = experiment.results._get_complexity_df(complexity_source)
     ml_df = experiment.results._get_ml_df(ml_source)
@@ -257,7 +282,6 @@ def compute_per_classifier_correlations(
 
     rows = []
     for metric_name in experiment.config.ml_metrics:
-        # Per-classifier columns: end with _{metric_name}, no best_/mean_ prefix, no _std suffix
         classifier_cols = [
             c for c in ml_df.columns
             if c.endswith(f"_{metric_name}")
@@ -271,7 +295,7 @@ def compute_per_classifier_correlations(
             if np.std(comp_values) == 0 or np.any(np.isnan(comp_values)):
                 continue
 
-            rs = []
+            ds = []
             for clf_col in classifier_cols:
                 ml_values = ml_df[clf_col].values
                 if np.std(ml_values) == 0 or np.any(np.isnan(ml_values)):
@@ -280,31 +304,35 @@ def compute_per_classifier_correlations(
                     warnings.simplefilter(
                         "ignore", (NearConstantInputWarning, ConstantInputWarning)
                     )
-                    r, _ = stats.pearsonr(comp_values, ml_values)
-                if not np.isnan(r):
-                    rs.append(r)
+                    d, _ = distance.compute(comp_values, ml_values)
+                if not np.isnan(d):
+                    ds.append(d)
 
-            if not rs:
+            if not ds:
                 continue
 
-            mean_r = float(np.mean(rs))
+            mean_d = float(np.mean(ds))
             rows.append(
                 {
                     "complexity_metric": complexity_col,
                     "ml_metric": metric_name,
-                    "mean_correlation": mean_r,
-                    "std_correlation": float(np.std(rs)),
-                    "abs_mean_correlation": abs(mean_r),
+                    "mean_distance": mean_d,
+                    "std_distance": float(np.std(ds)),
+                    "abs_mean_distance": abs(mean_d),
                 }
             )
 
-    df = pd.DataFrame(rows).sort_values("abs_mean_correlation", ascending=False)
-    experiment.results.per_classifier_correlations_df = df
+    df = pd.DataFrame(rows).sort_values("abs_mean_distance", ascending=False)
+    experiment.results.per_classifier_distances_df = df
     return df
 
 
-def _compute_single_correlation(experiment: "Experiment", ml_column: str) -> pd.DataFrame:
-    """Compute correlations for a single ML column."""
+def _compute_single_distance(
+    experiment: "Experiment",
+    ml_column: str,
+    distance: DistanceBetweenMetrics = PearsonCorrelation(),
+) -> pd.DataFrame:
+    """Compute distances for a single ML column."""
     complexity_df = experiment.results.complexity_df
     ml_df = experiment.results.ml_df
 
@@ -316,7 +344,7 @@ def _compute_single_correlation(experiment: "Experiment", ml_column: str) -> pd.
 
     if np.std(ml_values) == 0:
         return pd.DataFrame(
-            columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
+            columns=["complexity_metric", "ml_metric", "distance", "p_value", "abs_distance"]
         )
 
     for metric in metric_cols:
@@ -327,18 +355,18 @@ def _compute_single_correlation(experiment: "Experiment", ml_column: str) -> pd.
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
-            r, p = stats.pearsonr(values, ml_values)
+            d, p = distance.compute(values, ml_values)
         results.append(
             {
                 "complexity_metric": metric,
                 "ml_metric": ml_column,
-                "correlation": r,
-                "p_value": p,
-                "abs_correlation": abs(r),
+                "distance": d,
+                "p_value": p if p is not None else float("nan"),
+                "abs_distance": abs(d),
             }
         )
 
     if not results:
-        raise ValueError("No valid correlations computed.")
+        raise ValueError("No valid distances computed.")
 
-    return pd.DataFrame(results).sort_values("abs_correlation", ascending=False)
+    return pd.DataFrame(results).sort_values("abs_distance", ascending=False)

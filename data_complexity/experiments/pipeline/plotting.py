@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from data_complexity.experiments.pipeline.utils import PlotType, RunMode
 from data_complexity.experiments.plotting import (
-    plot_correlations,
+    plot_distances,
     plot_summary,
     plot_model_comparison,
     plot_metrics_vs_parameter,
@@ -20,7 +20,7 @@ from data_complexity.experiments.plotting import (
     plot_models_vs_parameter_combined,
     plot_complexity_metrics_vs_parameter_combined,
     plot_datasets_overview,
-    plot_complexity_correlations_heatmap,
+    plot_pairwise_heatmap,
 )
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ def plot(
     dict
         PlotType or str -> matplotlib Figure. String keys are used when a single
         PlotType generates multiple figures (e.g. COMPLEXITY_CORRELATIONS produces
-        'complexity_correlations_train' and 'complexity_correlations_test').
+        'complexity_pairwise_distances_train' and 'complexity_pairwise_distances_test').
     """
     if experiment.results is None:
         raise RuntimeError("Must run experiment before plotting.")
@@ -56,15 +56,15 @@ def plot(
     figures = {}
     run_mode = experiment.config.run_mode
 
-    if run_mode == RunMode.BOTH and experiment.results.correlations_df is None:
-        experiment.compute_correlations()
+    if run_mode == RunMode.BOTH and experiment.results.distances_df is None:
+        experiment.compute_distances()
 
-    if PlotType.COMPLEXITY_CORRELATIONS in plot_types and experiment.results.complexity_correlations_df is None:
-        experiment.compute_complexity_correlations()
+    if PlotType.COMPLEXITY_CORRELATIONS in plot_types and experiment.results.complexity_pairwise_distances_df is None:
+        experiment.compute_complexity_pairwise_distances()
 
-    if PlotType.ML_CORRELATIONS in plot_types and experiment.results.ml_correlations_df is None:
+    if PlotType.ML_CORRELATIONS in plot_types and experiment.results.ml_pairwise_distances_df is None:
         if experiment.config.run_mode != RunMode.COMPLEXITY_ONLY:
-            experiment.compute_ml_correlations()
+            experiment.compute_ml_pairwise_distances()
 
     for pt in plot_types:
         if pt == PlotType.CORRELATIONS:
@@ -74,9 +74,13 @@ def plot(
                     f"(run_mode={run_mode.value})."
                 )
                 continue
-            fig = plot_correlations(
-                experiment.results.correlations_df,
+            from data_complexity.experiments.pipeline.metric_distance import PearsonCorrelation
+            _default_distance = PearsonCorrelation()
+            fig = plot_distances(
+                experiment.results.distances_df,
                 title=f"{experiment.config.name}: Complexity vs {experiment.config.correlation_target}",
+                distance_name=_default_distance.name,
+                signed=_default_distance.signed,
             )
             figures[pt] = fig
 
@@ -90,7 +94,7 @@ def plot(
             fig = plot_summary(
                 experiment.results.complexity_df,
                 experiment.results.ml_df,
-                experiment.results.correlations_df,
+                experiment.results.distances_df,
                 ml_column=experiment.config.correlation_target,
                 top_n=6,
             )
@@ -103,8 +107,8 @@ def plot(
                     f"(run_mode={run_mode.value})."
                 )
                 continue
-            all_corr = experiment.compute_all_correlations()
-            fig = plot_model_comparison(all_corr)
+            all_dist = experiment.compute_all_distances()
+            fig = plot_model_comparison(all_dist)
             figures[pt] = fig
 
         elif pt == PlotType.LINE_PLOT_TRAIN:
@@ -203,20 +207,20 @@ def plot(
                 figures[pt] = fig
 
         elif pt == PlotType.COMPLEXITY_CORRELATIONS:
-            if experiment.results.complexity_correlations_df is None:
-                experiment.compute_complexity_correlations()
-            if experiment.results.complexity_correlations_df is not None:
-                fig_train = plot_complexity_correlations_heatmap(
-                    experiment.results.complexity_correlations_df,
-                    title=f"{experiment.config.name}: Complexity Metric Correlations (Train)",
+            if experiment.results.complexity_pairwise_distances_df is None:
+                experiment.compute_complexity_pairwise_distances()
+            if experiment.results.complexity_pairwise_distances_df is not None:
+                fig_train = plot_pairwise_heatmap(
+                    experiment.results.complexity_pairwise_distances_df,
+                    title=f"{experiment.config.name}: Complexity Metric Pairwise Distances (Train)",
                 )
-                figures["complexity_correlations_train"] = fig_train
-            if experiment.results.complexity_correlations_test_df is not None:
-                fig_test = plot_complexity_correlations_heatmap(
-                    experiment.results.complexity_correlations_test_df,
-                    title=f"{experiment.config.name}: Complexity Metric Correlations (Test)",
+                figures["complexity_pairwise_distances_train"] = fig_train
+            if experiment.results.complexity_pairwise_distances_test_df is not None:
+                fig_test = plot_pairwise_heatmap(
+                    experiment.results.complexity_pairwise_distances_test_df,
+                    title=f"{experiment.config.name}: Complexity Metric Pairwise Distances (Test)",
                 )
-                figures["complexity_correlations_test"] = fig_test
+                figures["complexity_pairwise_distances_test"] = fig_test
 
         elif pt == PlotType.ML_CORRELATIONS:
             if experiment.config.run_mode == RunMode.COMPLEXITY_ONLY:
@@ -225,11 +229,11 @@ def plot(
                     f"(run_mode={experiment.config.run_mode.value})."
                 )
                 continue
-            if experiment.results.ml_correlations_df is None:
-                experiment.compute_ml_correlations()
-            fig = plot_complexity_correlations_heatmap(
-                experiment.results.ml_correlations_df,
-                title=f"{experiment.config.name}: ML Metric Correlations",
+            if experiment.results.ml_pairwise_distances_df is None:
+                experiment.compute_ml_pairwise_distances()
+            fig = plot_pairwise_heatmap(
+                experiment.results.ml_pairwise_distances_df,
+                title=f"{experiment.config.name}: ML Metric Pairwise Distances",
             )
             figures[pt] = fig
 

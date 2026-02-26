@@ -1,11 +1,11 @@
 """
 Experiment class for complexity vs ML performance analysis.
 
-The actual run, plot, correlation, and I/O logic lives in the sibling modules:
-- runner.py       — experiment loop and parallel worker
-- plotting.py     — visualization generation
-- correlations.py — correlation computation
-- io.py           — save/load to/from disk
+The actual run, plot, distance, and I/O logic lives in the sibling modules:
+- runner.py    — experiment loop and parallel worker
+- plotting.py  — visualization generation
+- distances.py — distance/association computation
+- io.py        — save/load to/from disk
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -15,8 +15,12 @@ import pandas as pd
 from data_complexity.experiments.pipeline import (
     runner,
     plotting as _plotting,
-    correlations as _correlations,
+    distances as _distances,
     io,
+)
+from data_complexity.experiments.pipeline.metric_distance import (
+    DistanceBetweenMetrics,
+    PearsonCorrelation,
 )
 from data_complexity.experiments.pipeline.utils import (
     ExperimentConfig,
@@ -86,91 +90,121 @@ class Experiment:
         """
         return runner.run(self, verbose=verbose, n_jobs=n_jobs)
 
-    def compute_correlations(
+    def compute_distances(
         self,
         ml_column: Optional[str] = None,
         complexity_source: str = "train",
         ml_source: str = "test",
+        distance: DistanceBetweenMetrics = PearsonCorrelation(),
     ) -> pd.DataFrame:
         """
-        Compute correlations between complexity metrics and ML performance.
+        Compute distances between complexity metrics and ML performance.
 
         Parameters
         ----------
         ml_column : str, optional
-            ML metric column to correlate against. Default: config.correlation_target
+            ML metric column to measure against. Default: config.correlation_target
         complexity_source : str
             Which complexity to use: 'train' or 'test'. Default: 'train'
         ml_source : str
             Which ML results to use: 'train' or 'test'. Default: 'test'
+        distance : DistanceBetweenMetrics
+            Distance/association measure to use. Default: PearsonCorrelation()
 
         Returns
         -------
         pd.DataFrame
-            Correlation results sorted by absolute correlation.
+            Results sorted by abs_distance descending.
         """
-        return _correlations.compute_correlations(
-            self, ml_column=ml_column, complexity_source=complexity_source, ml_source=ml_source
+        return _distances.compute_distances(
+            self,
+            ml_column=ml_column,
+            complexity_source=complexity_source,
+            ml_source=ml_source,
+            distance=distance,
         )
 
-    def compute_complexity_correlations(self, source: str = "train") -> pd.DataFrame:
+    def compute_complexity_pairwise_distances(
+        self,
+        source: str = "train",
+        distance: DistanceBetweenMetrics = PearsonCorrelation(),
+    ) -> pd.DataFrame:
         """
-        Compute pairwise Pearson correlations between complexity metrics.
+        Compute pairwise distances between complexity metrics.
 
-        Always computes correlations for both train and test data (when available).
-        Train correlations are stored in ``results.complexity_correlations_df`` (backward compat);
-        test correlations are stored in ``results.complexity_correlations_test_df``.
+        Always computes for both train and test data (when available).
+        Train results stored in ``results.complexity_pairwise_distances_df``;
+        test results stored in ``results.complexity_pairwise_distances_test_df``.
 
         Parameters
         ----------
         source : str
-            Which correlation matrix to return: 'train' or 'test'. Default: 'train'
+            Which matrix to return: 'train' or 'test'. Default: 'train'
+        distance : DistanceBetweenMetrics
+            Distance/association measure to use. Default: PearsonCorrelation()
 
         Returns
         -------
         pd.DataFrame
-            N×N symmetric correlation matrix for the requested source.
+            N×N symmetric matrix for the requested source.
         """
-        return _correlations.compute_complexity_correlations(self, source=source)
+        return _distances.compute_complexity_pairwise_distances(
+            self, source=source, distance=distance
+        )
 
-    def compute_ml_correlations(self, source: str = "test") -> pd.DataFrame:
+    def compute_ml_pairwise_distances(
+        self,
+        source: str = "test",
+        distance: DistanceBetweenMetrics = PearsonCorrelation(),
+    ) -> pd.DataFrame:
         """
-        Compute pairwise Pearson correlations between ML performance metrics.
+        Compute pairwise distances between ML performance metrics.
 
         Parameters
         ----------
         source : str
             Which ML data to use: 'train' or 'test'. Default: 'test'
+        distance : DistanceBetweenMetrics
+            Distance/association measure to use. Default: PearsonCorrelation()
 
         Returns
         -------
         pd.DataFrame
-            N×N symmetric correlation matrix indexed and columned by metric names.
+            N×N symmetric matrix indexed and columned by metric names.
         """
-        return _correlations.compute_ml_correlations(self, source=source)
+        return _distances.compute_ml_pairwise_distances(self, source=source, distance=distance)
 
-    def compute_all_correlations(self) -> pd.DataFrame:
+    def compute_all_distances(
+        self,
+        distance: DistanceBetweenMetrics = PearsonCorrelation(),
+    ) -> pd.DataFrame:
         """
-        Compute correlations for all ML metric columns.
+        Compute distances for all ML metric columns.
+
+        Parameters
+        ----------
+        distance : DistanceBetweenMetrics
+            Distance/association measure to use. Default: PearsonCorrelation()
 
         Returns
         -------
         pd.DataFrame
-            All correlations combined.
+            All distances combined.
         """
-        return _correlations.compute_all_correlations(self)
+        return _distances.compute_all_distances(self, distance=distance)
 
-    def compute_per_classifier_correlations(
+    def compute_per_classifier_distances(
         self,
         complexity_source: str = "train",
         ml_source: str = "test",
+        distance: DistanceBetweenMetrics = PearsonCorrelation(),
     ) -> pd.DataFrame:
         """
-        Compute complexity-vs-ML correlations aggregated per metric across classifiers.
+        Compute complexity-vs-ML distances aggregated per metric across classifiers.
 
-        For each ML metric type (e.g., 'accuracy', 'f1'), computes the Pearson
-        correlation between each complexity metric and every individual classifier's
-        column, then reports mean and std of those correlations.
+        For each ML metric type (e.g., 'accuracy', 'f1'), computes the distance
+        between each complexity metric and every individual classifier's column,
+        then reports mean and std of those values.
 
         Parameters
         ----------
@@ -178,21 +212,26 @@ class Experiment:
             'train' or 'test'. Default: 'train'
         ml_source : str
             'train' or 'test'. Default: 'test'
+        distance : DistanceBetweenMetrics
+            Distance/association measure to use. Default: PearsonCorrelation()
 
         Returns
         -------
         pd.DataFrame
-            Columns: complexity_metric, ml_metric, mean_correlation,
-                     std_correlation, abs_mean_correlation.
-            Sorted by abs_mean_correlation descending.
+            Columns: complexity_metric, ml_metric, mean_distance,
+                     std_distance, abs_mean_distance.
+            Sorted by abs_mean_distance descending.
         """
-        return _correlations.compute_per_classifier_correlations(
-            self, complexity_source=complexity_source, ml_source=ml_source
+        return _distances.compute_per_classifier_distances(
+            self,
+            complexity_source=complexity_source,
+            ml_source=ml_source,
+            distance=distance,
         )
 
-    def _compute_single_correlation(self, ml_column: str) -> pd.DataFrame:
-        """Compute correlations for a single ML column."""
-        return _correlations._compute_single_correlation(self, ml_column)
+    def _compute_single_distance(self, ml_column: str) -> pd.DataFrame:
+        """Compute distances for a single ML column."""
+        return _distances._compute_single_distance(self, ml_column)
 
     def plot(
         self, plot_types: Optional[List[PlotType]] = None
@@ -210,7 +249,7 @@ class Experiment:
         dict
             PlotType or str -> matplotlib Figure. String keys are used when a single
             PlotType generates multiple figures (e.g. COMPLEXITY_CORRELATIONS produces
-            'complexity_correlations_train' and 'complexity_correlations_test').
+            'complexity_pairwise_distances_train' and 'complexity_pairwise_distances_test').
         """
         return _plotting.plot(self, plot_types=plot_types)
 
@@ -253,28 +292,34 @@ class Experiment:
         if self.results is None:
             raise RuntimeError("Must run experiment before printing summary.")
 
-        if self.results.correlations_df is None:
-            self.compute_correlations()
+        if self.results.distances_df is None:
+            self.compute_distances()
 
-        print(f"\nTop {top_n} correlations with {self.config.correlation_target}:")
+        print(f"\nTop {top_n} distances with {self.config.correlation_target}:")
         print("-" * 55)
 
-        for _, row in self.results.correlations_df.head(top_n).iterrows():
-            sig = "**" if row["p_value"] < 0.01 else "*" if row["p_value"] < 0.05 else ""
+        for _, row in self.results.distances_df.head(top_n).iterrows():
+            p_value = row["p_value"]
+            if pd.isna(p_value):
+                sig = ""
+                p_str = ""
+            else:
+                sig = "**" if p_value < 0.01 else "*" if p_value < 0.05 else ""
+                p_str = f" (p={p_value:.3f})"
             print(
-                f"  {row['complexity_metric']:25s}: r={row['correlation']:+.3f} "
-                f"(p={row['p_value']:.3f}) {sig}"
+                f"  {row['complexity_metric']:25s}: dist={row['distance']:+.3f}"
+                f"{p_str} {sig}"
             )
 
-        if self.results.per_classifier_correlations_df is not None:
-            df = self.results.per_classifier_correlations_df
+        if self.results.per_classifier_distances_df is not None:
+            df = self.results.per_classifier_distances_df
             for ml_metric in df["ml_metric"].unique():
                 subset = df[df["ml_metric"] == ml_metric].head(top_n)
-                print(f"\nTop {top_n} per-classifier correlations ({ml_metric}):")
+                print(f"\nTop {top_n} per-classifier distances ({ml_metric}):")
                 print("-" * 60)
                 for _, row in subset.iterrows():
                     print(
                         f"  {row['complexity_metric']:25s}: "
-                        f"mean_r={row['mean_correlation']:+.3f} "
-                        f"± {row['std_correlation']:.3f}"
+                        f"mean_dist={row['mean_distance']:+.3f} "
+                        f"± {row['std_distance']:.3f}"
                     )

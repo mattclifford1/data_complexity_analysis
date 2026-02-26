@@ -11,23 +11,30 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 
-def plot_correlations(
+def plot_distances(
     correlations_df: pd.DataFrame,
-    title: str = "Complexity vs ML Accuracy Correlations",
+    title: str = "Complexity vs ML Accuracy Distances",
     top_n: int = 15,
+    distance_name: str = "Pearson r",
+    signed: bool = True,
 ) -> plt.Figure:
     """
-    Plot correlation coefficients as a horizontal bar chart.
+    Plot distance/correlation values as a horizontal bar chart.
 
     Parameters
     ----------
     correlations_df : pd.DataFrame
-        DataFrame with columns: 'complexity_metric', 'correlation', 'p_value'.
-        Must be sorted by abs_correlation descending.
+        DataFrame with columns: 'complexity_metric', 'distance', 'p_value'.
+        Must be sorted by abs_distance descending.
     title : str
         Plot title.
     top_n : int
-        Number of top correlations to display. Default: 15
+        Number of top values to display. Default: 15
+    distance_name : str
+        Label for the x-axis (e.g. 'Pearson r', 'Spearman ρ', 'Mutual Information').
+    signed : bool
+        If True, values range from -1 to 1; use symmetric x-axis and colour by sign.
+        If False, values are non-negative; use dynamic x-axis and uniform colour.
 
     Returns
     -------
@@ -37,46 +44,57 @@ def plot_correlations(
     subset = correlations_df.head(top_n)
 
     metrics = subset["complexity_metric"].tolist()
-    r_values = subset["correlation"].tolist()
+    d_values = subset["distance"].tolist()
     p_values = subset["p_value"].tolist()
 
-    colors = ["green" if r < 0 else "red" for r in r_values]
+    if signed:
+        colors = ["green" if d < 0 else "red" for d in d_values]
+    else:
+        colors = ["steelblue"] * len(d_values)
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(range(len(metrics)), r_values, color=colors, alpha=0.7)
+    ax.barh(range(len(metrics)), d_values, color=colors, alpha=0.7)
 
-    for i, (r, p) in enumerate(zip(r_values, p_values)):
-        marker = "**" if p < 0.01 else "*" if p < 0.05 else ""
-        ax.text(r + 0.02 if r >= 0 else r - 0.02, i, marker, va="center", fontsize=12)
+    for i, (d, p) in enumerate(zip(d_values, p_values)):
+        if not pd.isna(p):
+            marker = "**" if p < 0.01 else "*" if p < 0.05 else ""
+            ax.text(d + 0.02 if d >= 0 else d - 0.02, i, marker, va="center", fontsize=12)
 
     ax.set_yticks(range(len(metrics)))
     ax.set_yticklabels(metrics)
-    ax.set_xlabel("Pearson Correlation")
+    ax.set_xlabel(distance_name)
     ax.set_title(title)
-    ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
-    ax.set_xlim(-1.1, 1.1)
 
-    ax.text(
-        0.02,
-        0.98,
-        "Green: Higher metric \u2192 Lower accuracy (good predictor)",
-        transform=ax.transAxes,
-        fontsize=9,
-        va="top",
-        color="green",
-    )
-    ax.text(
-        0.02,
-        0.93,
-        "Red: Higher metric \u2192 Higher accuracy",
-        transform=ax.transAxes,
-        fontsize=9,
-        va="top",
-        color="red",
-    )
-    ax.text(
-        0.02, 0.88, "* p<0.05, ** p<0.01", transform=ax.transAxes, fontsize=9, va="top"
-    )
+    if signed:
+        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+        ax.set_xlim(-1.1, 1.1)
+        ax.text(
+            0.02,
+            0.98,
+            "Green: Higher metric \u2192 Lower accuracy (good predictor)",
+            transform=ax.transAxes,
+            fontsize=9,
+            va="top",
+            color="green",
+        )
+        ax.text(
+            0.02,
+            0.93,
+            "Red: Higher metric \u2192 Higher accuracy",
+            transform=ax.transAxes,
+            fontsize=9,
+            va="top",
+            color="red",
+        )
+    else:
+        max_val = max(d_values) if d_values else 1.0
+        ax.set_xlim(0, max_val * 1.1)
+
+    if any(not pd.isna(p) for p in p_values):
+        y_pos = 0.88 if signed else 0.98
+        ax.text(
+            0.02, y_pos, "* p<0.05, ** p<0.01", transform=ax.transAxes, fontsize=9, va="top"
+        )
 
     plt.tight_layout()
     return fig
@@ -194,22 +212,22 @@ def plot_summary(
     return fig
 
 
-def plot_correlation_heatmap(
+def plot_distance_heatmap(
     all_correlations_df: pd.DataFrame,
     ml_metric: str = "best_accuracy",
     top_n: int = 20,
 ) -> plt.Figure:
     """
-    Create a horizontal bar plot of correlations for a specific ML metric.
+    Create a horizontal bar plot of distances for a specific ML metric.
 
     Parameters
     ----------
     all_correlations_df : pd.DataFrame
-        DataFrame with all correlations, including 'ml_metric' column.
+        DataFrame with all distances, including 'ml_metric' column.
     ml_metric : str
         Which ML metric to filter by. Default: 'best_accuracy'
     top_n : int
-        Number of top correlations to show. Default: 20
+        Number of top distances to show. Default: 20
 
     Returns
     -------
@@ -220,17 +238,18 @@ def plot_correlation_heatmap(
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    colors = ["green" if r < 0 else "red" for r in subset["correlation"]]
-    ax.barh(range(len(subset)), subset["correlation"], color=colors, alpha=0.7)
+    colors = ["green" if d < 0 else "red" for d in subset["distance"]]
+    ax.barh(range(len(subset)), subset["distance"], color=colors, alpha=0.7)
 
     for i, (_, row) in enumerate(subset.iterrows()):
-        marker = "**" if row["p_value"] < 0.01 else "*" if row["p_value"] < 0.05 else ""
-        r = row["correlation"]
-        ax.text(r + 0.02 if r >= 0 else r - 0.08, i, marker, va="center", fontsize=10)
+        if not pd.isna(row["p_value"]):
+            marker = "**" if row["p_value"] < 0.01 else "*" if row["p_value"] < 0.05 else ""
+            d = row["distance"]
+            ax.text(d + 0.02 if d >= 0 else d - 0.08, i, marker, va="center", fontsize=10)
 
     ax.set_yticks(range(len(subset)))
     ax.set_yticklabels(subset["complexity_metric"])
-    ax.set_xlabel(f"Pearson Correlation with {ml_metric}")
+    ax.set_xlabel(f"Distance with {ml_metric}")
     ax.set_title(f"Complexity Metrics vs {ml_metric}")
     ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
     ax.set_xlim(-1.1, 1.1)
@@ -942,17 +961,17 @@ def plot_datasets_overview(
     return fig
 
 
-def plot_complexity_correlations_heatmap(
+def plot_pairwise_heatmap(
     corr_matrix: pd.DataFrame,
-    title: str = "Complexity Metric Correlations",
+    title: str = "Pairwise Distances",
 ) -> plt.Figure:
     """
-    Plot a heatmap of pairwise Pearson correlations between complexity metrics.
+    Plot a heatmap of a pairwise distance/association matrix.
 
     Parameters
     ----------
     corr_matrix : pd.DataFrame
-        N×N symmetric correlation matrix (from DataFrame.corr()).
+        N×N symmetric matrix (from DataFrame.corr() or similar).
     title : str
         Plot title.
 
@@ -966,7 +985,7 @@ def plot_complexity_correlations_heatmap(
     fig, ax = plt.subplots(figsize=(fig_size, fig_size * 0.85))
 
     im = ax.imshow(corr_matrix.values, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
-    plt.colorbar(im, ax=ax, label="Pearson r")
+    plt.colorbar(im, ax=ax, label="Distance")
 
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
@@ -1024,7 +1043,7 @@ def plot_model_comparison(
                 & (all_correlations_df["ml_metric"] == ml_col)
             ]
             if len(subset) > 0:
-                matrix[i, j] = subset.iloc[0]["correlation"]
+                matrix[i, j] = subset.iloc[0]["distance"]
 
     fig, ax = plt.subplots(figsize=(12, 6))
     im = ax.imshow(matrix, cmap="RdYlGn_r", aspect="auto", vmin=-1, vmax=1)

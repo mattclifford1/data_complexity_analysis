@@ -252,7 +252,7 @@ class ExperimentResultsContainer:
         self._ml_rows: List[Dict[str, Any]] = []
         self._complexity_df: Optional[pd.DataFrame] = None
         self._ml_df: Optional[pd.DataFrame] = None
-        self._correlations_df: Optional[pd.DataFrame] = None
+        self._distances_df: Optional[pd.DataFrame] = None
 
         # Train/test split rows
         self._train_complexity_rows: List[Dict[str, Any]] = []
@@ -263,10 +263,10 @@ class ExperimentResultsContainer:
         self._test_complexity_df: Optional[pd.DataFrame] = None
         self._train_ml_df: Optional[pd.DataFrame] = None
         self._test_ml_df: Optional[pd.DataFrame] = None
-        self._complexity_correlations_df: Optional[pd.DataFrame] = None
-        self._complexity_correlations_test_df: Optional[pd.DataFrame] = None
-        self._ml_correlations_df: Optional[pd.DataFrame] = None
-        self._per_classifier_correlations_df: Optional[pd.DataFrame] = None
+        self._complexity_pairwise_distances_df: Optional[pd.DataFrame] = None
+        self._complexity_pairwise_distances_test_df: Optional[pd.DataFrame] = None
+        self._ml_pairwise_distances_df: Optional[pd.DataFrame] = None
+        self._per_classifier_distances_df: Optional[pd.DataFrame] = None
 
     def _build_ml_row(
         self,
@@ -447,54 +447,54 @@ class ExperimentResultsContainer:
         return self._ml_df
 
     @property
-    def correlations_df(self) -> Optional[pd.DataFrame]:
-        """Get correlations DataFrame (computed separately)."""
-        return self._correlations_df
+    def distances_df(self) -> Optional[pd.DataFrame]:
+        """Get complexity-vs-ML distances DataFrame (computed separately)."""
+        return self._distances_df
 
-    @correlations_df.setter
-    def correlations_df(self, df: pd.DataFrame) -> None:
-        """Set correlations DataFrame."""
-        self._correlations_df = df
-
-    @property
-    def complexity_correlations_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise complexity metric correlation matrix (N×N DataFrame)."""
-        return self._complexity_correlations_df
-
-    @complexity_correlations_df.setter
-    def complexity_correlations_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise complexity metric correlation matrix."""
-        self._complexity_correlations_df = df
+    @distances_df.setter
+    def distances_df(self, df: pd.DataFrame) -> None:
+        """Set complexity-vs-ML distances DataFrame."""
+        self._distances_df = df
 
     @property
-    def complexity_correlations_test_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise complexity metric correlation matrix for test data (N×N DataFrame)."""
-        return self._complexity_correlations_test_df
+    def complexity_pairwise_distances_df(self) -> Optional[pd.DataFrame]:
+        """Get pairwise complexity metric distance matrix (N×N DataFrame)."""
+        return self._complexity_pairwise_distances_df
 
-    @complexity_correlations_test_df.setter
-    def complexity_correlations_test_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise complexity metric correlation matrix for test data."""
-        self._complexity_correlations_test_df = df
-
-    @property
-    def ml_correlations_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise ML metric correlation matrix (N×N DataFrame)."""
-        return self._ml_correlations_df
-
-    @ml_correlations_df.setter
-    def ml_correlations_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise ML metric correlation matrix."""
-        self._ml_correlations_df = df
+    @complexity_pairwise_distances_df.setter
+    def complexity_pairwise_distances_df(self, df: pd.DataFrame) -> None:
+        """Set pairwise complexity metric distance matrix."""
+        self._complexity_pairwise_distances_df = df
 
     @property
-    def per_classifier_correlations_df(self) -> Optional[pd.DataFrame]:
-        """Get per-classifier aggregated complexity-vs-ML correlation DataFrame."""
-        return self._per_classifier_correlations_df
+    def complexity_pairwise_distances_test_df(self) -> Optional[pd.DataFrame]:
+        """Get pairwise complexity metric distance matrix for test data (N×N DataFrame)."""
+        return self._complexity_pairwise_distances_test_df
 
-    @per_classifier_correlations_df.setter
-    def per_classifier_correlations_df(self, df: pd.DataFrame) -> None:
-        """Set per-classifier aggregated complexity-vs-ML correlation DataFrame."""
-        self._per_classifier_correlations_df = df
+    @complexity_pairwise_distances_test_df.setter
+    def complexity_pairwise_distances_test_df(self, df: pd.DataFrame) -> None:
+        """Set pairwise complexity metric distance matrix for test data."""
+        self._complexity_pairwise_distances_test_df = df
+
+    @property
+    def ml_pairwise_distances_df(self) -> Optional[pd.DataFrame]:
+        """Get pairwise ML metric distance matrix (N×N DataFrame)."""
+        return self._ml_pairwise_distances_df
+
+    @ml_pairwise_distances_df.setter
+    def ml_pairwise_distances_df(self, df: pd.DataFrame) -> None:
+        """Set pairwise ML metric distance matrix."""
+        self._ml_pairwise_distances_df = df
+
+    @property
+    def per_classifier_distances_df(self) -> Optional[pd.DataFrame]:
+        """Get per-classifier aggregated complexity-vs-ML distances DataFrame."""
+        return self._per_classifier_distances_df
+
+    @per_classifier_distances_df.setter
+    def per_classifier_distances_df(self, df: pd.DataFrame) -> None:
+        """Set per-classifier aggregated complexity-vs-ML distances DataFrame."""
+        self._per_classifier_distances_df = df
 
     def get_param_values(self) -> List[Any]:
         """Get list of parameter values."""

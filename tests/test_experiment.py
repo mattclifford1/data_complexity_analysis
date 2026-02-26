@@ -422,8 +422,8 @@ class TestExperimentRun:
 
     @patch("data_complexity.experiments.pipeline.runner.ComplexityMetrics")
     @patch("data_complexity.experiments.pipeline.runner.evaluate_models_train_test")
-    def test_compute_correlations(self, mock_evaluate, mock_complexity, simple_config):
-        """Test correlation computation."""
+    def test_compute_distances(self, mock_evaluate, mock_complexity, simple_config):
+        """Test distance computation."""
         train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
         test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
 
@@ -457,9 +457,9 @@ class TestExperimentRun:
         exp._get_dataset = mock_get_dataset
         exp.run(verbose=False)
 
-        corr_df = exp.compute_correlations()
+        corr_df = exp.compute_distances()
 
-        assert "correlation" in corr_df.columns
+        assert "distance" in corr_df.columns
         assert "p_value" in corr_df.columns
         assert "complexity_metric" in corr_df.columns
         assert len(corr_df) > 0
@@ -532,10 +532,10 @@ class TestExperimentRun:
 
     @patch("data_complexity.experiments.pipeline.runner.ComplexityMetrics")
     @patch("data_complexity.experiments.pipeline.runner.evaluate_models_train_test")
-    def test_correlation_sources(
+    def test_distance_sources(
         self, mock_evaluate, mock_complexity, simple_config
     ):
-        """Test that correlations can use different sources."""
+        """Test that distances can use different sources."""
         train_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 12 + [1] * 13)}
         test_data = {"X": np.random.rand(25, 2), "y": np.array([0] * 13 + [1] * 12)}
 
@@ -571,10 +571,10 @@ class TestExperimentRun:
         exp.run(verbose=False)
 
         # Both source options should work
-        corr_train = exp.compute_correlations(complexity_source="train", ml_source="test")
+        corr_train = exp.compute_distances(complexity_source="train", ml_source="test")
         assert len(corr_train) > 0
 
-        corr_test = exp.compute_correlations(complexity_source="test", ml_source="test")
+        corr_test = exp.compute_distances(complexity_source="test", ml_source="test")
         assert len(corr_test) > 0
 
 
@@ -646,13 +646,13 @@ def _make_results_with_data(ml_metrics=None):
     )
     results.covert_to_df()
 
-    results.correlations_df = pd.DataFrame(
+    results.distances_df = pd.DataFrame(
         {
             "complexity_metric": ["F1", "N3"],
             "ml_metric": ["best_accuracy", "best_accuracy"],
-            "correlation": [-0.8, 0.6],
+            "distance": [-0.8, 0.6],
             "p_value": [0.01, 0.05],
-            "abs_correlation": [0.8, 0.6],
+            "abs_distance": [0.8, 0.6],
         }
     )
     return config, results
@@ -693,13 +693,13 @@ class TestSaveLoad:
         )
         results.covert_to_df()
 
-        results.correlations_df = pd.DataFrame(
+        results.distances_df = pd.DataFrame(
             {
                 "complexity_metric": ["F1", "N3"],
                 "ml_metric": ["best_accuracy", "best_accuracy"],
-                "correlation": [-0.8, 0.6],
+                "distance": [-0.8, 0.6],
                 "p_value": [0.01, 0.05],
-                "abs_correlation": [0.8, 0.6],
+                "abs_distance": [0.8, 0.6],
             }
         )
 
@@ -716,7 +716,7 @@ class TestSaveLoad:
         # Check for new subfolder structure
         assert (save_dir / "data" / "complexity_metrics.csv").exists()
         assert (save_dir / "data" / "ml_performance.csv").exists()
-        assert (save_dir / "data" / "correlations.csv").exists()
+        assert (save_dir / "data" / "distances.csv").exists()
 
         exp2 = Experiment(config)
         loaded = exp2.load_results(save_dir)
@@ -866,13 +866,13 @@ class TestPlotting:
             )
         results.covert_to_df()
 
-        results.correlations_df = pd.DataFrame(
+        results.distances_df = pd.DataFrame(
             {
                 "complexity_metric": ["F1", "N3"],
                 "ml_metric": ["best_accuracy", "best_accuracy"],
-                "correlation": [0.9, -0.9],
+                "distance": [0.9, -0.9],
                 "p_value": [0.001, 0.001],
-                "abs_correlation": [0.9, 0.9],
+                "abs_distance": [0.9, 0.9],
             }
         )
 
@@ -897,7 +897,7 @@ class TestPrintSummary:
     """Tests for print_summary method."""
 
     @pytest.fixture
-    def experiment_with_correlations(self):
+    def experiment_with_distances(self):
         config = ExperimentConfig(
             datasets=[DatasetSpec("Gaussian", label="g1")],
         )
@@ -908,13 +908,13 @@ class TestPrintSummary:
             {"Model": {"accuracy": {"mean": 0.9, "std": 0.05}}},
         )
         results.covert_to_df()
-        results.correlations_df = pd.DataFrame(
+        results.distances_df = pd.DataFrame(
             {
                 "complexity_metric": ["F1"],
                 "ml_metric": ["best_accuracy"],
-                "correlation": [-0.9],
+                "distance": [-0.9],
                 "p_value": [0.01],
-                "abs_correlation": [0.9],
+                "abs_distance": [0.9],
             }
         )
 
@@ -922,24 +922,24 @@ class TestPrintSummary:
         exp.results = results
         return exp
 
-    def test_print_summary_runs(self, experiment_with_correlations, capsys):
-        experiment_with_correlations.print_summary(top_n=5)
+    def test_print_summary_runs(self, experiment_with_distances, capsys):
+        experiment_with_distances.print_summary(top_n=5)
         captured = capsys.readouterr()
         assert "F1" in captured.out
-        assert "correlation" in captured.out.lower() or "-0.9" in captured.out
+        assert "dist" in captured.out.lower() or "-0.9" in captured.out
 
 
 class TestErrorHandling:
     """Tests for error handling."""
 
-    def test_compute_correlations_before_run(self):
+    def test_compute_distances_before_run(self):
         config = ExperimentConfig(
             datasets=[DatasetSpec("Gaussian", label="g1")],
         )
         exp = Experiment(config)
 
         with pytest.raises(RuntimeError, match="Must run experiment"):
-            exp.compute_correlations()
+            exp.compute_distances()
 
     def test_plot_before_run(self):
         config = ExperimentConfig(
