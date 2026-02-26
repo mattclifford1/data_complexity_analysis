@@ -175,5 +175,9 @@
     "COMPLEXITY_CORRELATIONS",
     "ML_CORRELATIONS"
   ],
-  "run_mode": "complexity"
+  "run_mode": "complexity",
+  "pairwise_distance_measures": [
+    "Pearson r",
+    "Spearman \u03c1"
+  ]
 }

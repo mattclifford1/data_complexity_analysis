@@ -112,6 +112,7 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
         "correlation_target": experiment.config.correlation_target,
         "plots": [pt.name for pt in experiment.config.plots],
         "run_mode": experiment.config.run_mode.value,
+        "pairwise_distance_measures": [m.name for m in experiment.config.pairwise_distance_measures],
     }
 
     with open(save_dir / "experiment_metadata.json", "w") as f:
@@ -144,32 +145,27 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
     if experiment.results.distances_df is not None:
         experiment.results.distances_df.to_csv(data_dir / "distances.csv", index=False)
 
-    if experiment.results.complexity_pairwise_distances_df is not None:
-        experiment.results.complexity_pairwise_distances_df.to_csv(
-            data_dir / "complexity_pairwise_distances.csv"
-        )
+    for slug, matrix in experiment.results.complexity_pairwise_distances.items():
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_{slug}.csv")
 
-    if experiment.results.complexity_pairwise_distances_test_df is not None:
-        experiment.results.complexity_pairwise_distances_test_df.to_csv(
-            data_dir / "complexity_pairwise_distances_test.csv"
-        )
+    for slug, matrix in experiment.results.complexity_pairwise_distances_test.items():
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_test_{slug}.csv")
 
-    if experiment.results.ml_pairwise_distances_df is not None:
-        experiment.results.ml_pairwise_distances_df.to_csv(
-            data_dir / "ml_pairwise_distances.csv"
-        )
+    for slug, matrix in experiment.results.ml_pairwise_distances.items():
+        matrix.to_csv(data_dir / f"ml_pairwise_distances_{slug}.csv")
 
     if experiment.results.per_classifier_distances_df is not None:
         experiment.results.per_classifier_distances_df.to_csv(
             data_dir / "per_classifier_distances.csv", index=False
         )
 
-    # Save plots to plots/ subfolder
+    # Save plots to plots/ subfolder (sub-keyed figures may include path separators)
     figures = experiment.plot()
     for plot_type, fig in figures.items():
         stem = plot_type.name.lower() if isinstance(plot_type, PlotType) else plot_type
-        filename = f"{stem}.png"
-        fig.savefig(plots_dir / filename, dpi=150, bbox_inches="tight")
+        filepath = plots_dir / f"{stem}.png"
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(filepath, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     # Save dataset visualizations to datasets/ subfolder

@@ -374,6 +374,9 @@ from data_complexity.experiments.pipeline import (
     PlotType,
     RunMode,
     datasets_from_sweep,
+    PearsonCorrelation,
+    SpearmanCorrelation,
+    KendallTau,
 )
 
 config = ExperimentConfig(
@@ -387,6 +390,7 @@ config = ExperimentConfig(
     correlation_target="best_accuracy",
     plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.LINE_PLOT_TRAIN, PlotType.LINE_PLOT_TEST,
            PlotType.LINE_PLOT_MODELS_TRAIN, PlotType.LINE_PLOT_MODELS_TEST],
+    pairwise_distance_measures=[PearsonCorrelation(), SpearmanCorrelation(), KendallTau()],
     name="my_custom_experiment",
 )
 
@@ -433,10 +437,11 @@ CSV files in `data/`:
 - `test_ml_performance.csv` - ML performance on test data
 - `complexity_metrics.csv` - Train complexity (backward compat alias)
 - `ml_performance.csv` - Test ML performance (backward compat alias)
-- `correlations.csv` - Complexity–ML correlation results
-- `complexity_correlations.csv` - Pairwise complexity metric correlations
-- `ml_correlations.csv` - Pairwise ML metric correlations
-- `per_classifier_correlations.csv` - Per-classifier aggregated correlations
+- `distances.csv` - Complexity–ML correlation results
+- `complexity_pairwise_distances_{slug}.csv` - Pairwise complexity metric distances per measure (train)
+- `complexity_pairwise_distances_test_{slug}.csv` - Pairwise complexity metric distances per measure (test)
+- `ml_pairwise_distances_{slug}.csv` - Pairwise ML metric distances per measure
+- `per_classifier_distances.csv` - Per-classifier aggregated distances
 
 Results are stored in pandas DataFrames:
 
@@ -456,10 +461,10 @@ exp.compute_correlations(
     ml_source="test",           # 'train' or 'test'
 )
 
-# Additional correlation methods
-exp.compute_complexity_correlations(source="train")  # pairwise among complexity metrics
-exp.compute_ml_correlations(source="test")           # pairwise among ML metrics
-exp.compute_per_classifier_correlations()            # per-classifier aggregated correlations
+# Pairwise distances among complexity/ML metrics (returns dict: slug -> N×N DataFrame)
+exp.compute_complexity_pairwise_distances()  # uses config.pairwise_distance_measures
+exp.compute_ml_pairwise_distances()
+exp.compute_per_classifier_distances()       # per-classifier aggregated distances
 
 # Load previous results (supports both new hierarchical and legacy flat structure)
 exp.load_results(Path("results/gaussian_variance/"))
@@ -485,8 +490,8 @@ from data_complexity.experiments.pipeline import PlotType
 | `LINE_PLOT_COMPLEXITY_COMBINED` | Train vs test complexity, side by side |
 | `DATASETS_OVERVIEW` | Grid of scatter plots for each dataset spec |
 | `CORRELATIONS` | Bar chart of top complexity–ML correlations |
-| `COMPLEXITY_CORRELATIONS` | Heatmap of pairwise complexity metric correlations |
-| `ML_CORRELATIONS` | Heatmap of pairwise ML metric correlations |
+| `COMPLEXITY_CORRELATIONS` | One heatmap per pairwise measure per source, saved under `complexity-distances/` |
+| `ML_CORRELATIONS` | One heatmap per pairwise measure, saved under `ml-distances/` |
 | `SUMMARY` | Combined summary panel |
 | `HEATMAP` | Per-model correlation heatmap |
 

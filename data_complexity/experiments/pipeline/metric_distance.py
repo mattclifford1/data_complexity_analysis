@@ -42,6 +42,12 @@ class DistanceBetweenMetrics(ABC):
         ...
 
     @property
+    @abstractmethod
+    def slug(self) -> str:
+        """Filesystem-safe identifier, e.g. 'pearson_r'."""
+        ...
+
+    @property
     def signed(self) -> bool:
         """True if values range from -1 to 1 (correlation-like). False for 0…∞."""
         return False
@@ -57,6 +63,10 @@ class PearsonCorrelation(DistanceBetweenMetrics):
     @property
     def name(self) -> str:
         return "Pearson r"
+
+    @property
+    def slug(self) -> str:
+        return "pearson_r"
 
     @property
     def signed(self) -> bool:
@@ -75,6 +85,10 @@ class SpearmanCorrelation(DistanceBetweenMetrics):
         return "Spearman ρ"
 
     @property
+    def slug(self) -> str:
+        return "spearman_rho"
+
+    @property
     def signed(self) -> bool:
         return True
 
@@ -89,6 +103,10 @@ class KendallTau(DistanceBetweenMetrics):
     @property
     def name(self) -> str:
         return "Kendall τ"
+
+    @property
+    def slug(self) -> str:
+        return "kendall_tau"
 
     @property
     def signed(self) -> bool:
@@ -108,6 +126,10 @@ class MutualInformation(DistanceBetweenMetrics):
     def name(self) -> str:
         return "Mutual Information"
 
+    @property
+    def slug(self) -> str:
+        return "mutual_information"
+
 
 class EuclideanDistance(DistanceBetweenMetrics):
     """Euclidean distance between z-score-normalised arrays."""
@@ -122,3 +144,7 @@ class EuclideanDistance(DistanceBetweenMetrics):
     @property
     def name(self) -> str:
         return "Euclidean Distance"
+
+    @property
+    def slug(self) -> str:
+        return "euclidean_distance"

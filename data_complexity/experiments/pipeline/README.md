@@ -82,6 +82,7 @@ Key parameters:
 | `correlation_target` | `str` | `"best_accuracy"` | Target for correlation summary |
 | `run_mode` | `RunMode` | `BOTH` | `BOTH`, `COMPLEXITY_ONLY`, or `ML_ONLY` |
 | `plots` | `List[PlotType]` | all plots | Plot types to generate |
+| `pairwise_distance_measures` | `List[DistanceBetweenMetrics]` | `[PearsonCorrelation()]` | Measures for pairwise heatmaps |
 | `name` | `str` | auto | Experiment name (used for save directory) |
 | `save_dir` | `Path` | `results/{name}/` | Where to save outputs |
 
@@ -194,18 +195,56 @@ corr_df = exp.compute_correlations(
     ml_column="best_accuracy",  # optional override for correlation_target
 )
 
-# Pairwise correlations among complexity metrics
-complexity_corr = exp.compute_complexity_correlations(source="train")
+# Pairwise distances among complexity metrics (returns dict: slug -> N×N DataFrame)
+# Uses config.pairwise_distance_measures by default, or pass a custom list
+pairwise = exp.compute_complexity_pairwise_distances()
+# pairwise["pearson_r"]      -> N×N matrix
+# pairwise["spearman_rho"]   -> N×N matrix
 
-# Pairwise correlations among ML metrics
-ml_corr = exp.compute_ml_correlations(source="test")
+# Pairwise distances among ML metrics
+ml_pairwise = exp.compute_ml_pairwise_distances()
 
 # Per-classifier aggregated correlations
-per_clf = exp.compute_per_classifier_correlations()
+per_clf = exp.compute_per_classifier_distances()
 
 # Human-readable summary
 exp.print_summary(top_n=10)
 ```
+
+### Multiple pairwise measures
+
+Pass `pairwise_distance_measures` in `ExperimentConfig` to compute heatmaps with multiple association measures in one call:
+
+```python
+from data_complexity.experiments.pipeline import (
+    ExperimentConfig, datasets_from_sweep,
+    PearsonCorrelation, SpearmanCorrelation, KendallTau,
+)
+
+config = ExperimentConfig(
+    datasets=datasets_from_sweep(...),
+    pairwise_distance_measures=[
+        PearsonCorrelation(),
+        SpearmanCorrelation(),
+        KendallTau(),
+    ],
+)
+
+exp = Experiment(config)
+exp.run()
+exp.compute_complexity_pairwise_distances()  # computes all 3 measures at once
+exp.save()  # writes one PNG + one CSV per measure per source
+```
+
+Available measures (importable from `data_complexity.experiments.pipeline`):
+
+| Class | `slug` | Description |
+|---|---|---|
+| `PearsonCorrelation` | `pearson_r` | Pearson product-moment r |
+| `SpearmanCorrelation` | `spearman_rho` | Spearman rank ρ |
+| `KendallTau` | `kendall_tau` | Kendall τ |
+| `MutualInformation` | `mutual_information` | k-NN mutual information |
+| `EuclideanDistance` | `euclidean_distance` | Euclidean (z-score normalised) |
 
 ---
 
@@ -238,8 +277,8 @@ Available plot types:
 | `LINE_PLOT_COMPLEXITY_COMBINED` | Train vs test complexity, side by side |
 | `DATASETS_OVERVIEW` | Grid of scatter plots for each dataset spec |
 | `CORRELATIONS` | Bar chart of top complexity–ML correlations |
-| `COMPLEXITY_CORRELATIONS` | Heatmap of pairwise complexity metric correlations |
-| `ML_CORRELATIONS` | Heatmap of pairwise ML metric correlations |
+| `COMPLEXITY_CORRELATIONS` | One heatmap per pairwise measure per source (train/test), saved under `complexity-distances/` |
+| `ML_CORRELATIONS` | One heatmap per pairwise measure, saved under `ml-distances/` |
 | `SUMMARY` | Combined summary panel |
 | `HEATMAP` | Per-model correlation heatmap |
 
@@ -254,7 +293,7 @@ exp.save(save_dir=Path("/my/dir"))  # custom directory
 
 # Saved structure:
 # results/{name}/
-#   experiment_metadata.json        ← config snapshot
+#   experiment_metadata.json        ← config snapshot (includes pairwise_distance_measures)
 #   data/
 #     train_complexity_metrics.csv
 #     test_complexity_metrics.csv
@@ -262,9 +301,18 @@ exp.save(save_dir=Path("/my/dir"))  # custom directory
 #     test_ml_performance.csv
 #     complexity_metrics.csv        ← alias for train (backwards compat)
 #     ml_performance.csv            ← alias for test (backwards compat)
-#     correlations.csv
+#     distances.csv
+#     complexity_pairwise_distances_{slug}.csv   ← one per measure (train)
+#     complexity_pairwise_distances_test_{slug}.csv  ← one per measure (test)
+#     ml_pairwise_distances_{slug}.csv           ← one per measure
 #   plots-{name}/
 #     line_plot_train.png, ...
+#     complexity-distances/
+#       pearson_r_train.png         ← one PNG per measure per source
+#       pearson_r_test.png
+#       spearman_rho_train.png
+#     ml-distances/
+#       pearson_r.png
 #   datasets/
 #     dataset_scale_1.0.png, ...
 

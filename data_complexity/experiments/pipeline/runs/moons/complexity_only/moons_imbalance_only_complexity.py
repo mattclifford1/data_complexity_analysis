@@ -8,6 +8,8 @@ from data_complexity.experiments.pipeline import (
     ExperimentConfig,
     DatasetSpec,
     RunMode,
+    PearsonCorrelation,
+    SpearmanCorrelation,
 )
 
 fixed_params={
@@ -26,6 +28,10 @@ for imbalance_factor in [1, 2, 4, 8, 16]:
 # Configure experiment
 config = ExperimentConfig(
     datasets=datasets,
+    pairwise_distance_measures=[
+        PearsonCorrelation(),
+        SpearmanCorrelation(),
+    ],
     name="moons_imbalance_complexity",
     run_mode=RunMode.COMPLEXITY_ONLY,
 )

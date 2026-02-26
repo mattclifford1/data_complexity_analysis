@@ -18,6 +18,10 @@ from data_complexity.experiments.classification import (
     get_mean_metric,
     get_metrics_from_names,
 )
+from data_complexity.experiments.pipeline.metric_distance import (
+    DistanceBetweenMetrics,
+    PearsonCorrelation,
+)
 
 
 class PlotType(Enum):
@@ -166,6 +170,9 @@ class ExperimentConfig:
     correlation_target: str = "best_accuracy"
     equal_test: bool = False  # If True, ensures test set is balanced for imbalance experiments
     run_mode: RunMode = RunMode.BOTH
+    pairwise_distance_measures: List[DistanceBetweenMetrics] = field(
+        default_factory=lambda: [PearsonCorrelation()]
+    )
 
     def __post_init__(self) -> None:
         """Generate name and save_dir if not provided."""
@@ -263,9 +270,9 @@ class ExperimentResultsContainer:
         self._test_complexity_df: Optional[pd.DataFrame] = None
         self._train_ml_df: Optional[pd.DataFrame] = None
         self._test_ml_df: Optional[pd.DataFrame] = None
-        self._complexity_pairwise_distances_df: Optional[pd.DataFrame] = None
-        self._complexity_pairwise_distances_test_df: Optional[pd.DataFrame] = None
-        self._ml_pairwise_distances_df: Optional[pd.DataFrame] = None
+        self._complexity_pairwise_distances: Dict[str, pd.DataFrame] = {}
+        self._complexity_pairwise_distances_test: Dict[str, pd.DataFrame] = {}
+        self._ml_pairwise_distances: Dict[str, pd.DataFrame] = {}
         self._per_classifier_distances_df: Optional[pd.DataFrame] = None
 
     def _build_ml_row(
@@ -457,34 +464,19 @@ class ExperimentResultsContainer:
         self._distances_df = df
 
     @property
-    def complexity_pairwise_distances_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise complexity metric distance matrix (N×N DataFrame)."""
-        return self._complexity_pairwise_distances_df
-
-    @complexity_pairwise_distances_df.setter
-    def complexity_pairwise_distances_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise complexity metric distance matrix."""
-        self._complexity_pairwise_distances_df = df
+    def complexity_pairwise_distances(self) -> Dict[str, pd.DataFrame]:
+        """Get pairwise complexity metric distance matrices, keyed by measure slug."""
+        return self._complexity_pairwise_distances
 
     @property
-    def complexity_pairwise_distances_test_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise complexity metric distance matrix for test data (N×N DataFrame)."""
-        return self._complexity_pairwise_distances_test_df
-
-    @complexity_pairwise_distances_test_df.setter
-    def complexity_pairwise_distances_test_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise complexity metric distance matrix for test data."""
-        self._complexity_pairwise_distances_test_df = df
+    def complexity_pairwise_distances_test(self) -> Dict[str, pd.DataFrame]:
+        """Get pairwise complexity metric distance matrices for test data, keyed by measure slug."""
+        return self._complexity_pairwise_distances_test
 
     @property
-    def ml_pairwise_distances_df(self) -> Optional[pd.DataFrame]:
-        """Get pairwise ML metric distance matrix (N×N DataFrame)."""
-        return self._ml_pairwise_distances_df
-
-    @ml_pairwise_distances_df.setter
-    def ml_pairwise_distances_df(self, df: pd.DataFrame) -> None:
-        """Set pairwise ML metric distance matrix."""
-        self._ml_pairwise_distances_df = df
+    def ml_pairwise_distances(self) -> Dict[str, pd.DataFrame]:
+        """Get pairwise ML metric distance matrices, keyed by measure slug."""
+        return self._ml_pairwise_distances
 
     @property
     def per_classifier_distances_df(self) -> Optional[pd.DataFrame]:

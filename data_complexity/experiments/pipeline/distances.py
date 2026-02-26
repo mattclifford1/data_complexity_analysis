@@ -7,7 +7,7 @@ argument — following the same delegation pattern as runner.py, plotting.py, an
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -110,33 +110,35 @@ def compute_distances(
 def compute_complexity_pairwise_distances(
     experiment: "Experiment",
     source: str = "train",
-    distance: DistanceBetweenMetrics = PearsonCorrelation(),
-) -> Optional[pd.DataFrame]:
+    distances: Optional[List[DistanceBetweenMetrics]] = None,
+) -> Dict[str, pd.DataFrame]:
     """
-    Compute pairwise distances between complexity metrics.
+    Compute pairwise distances between complexity metrics for all requested measures.
 
     Always computes for both train and test data (when available).
-    Train results stored in ``results.complexity_pairwise_distances_df``;
-    test results stored in ``results.complexity_pairwise_distances_test_df``.
+    Results stored in ``results.complexity_pairwise_distances`` and
+    ``results.complexity_pairwise_distances_test``, keyed by measure slug.
 
     Parameters
     ----------
     experiment : Experiment
         The experiment instance holding config and results.
     source : str
-        Which matrix to return: 'train' or 'test'. Default: 'train'
-    distance : DistanceBetweenMetrics
-        Distance/association measure to use. Default: PearsonCorrelation()
+        Which dict to return: 'train' or 'test'. Default: 'train'
+    distances : list of DistanceBetweenMetrics, optional
+        Measures to compute. Default: config.pairwise_distance_measures
 
     Returns
     -------
-    pd.DataFrame or None
-        N×N symmetric matrix for the requested source.
+    dict
+        slug -> N×N symmetric DataFrame for the requested source.
     """
     if experiment.results is None:
         raise RuntimeError("Must run experiment before computing distances.")
 
-    def _compute_for_source(src: str) -> Optional[pd.DataFrame]:
+    measures = distances or experiment.config.pairwise_distance_measures
+
+    def _compute_for_source(src: str, measure: DistanceBetweenMetrics) -> Optional[pd.DataFrame]:
         complexity_df = experiment.results._get_complexity_df(src)
         if complexity_df is None:
             return None
@@ -148,27 +150,34 @@ def compute_complexity_pairwise_distances(
         if not valid_cols:
             return None
         return complexity_df[valid_cols].corr(
-            method=lambda x, y: distance.compute(x, y)[0]
+            method=lambda x, y: measure.compute(x, y)[0]
         )
 
-    train_mat = _compute_for_source("train")
-    if train_mat is not None:
-        experiment.results.complexity_pairwise_distances_df = train_mat
+    for measure in measures:
+        train_mat = _compute_for_source("train", measure)
+        if train_mat is not None:
+            experiment.results.complexity_pairwise_distances[measure.slug] = train_mat
 
-    test_mat = _compute_for_source("test")
-    if test_mat is not None:
-        experiment.results.complexity_pairwise_distances_test_df = test_mat
+        test_mat = _compute_for_source("test", measure)
+        if test_mat is not None:
+            experiment.results.complexity_pairwise_distances_test[measure.slug] = test_mat
 
-    return train_mat if source == "train" else test_mat
+    return (
+        experiment.results.complexity_pairwise_distances
+        if source == "train"
+        else experiment.results.complexity_pairwise_distances_test
+    )
 
 
 def compute_ml_pairwise_distances(
     experiment: "Experiment",
     source: str = "test",
-    distance: DistanceBetweenMetrics = PearsonCorrelation(),
-) -> pd.DataFrame:
+    distances: Optional[List[DistanceBetweenMetrics]] = None,
+) -> Dict[str, pd.DataFrame]:
     """
-    Compute pairwise distances between ML performance metrics.
+    Compute pairwise distances between ML performance metrics for all requested measures.
+
+    Results stored in ``results.ml_pairwise_distances``, keyed by measure slug.
 
     Parameters
     ----------
@@ -176,13 +185,13 @@ def compute_ml_pairwise_distances(
         The experiment instance holding config and results.
     source : str
         Which ML data to use: 'train' or 'test'. Default: 'test'
-    distance : DistanceBetweenMetrics
-        Distance/association measure to use. Default: PearsonCorrelation()
+    distances : list of DistanceBetweenMetrics, optional
+        Measures to compute. Default: config.pairwise_distance_measures
 
     Returns
     -------
-    pd.DataFrame
-        N×N symmetric matrix indexed and columned by metric names.
+    dict
+        slug -> N×N symmetric DataFrame.
     """
     if experiment.results is None:
         raise RuntimeError("Must run experiment before computing distances.")
@@ -191,6 +200,7 @@ def compute_ml_pairwise_distances(
             "Cannot compute ML distances with run_mode=COMPLEXITY_ONLY (no ML results)."
         )
 
+    measures = distances or experiment.config.pairwise_distance_measures
     ml_df = experiment.results._get_ml_df(source)
     metric_cols = [
         c for c in ml_df.columns
@@ -198,11 +208,13 @@ def compute_ml_pairwise_distances(
     ]
     valid_cols = [c for c in metric_cols if ml_df[c].std() > 0]
 
-    distance_matrix = ml_df[valid_cols].corr(
-        method=lambda x, y: distance.compute(x, y)[0]
-    )
-    experiment.results.ml_pairwise_distances_df = distance_matrix
-    return distance_matrix
+    for measure in measures:
+        distance_matrix = ml_df[valid_cols].corr(
+            method=lambda x, y: measure.compute(x, y)[0]
+        )
+        experiment.results.ml_pairwise_distances[measure.slug] = distance_matrix
+
+    return experiment.results.ml_pairwise_distances
 
 
 def compute_all_distances(
