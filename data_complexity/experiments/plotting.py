@@ -981,6 +981,12 @@ def plot_pairwise_heatmap(
         The matplotlib figure.
     """
     n = len(corr_matrix)
+    if n == 0:
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "No data available", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        ax.set_title(title)
+        return fig
     fig_size = max(8, n * 0.5)
     fig, ax = plt.subplots(figsize=(fig_size, fig_size * 0.85))
 
