@@ -11,10 +11,8 @@ from data_complexity.experiments.pipeline.utils import (
     ParameterSpec,
     ExperimentConfig,
 )
-from data_complexity.experiments.pipeline.complexity_vs_clfs import (
-    Experiment,
-    PlotType,
-)
+from data_complexity.experiments.pipeline.experiment import Experiment
+from data_complexity.experiments.pipeline.utils import PlotType
 
 
 def datasets_from_sweep(

@@ -28,7 +28,10 @@ data_complexity/
     ├── __init__.py           # Exports ComplexityCollection, DatasetEntry
     ├── pipeline/             # Experiment framework
     │   ├── __init__.py       # Public API
-    │   ├── complexity_vs_clfs.py  # Experiment class
+    │   ├── experiment.py     # Experiment class
+    │   ├── runner.py         # Experiment loop & parallel worker
+    │   ├── plotting.py       # Plot generation
+    │   ├── io.py             # Save/load logic
     │   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
     │   ├── config.py         # Pre-defined configs
     │   ├── utils.py          # Data classes & results container
@@ -300,7 +303,10 @@ Experiment scripts in `data_complexity/experiments/` study how dataset parameter
 experiments/
 ├── __init__.py             # Exports ComplexityCollection, DatasetEntry
 ├── pipeline/               # Generic experiment framework
-│   ├── complexity_vs_clfs.py  # Experiment class
+│   ├── experiment.py       # Experiment class
+│   ├── runner.py           # Experiment loop & parallel worker
+│   ├── plotting.py         # Plot generation
+│   ├── io.py               # Save/load logic
 │   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
 │   ├── config.py           # Pre-defined configs
 │   ├── utils.py            # Data classes & results container

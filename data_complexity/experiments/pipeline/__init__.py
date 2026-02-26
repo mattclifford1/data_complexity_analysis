@@ -20,8 +20,8 @@ from data_complexity.experiments.pipeline.utils import (
     make_json_safe_dict,
     make_json_safe_list,
 )
-from data_complexity.experiments.pipeline.complexity_vs_clfs import (
-    Experiment,
+from data_complexity.experiments.pipeline.experiment import Experiment
+from data_complexity.experiments.pipeline.runner import (
     _run_dataset_spec_worker,
     _run_param_value_worker,  # backwards-compat alias
 )
