@@ -31,6 +31,7 @@ data_complexity/
     │   ├── experiment.py     # Experiment class
     │   ├── runner.py         # Experiment loop & parallel worker
     │   ├── plotting.py       # Plot generation
+    │   ├── correlations.py   # Correlation computation
     │   ├── io.py             # Save/load logic
     │   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
     │   ├── config.py         # Pre-defined configs
@@ -306,6 +307,7 @@ experiments/
 │   ├── experiment.py       # Experiment class
 │   ├── runner.py           # Experiment loop & parallel worker
 │   ├── plotting.py         # Plot generation
+│   ├── correlations.py     # Correlation computation
 │   ├── io.py               # Save/load logic
 │   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
 │   ├── config.py           # Pre-defined configs

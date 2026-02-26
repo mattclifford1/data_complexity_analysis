@@ -1,21 +1,23 @@
 """
 Experiment class for complexity vs ML performance analysis.
 
-The actual run, plot, and I/O logic lives in the sibling modules:
-- runner.py   — experiment loop and parallel worker
-- plotting.py — visualization generation
-- io.py       — save/load to/from disk
+The actual run, plot, correlation, and I/O logic lives in the sibling modules:
+- runner.py       — experiment loop and parallel worker
+- plotting.py     — visualization generation
+- correlations.py — correlation computation
+- io.py           — save/load to/from disk
 """
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
-from scipy import stats
-from scipy.stats import ConstantInputWarning, NearConstantInputWarning
 
-from data_complexity.experiments.pipeline import runner, plotting as _plotting, io
+from data_complexity.experiments.pipeline import (
+    runner,
+    plotting as _plotting,
+    correlations as _correlations,
+    io,
+)
 from data_complexity.experiments.pipeline.utils import (
     ExperimentConfig,
     ExperimentResultsContainer,
@@ -96,8 +98,7 @@ class Experiment:
         Parameters
         ----------
         ml_column : str, optional
-            ML metric column to correlate against.
-            Default: config.correlation_target
+            ML metric column to correlate against. Default: config.correlation_target
         complexity_source : str
             Which complexity to use: 'train' or 'test'. Default: 'train'
         ml_source : str
@@ -108,65 +109,11 @@ class Experiment:
         pd.DataFrame
             Correlation results sorted by absolute correlation.
         """
-        if self.results is None:
-            raise RuntimeError("Must run experiment before computing correlations.")
-
-        run_mode = self.config.run_mode
-        if run_mode == RunMode.COMPLEXITY_ONLY:
-            raise RuntimeError(
-                "Cannot compute correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
-            )
-        if run_mode == RunMode.ML_ONLY:
-            raise RuntimeError(
-                "Cannot compute correlations with run_mode=ML_ONLY (no complexity results)."
-            )
-
-        ml_column = ml_column or self.config.correlation_target
-        complexity_df = self.results._get_complexity_df(complexity_source)
-        ml_df = self.results._get_ml_df(ml_source)
-
-        metric_cols = [
-            c for c in complexity_df.columns if c not in ("param_value", "param_label")
-        ]
-        ml_values = ml_df[ml_column].values
-        results = []
-
-        if np.std(ml_values) == 0:
-            correlations_df = pd.DataFrame(
-                columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
-            )
-            self.results.correlations_df = correlations_df
-            return correlations_df
-
-        for metric in metric_cols:
-            values = complexity_df[metric].values
-
-            if np.std(values) == 0 or np.any(np.isnan(values)) or np.any(np.isnan(ml_values)):
-                continue
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
-                r, p = stats.pearsonr(values, ml_values)
-            results.append(
-                {
-                    "complexity_metric": metric,
-                    "ml_metric": ml_column,
-                    "correlation": r,
-                    "p_value": p,
-                    "abs_correlation": abs(r),
-                }
-            )
-
-        correlations_df = pd.DataFrame(results).sort_values(
-            "abs_correlation", ascending=False
+        return _correlations.compute_correlations(
+            self, ml_column=ml_column, complexity_source=complexity_source, ml_source=ml_source
         )
-        self.results.correlations_df = correlations_df
-        return correlations_df
 
-    def compute_complexity_correlations(
-        self,
-        source: str = "train",
-    ) -> pd.DataFrame:
+    def compute_complexity_correlations(self, source: str = "train") -> pd.DataFrame:
         """
         Compute pairwise Pearson correlations between complexity metrics.
 
@@ -184,36 +131,9 @@ class Experiment:
         pd.DataFrame
             N×N symmetric correlation matrix for the requested source.
         """
-        if self.results is None:
-            raise RuntimeError("Must run experiment before computing correlations.")
+        return _correlations.compute_complexity_correlations(self, source=source)
 
-        def _compute_for_source(src: str) -> Optional[pd.DataFrame]:
-            complexity_df = self.results._get_complexity_df(src)
-            if complexity_df is None:
-                return None
-            metric_cols = [
-                c for c in complexity_df.columns
-                if c not in ("param_value", "param_label") and not c.endswith("_std")
-            ]
-            valid_cols = [c for c in metric_cols if complexity_df[c].std() > 0]
-            if not valid_cols:
-                return None
-            return complexity_df[valid_cols].corr(method="pearson")
-
-        train_corr = _compute_for_source("train")
-        if train_corr is not None:
-            self.results.complexity_correlations_df = train_corr
-
-        test_corr = _compute_for_source("test")
-        if test_corr is not None:
-            self.results.complexity_correlations_test_df = test_corr
-
-        return train_corr if source == "train" else test_corr
-
-    def compute_ml_correlations(
-        self,
-        source: str = "test",
-    ) -> pd.DataFrame:
+    def compute_ml_correlations(self, source: str = "test") -> pd.DataFrame:
         """
         Compute pairwise Pearson correlations between ML performance metrics.
 
@@ -227,24 +147,7 @@ class Experiment:
         pd.DataFrame
             N×N symmetric correlation matrix indexed and columned by metric names.
         """
-        if self.results is None:
-            raise RuntimeError("Must run experiment before computing correlations.")
-        if self.config.run_mode == RunMode.COMPLEXITY_ONLY:
-            raise RuntimeError(
-                "Cannot compute ML correlations with run_mode=COMPLEXITY_ONLY (no ML results)."
-            )
-
-        ml_df = self.results._get_ml_df(source)
-        metric_cols = [
-            c for c in ml_df.columns
-            if c != "param_value" and not c.endswith("_std")
-        ]
-        # Drop constant metrics (zero std) — they produce NaN correlations
-        valid_cols = [c for c in metric_cols if ml_df[c].std() > 0]
-
-        corr_matrix = ml_df[valid_cols].corr(method="pearson")
-        self.results.ml_correlations_df = corr_matrix
-        return corr_matrix
+        return _correlations.compute_ml_correlations(self, source=source)
 
     def compute_all_correlations(self) -> pd.DataFrame:
         """
@@ -255,18 +158,7 @@ class Experiment:
         pd.DataFrame
             All correlations combined.
         """
-        if self.results is None:
-            raise RuntimeError("Must run experiment before computing correlations.")
-
-        ml_df = self.results.ml_df
-        ml_cols = [c for c in ml_df.columns if c != "param_value"]
-
-        all_corrs = []
-        for ml_col in ml_cols:
-            corr_df = self._compute_single_correlation(ml_col)
-            all_corrs.append(corr_df)
-
-        return pd.concat(all_corrs, ignore_index=True)
+        return _correlations.compute_all_correlations(self)
 
     def compute_per_classifier_correlations(
         self,
@@ -294,103 +186,13 @@ class Experiment:
                      std_correlation, abs_mean_correlation.
             Sorted by abs_mean_correlation descending.
         """
-        if self.results is None:
-            raise RuntimeError("Must run experiment before computing correlations.")
-
-        complexity_df = self.results._get_complexity_df(complexity_source)
-        ml_df = self.results._get_ml_df(ml_source)
-
-        complexity_cols = [
-            c for c in complexity_df.columns
-            if c not in ("param_value", "param_label") and not c.endswith("_std")
-        ]
-
-        rows = []
-        for metric_name in self.config.ml_metrics:
-            # Per-classifier columns: end with _{metric_name}, no best_/mean_ prefix, no _std suffix
-            classifier_cols = [
-                c for c in ml_df.columns
-                if c.endswith(f"_{metric_name}")
-                and not c.startswith("best_")
-                and not c.startswith("mean_")
-                and not c.endswith("_std")
-            ]
-
-            for complexity_col in complexity_cols:
-                comp_values = complexity_df[complexity_col].values
-                if np.std(comp_values) == 0 or np.any(np.isnan(comp_values)):
-                    continue
-
-                rs = []
-                for clf_col in classifier_cols:
-                    ml_values = ml_df[clf_col].values
-                    if np.std(ml_values) == 0 or np.any(np.isnan(ml_values)):
-                        continue
-                    with warnings.catch_warnings():
-                        warnings.simplefilter(
-                            "ignore", (NearConstantInputWarning, ConstantInputWarning)
-                        )
-                        r, _ = stats.pearsonr(comp_values, ml_values)
-                    if not np.isnan(r):
-                        rs.append(r)
-
-                if not rs:
-                    continue
-
-                mean_r = float(np.mean(rs))
-                rows.append(
-                    {
-                        "complexity_metric": complexity_col,
-                        "ml_metric": metric_name,
-                        "mean_correlation": mean_r,
-                        "std_correlation": float(np.std(rs)),
-                        "abs_mean_correlation": abs(mean_r),
-                    }
-                )
-
-        df = pd.DataFrame(rows).sort_values("abs_mean_correlation", ascending=False)
-        self.results.per_classifier_correlations_df = df
-        return df
+        return _correlations.compute_per_classifier_correlations(
+            self, complexity_source=complexity_source, ml_source=ml_source
+        )
 
     def _compute_single_correlation(self, ml_column: str) -> pd.DataFrame:
         """Compute correlations for a single ML column."""
-        complexity_df = self.results.complexity_df
-        ml_df = self.results.ml_df
-
-        metric_cols = [
-            c for c in complexity_df.columns if c not in ("param_value", "param_label")
-        ]
-        ml_values = ml_df[ml_column].values
-        results = []
-
-        if np.std(ml_values) == 0:
-            return pd.DataFrame(
-                columns=["complexity_metric", "ml_metric", "correlation", "p_value", "abs_correlation"]
-            )
-
-        for metric in metric_cols:
-            values = complexity_df[metric].values
-
-            if np.std(values) == 0 or np.any(np.isnan(values)) or np.any(np.isnan(ml_values)):
-                continue
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", (NearConstantInputWarning, ConstantInputWarning))
-                r, p = stats.pearsonr(values, ml_values)
-            results.append(
-                {
-                    "complexity_metric": metric,
-                    "ml_metric": ml_column,
-                    "correlation": r,
-                    "p_value": p,
-                    "abs_correlation": abs(r),
-                }
-            )
-
-        if not results:
-            raise ValueError("No valid correlations computed.")
-
-        return pd.DataFrame(results).sort_values("abs_correlation", ascending=False)
+        return _correlations._compute_single_correlation(self, ml_column)
 
     def plot(
         self, plot_types: Optional[List[PlotType]] = None
