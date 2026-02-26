@@ -28,6 +28,14 @@ class BaseAbstractMetric(ABC):
         pass
 
 
+    @property
+    def metric_name(self) -> str:
+        return self.__class__.__name__
+
+    def __str__(self):
+        return self.metric_name
+
+
 class PyColAbstractMetric(BaseAbstractMetric):
     """Base class for PyCol-backed complexity metrics.
 
@@ -46,7 +54,3 @@ class PyColAbstractMetric(BaseAbstractMetric):
     def compute_from_complexity(self, complexity) -> Union[float, dict]:
         """Compute using a pre-built PyCol Complexity object (efficient path)."""
         pass
-
-    @property
-    def metric_name(self) -> str:
-        return self.__class__.__name__

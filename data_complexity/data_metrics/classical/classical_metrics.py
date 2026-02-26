@@ -3,10 +3,10 @@
 Classical dataset measures.
 """
 import numpy as np
-from data_complexity.data_metrics.abstract_metrics import PyColAbstractMetric
+from data_complexity.data_metrics.abstract_metrics import BaseAbstractMetric
 
 
-class ImbalanceRatioMetric(PyColAbstractMetric):
+class ImbalanceRatioMetric(BaseAbstractMetric):
     """
     Imbalance Ratio (IR).
 
@@ -21,10 +21,11 @@ class ImbalanceRatioMetric(PyColAbstractMetric):
     def metric_name(self) -> str:
         return 'IR'
 
-    def compute_from_complexity(self, complexity) -> float:
-        class_count = complexity.class_count
+    def compute(self, X: np.ndarray, y: np.ndarray) -> float:
+        _, class_count = np.unique(y, return_counts=True)
 
         if len(class_count) < 2:
+            print(f"Warning: {self.metric_name} is only meaningful for datasets with 2 or more classes. Returning 1.0 for single-class dataset.")
             return 1.0
 
         min_count = np.min(class_count)

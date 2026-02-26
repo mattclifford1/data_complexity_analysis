@@ -127,7 +127,7 @@ class ComplexityMetrics:
             - 'IR': Imbalance Ratio (majority/minority class ratio)
         """
         from data_complexity.data_metrics.classical import CLASSICAL_METRICS
-        return {m.metric_name: m.compute_from_complexity(self.pycol_complexity)
+        return {m.metric_name: m.compute(self.pycol_complexity.X, self.pycol_complexity.y)
                 for m in CLASSICAL_METRICS}
 
     def classical_measures_full(self) -> dict:
