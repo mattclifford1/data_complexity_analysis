@@ -185,31 +185,136 @@ exp.datasets["scale=2.0"]    # the dataset loader for that spec
 
 ---
 
-## Correlations
+## Distance computation
+
+Three separate distance computations are available, each operating over a different slice of the results.
+
+### The shared data vectors
+
+All three computations work on vectors of length **K** (the number of dataset specs). Each entry is the **mean across `cv_folds` random seeds** for that spec. For example, with 10 noise-level specs and 5 seeds, every vector has length 10; each value is the average over 5 train/test splits.
+
+---
+
+### `compute_distances` — complexity metric vs a target ML column
+
+Measures how much each complexity metric tracks a single chosen ML performance column across the dataset specs.
 
 ```python
-# Pearson correlation between complexity metrics and ML performance
-corr_df = exp.compute_correlations(
-    complexity_source="train",  # 'train' or 'test'
-    ml_source="test",           # 'train' or 'test'
-    ml_column="best_accuracy",  # optional override for correlation_target
+distances_df = exp.compute_distances(
+    ml_column="best_accuracy",  # optional — defaults to config.distance_target
+    complexity_source="train",  # which complexity DataFrame to use
+    ml_source="test",           # which ML DataFrame to use
+    distance=PearsonCorrelation(),  # measure to apply
 )
-
-# Pairwise distances among complexity metrics (returns dict: name -> N×N DataFrame)
-# Uses config.pairwise_distance_measures by default, or pass a custom list
-pairwise = exp.compute_complexity_pairwise_distances()
-# pairwise["pearson_r"]      -> N×N matrix
-# pairwise["spearman_rho"]   -> N×N matrix
-
-# Pairwise distances among ML metrics
-ml_pairwise = exp.compute_ml_pairwise_distances()
-
-# Per-classifier aggregated correlations
-per_clf = exp.compute_per_classifier_distances()
-
-# Human-readable summary
-exp.print_summary(top_n=10)
 ```
+
+**What it computes:**
+
+For each complexity metric column `c_i` and the chosen ML column `ml`:
+
+1. Extract vectors `c_i[0..K-1]` from the complexity DataFrame and `ml[0..K-1]` from the ML DataFrame.
+2. Skip `c_i` if `std(c_i) == 0` (constant metric) or either vector contains NaN.
+3. If `std(ml) == 0`, return an empty DataFrame immediately.
+4. Call `measure.compute(c_i, ml)` → `(distance, p_value)`.
+
+**Output:** a DataFrame sorted by `abs_distance` descending:
+
+| column | description |
+|---|---|
+| `complexity_metric` | name of the complexity metric |
+| `ml_metric` | name of the ML column used |
+| `distance` | raw distance/association value |
+| `p_value` | significance test p-value, or `NaN` if the measure doesn't produce one |
+| `abs_distance` | `abs(distance)`, used for sorting |
+
+Default measure: `PearsonCorrelation()`. Result stored in `results.distances_df`.
+
+---
+
+### `compute_complexity_pairwise_distances` — all complexity metrics vs each other
+
+Measures how similarly each pair of complexity metrics behaves across the dataset specs.
+
+```python
+pairwise = exp.compute_complexity_pairwise_distances(
+    source="train",   # which dict to return: 'train' or 'test'
+    distances=None,   # list of measures — defaults to config.pairwise_distance_measures
+)
+# pairwise["pearson_r"]     -> K×K symmetric DataFrame
+# pairwise["spearman_rho"]  -> K×K symmetric DataFrame
+```
+
+**What it computes:**
+
+For each measure in `config.pairwise_distance_measures`, and for both train and test sources simultaneously:
+
+1. Take the complexity DataFrame (rows = dataset specs, columns = complexity metrics). Exclude `param_value`, `param_label`, and any `_std` columns.
+2. Call `pd.DataFrame.corr(method=lambda x, y: measure.compute(x, y)[0])`. This invokes `measure.compute(col_i, col_j)` for every pair of metric columns and assembles the N×N result, where N is the number of complexity metrics.
+3. No constant-column filtering is applied here — scipy handles near-constant inputs (warnings are suppressed).
+
+**Output:** one N×N symmetric DataFrame per measure per source, where rows and columns are complexity metric names and each cell is the distance/association value between that pair of metrics.
+
+Results stored in `results.complexity_pairwise_distances` (train) and `results.complexity_pairwise_distances_test` (test), keyed by `measure.name` (e.g. `"pearson_r"`). Both train and test are always computed together regardless of the `source` argument (which only controls which dict is returned).
+
+---
+
+### `compute_ml_pairwise_distances` — all ML columns vs each other
+
+Measures how similarly the ML performance columns (best accuracy, mean accuracy, per-classifier accuracy, F1, etc.) behave across the dataset specs.
+
+```python
+ml_pairwise = exp.compute_ml_pairwise_distances(
+    source="test",   # which ML DataFrame to use
+    distances=None,  # list of measures — defaults to config.pairwise_distance_measures
+)
+# ml_pairwise["pearson_r"] -> M×M symmetric DataFrame
+```
+
+**What it computes:**
+
+For each measure in `config.pairwise_distance_measures`:
+
+1. Take the ML DataFrame (rows = dataset specs). Exclude `param_value` and `_std` columns.
+2. Filter to `valid_cols`: only columns where `std > 0` (constant columns are dropped).
+3. Call `pd.DataFrame.corr(method=lambda x, y: measure.compute(x, y)[0])` on the valid columns.
+
+**Output:** one M×M symmetric DataFrame per measure, where rows and columns are ML metric column names. Result stored in `results.ml_pairwise_distances`, keyed by `measure.name`.
+
+---
+
+### `compute_per_classifier_distances` — complexity vs individual classifiers
+
+Like `compute_distances` but broken down per classifier rather than using aggregate (`best_`, `mean_`) ML columns. For each ML metric type (e.g., `"accuracy"`), the distance between each complexity metric and **every individual classifier's column** is computed, then summarised as mean ± std across classifiers.
+
+```python
+per_clf = exp.compute_per_classifier_distances(
+    complexity_source="train",
+    ml_source="test",
+    distance=PearsonCorrelation(),
+)
+```
+
+**What it computes:**
+
+For each `metric_name` in `config.ml_metrics` (e.g. `"accuracy"`):
+1. Find classifier columns matching `*_{metric_name}` but excluding `best_*`, `mean_*`, and `*_std`.
+2. For each complexity metric × classifier-column pair, call `measure.compute(comp_values, clf_values)` → `d`.
+3. Skip pairs where either vector is constant or contains NaN.
+4. Report `mean_distance ± std_distance` across all classifiers for that complexity metric.
+
+**Output:** DataFrame sorted by `abs_mean_distance` descending:
+
+| column | description |
+|---|---|
+| `complexity_metric` | name of the complexity metric |
+| `ml_metric` | ML metric type (e.g. `"accuracy"`) |
+| `mean_distance` | mean distance across classifiers |
+| `std_distance` | std of distances across classifiers |
+| `abs_mean_distance` | `abs(mean_distance)`, used for sorting |
+
+Result stored in `results.per_classifier_distances_df`.
+
+---
 
 ### Multiple pairwise measures
 
