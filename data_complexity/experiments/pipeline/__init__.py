@@ -17,6 +17,7 @@ from data_complexity.experiments.pipeline.metric_distance import (
     DistanceCorrelation,
     CosineSimilarity,
     ManhattanDistance,
+    get_all_measures,
 )
 from data_complexity.experiments.pipeline.utils import (
     PlotType,
@@ -62,6 +63,7 @@ __all__ = [
     "DistanceCorrelation",
     "CosineSimilarity",
     "ManhattanDistance",
+    "get_all_measures",
     # utils
     "PlotType",
     "RunMode",

@@ -22,14 +22,7 @@ from data_complexity.experiments.pipeline import (
     DatasetSpec,
     RunMode,
     PlotType,
-    PearsonCorrelation,
-    SpearmanCorrelation,
-    KendallTau,
-    MutualInformation,
-    EuclideanDistance,
-    DistanceCorrelation,
-    CosineSimilarity,
-    ManhattanDistance,
+    get_all_measures,
 )
 
 COMMON = {"num_samples": 400, "train_size": 0.5, "equal_test": True}
@@ -81,16 +74,7 @@ config = ExperimentConfig(
         PlotType.DATASETS_OVERVIEW,
         PlotType.COMPLEXITY_CORRELATIONS,
     ],
-    pairwise_distance_measures=[
-        PearsonCorrelation(),
-        SpearmanCorrelation(),
-        KendallTau(),
-        MutualInformation(),
-        EuclideanDistance(),
-        DistanceCorrelation(),
-        CosineSimilarity(),
-        ManhattanDistance(),
-    ],
+    pairwise_distance_measures=get_all_measures(),
 )
 
 if __name__ == "__main__":

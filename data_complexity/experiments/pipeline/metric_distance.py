@@ -189,3 +189,17 @@ class ManhattanDistance(DistanceBetweenMetrics):
     @property
     def display_name(self) -> str:
         return "Manhattan Distance"
+
+
+def get_all_measures() -> list[DistanceBetweenMetrics]:
+    """Return one instance of every available distance measure."""
+    return [
+        PearsonCorrelation(),
+        SpearmanCorrelation(),
+        KendallTau(),
+        MutualInformation(),
+        EuclideanDistance(),
+        DistanceCorrelation(),
+        CosineSimilarity(),
+        ManhattanDistance(),
+    ]
