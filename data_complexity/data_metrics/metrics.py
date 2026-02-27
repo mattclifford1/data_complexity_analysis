@@ -6,6 +6,13 @@ import numpy as np
 from data_complexity.data_metrics.pycol import Complexity
 
 
+def _to_scalar(value) -> float:
+    """Convert array-like metric values to a single float via mean aggregation."""
+    if isinstance(value, (np.ndarray, list)):
+        return float(np.mean(value))
+    return float(value)
+
+
 class ComplexityMetrics:
     def __init__(
             self,
@@ -33,37 +40,49 @@ class ComplexityMetrics:
             all_metrics.update(self.feature_overlap_scalar())
         except Exception as e:
             print(f"Warning: Feature overlap metrics failed: {e}")
-            all_metrics.update({
-                'F1': np.nan, 'F1v': np.nan, 'F2': np.nan,
-                'F3': np.nan, 'F4': np.nan, 'IN': np.nan
-            })
+            from data_complexity.data_metrics.feature import FEATURE_METRICS
+            for m in FEATURE_METRICS:
+                all_metrics[m.metric_name] = np.nan
 
         try:
             all_metrics.update(self.instance_overlap_scalar())
         except Exception as e:
             print(f"Warning: Instance overlap metrics failed: {e}")
-            instance_names = ['R-value', 'Raug', 'degOver', 'N3', 'SI', 'N4',
-                            'kDN', 'D3', 'CM', 'wCM', 'dwCM',
-                            'Borderline Examples', 'IPoints']
-            for name in instance_names:
-                all_metrics[name] = np.nan
+            from data_complexity.data_metrics.instance import INSTANCE_METRICS
+            for m in INSTANCE_METRICS:
+                all_metrics[m.metric_name] = np.nan
 
         try:
             all_metrics.update(self.structural_overlap_scalar())
         except Exception as e:
             print(f"Warning: Structural overlap metrics failed: {e}")
-            structural_names = ['N1', 'T1', 'Clust', 'ONB', 'LSCAvg',
-                              'DBC', 'N2', 'NSG', 'ICSV']
-            for name in structural_names:
-                all_metrics[name] = np.nan
+            from data_complexity.data_metrics.structural import STRUCTURAL_METRICS
+            for m in STRUCTURAL_METRICS:
+                all_metrics[m.metric_name] = np.nan
+
+        try:
+            all_metrics.update(self.multiresolution_overlap_scalar())
+        except Exception as e:
+            print(f"Warning: Multiresolution overlap metrics failed: {e}")
+            from data_complexity.data_metrics.multiresolution import MULTIRESOLUTION_METRICS
+            for m in MULTIRESOLUTION_METRICS:
+                all_metrics[m.metric_name] = np.nan
 
         try:
             all_metrics.update(self.classical_measures_scalar())
         except Exception as e:
             print(f"Warning: Classical measures failed: {e}")
-            classical_names = ['MRCA', 'C1', 'C2', 'Purity', 'Neighbourhood Separability']
-            for name in classical_names:
-                all_metrics[name] = np.nan
+            from data_complexity.data_metrics.classical import CLASSICAL_METRICS
+            for m in CLASSICAL_METRICS:
+                all_metrics[m.metric_name] = np.nan
+
+        try:
+            all_metrics.update(self.distributional_measures_scalar())
+        except Exception as e:
+            print(f"Warning: Distributional measures failed: {e}")
+            from data_complexity.data_metrics.distributional import DISTRIBUTIONAL_METRICS
+            for m in DISTRIBUTIONAL_METRICS:
+                all_metrics[m.metric_name] = np.nan
 
         return all_metrics
 
@@ -74,12 +93,14 @@ class ComplexityMetrics:
         all_metrics.update(self.structural_overlap_full())
         all_metrics.update(self.multiresolution_overlap_full())
         all_metrics.update(self.classical_measures_full())
+        all_metrics.update(self.distributional_measures_scalar())
         return all_metrics
 
     '''FEATURE OVERLAP MEASURES'''
     def feature_overlap_scalar(self) -> dict:
-        feature_overlap, f_names = self.pycol_complexity.feature_overlap(viz=False)
-        return dict(zip(f_names, feature_overlap))
+        from data_complexity.data_metrics.feature import FEATURE_METRICS
+        return {m.metric_name: _to_scalar(m.compute_from_complexity(self.pycol_complexity))
+                for m in FEATURE_METRICS}
 
     def feature_overlap_full(self) -> dict:
         from data_complexity.data_metrics.feature import FEATURE_METRICS
@@ -88,8 +109,9 @@ class ComplexityMetrics:
 
     '''INSTANCE OVERLAP MEASURES'''
     def instance_overlap_scalar(self) -> dict:
-        instance_overlap, i_names = self.pycol_complexity.instance_overlap(viz=False)
-        return dict(zip(i_names, instance_overlap))
+        from data_complexity.data_metrics.instance import INSTANCE_METRICS
+        return {m.metric_name: _to_scalar(m.compute_from_complexity(self.pycol_complexity))
+                for m in INSTANCE_METRICS}
 
     def instance_overlap_full(self) -> dict:
         from data_complexity.data_metrics.instance import INSTANCE_METRICS
@@ -98,8 +120,9 @@ class ComplexityMetrics:
 
     '''STRUCTURAL OVERLAP MEASURES'''
     def structural_overlap_scalar(self) -> dict:
-        structural_overlap, s_names = self.pycol_complexity.structure_overlap(viz=False)
-        return dict(zip(s_names, structural_overlap))
+        from data_complexity.data_metrics.structural import STRUCTURAL_METRICS
+        return {m.metric_name: _to_scalar(m.compute_from_complexity(self.pycol_complexity))
+                for m in STRUCTURAL_METRICS}
 
     def structural_overlap_full(self) -> dict:
         from data_complexity.data_metrics.structural import STRUCTURAL_METRICS
@@ -107,6 +130,11 @@ class ComplexityMetrics:
                 for m in STRUCTURAL_METRICS}
 
     '''MULTIRESOLUTION OVERLAP MEASURES'''
+    def multiresolution_overlap_scalar(self) -> dict:
+        from data_complexity.data_metrics.multiresolution import MULTIRESOLUTION_METRICS
+        return {m.metric_name: _to_scalar(m.compute_from_complexity(self.pycol_complexity))
+                for m in MULTIRESOLUTION_METRICS}
+
     def multiresolution_overlap_full(self) -> dict:
         from data_complexity.data_metrics.multiresolution import MULTIRESOLUTION_METRICS
         return {m.metric_name: m.compute_from_complexity(self.pycol_complexity)
@@ -144,3 +172,20 @@ class ComplexityMetrics:
             - 'IR': Imbalance Ratio (majority/minority class ratio)
         """
         return self.classical_measures_scalar()
+
+    '''DISTRIBUTIONAL MEASURES'''
+    def distributional_measures_scalar(self) -> dict:
+        """
+        Distributional and boundary complexity measures.
+
+        Returns statistical and geometric measures of class separation.
+
+        Returns
+        -------
+        dict
+            Dictionary containing Silhouette, Bhattacharyya, Wasserstein,
+            SVM_SVR, and TwoNN_ID values.
+        """
+        from data_complexity.data_metrics.distributional import DISTRIBUTIONAL_METRICS
+        return {m.metric_name: m.compute(self.pycol_complexity.X, self.pycol_complexity.y)
+                for m in DISTRIBUTIONAL_METRICS}

@@ -62,10 +62,10 @@ class TestGetAllMetrics:
         result = cm.get_all_metrics_full()
 
         # Check for at least one metric from each category
-        feature_metrics = {'F1', 'F1v', 'F2', 'F3', 'F4'}
-        instance_metrics = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM'}
-        structural_metrics = {'N1', 'T1', 'Clust'}
-        multiresolution_metrics = {'MRCA', 'C1', 'Purity'}
+        feature_metrics = {'F1', 'F1v', 'F2', 'F3', 'F4', 'IN'}
+        instance_metrics = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM', 'Borderline'}
+        structural_metrics = {'N1', 'T1', 'Clust', 'N2', 'ONB', 'LSCAvg', 'DBC', 'NSG', 'ICSV'}
+        multiresolution_metrics = {'MRCA', 'C1', 'Purity', 'C2', 'NeighbourhoodSeparability'}
 
         result_keys = set(result.keys())
         assert feature_metrics <= result_keys, "Missing feature overlap metrics"
@@ -100,10 +100,10 @@ class TestFeatureOverlap:
         assert isinstance(result, dict)
 
     def test_feature_overlap_full_has_expected_metrics(self, moons_dataset):
-        """Verify feature_overlap_full contains F1-F4 and F1v."""
+        """Verify feature_overlap_full contains all feature metrics."""
         cm = ComplexityMetrics(dataset=moons_dataset)
         result = cm.feature_overlap_full()
-        expected = {'F1', 'F1v', 'F2', 'F3', 'F4'}
+        expected = {'F1', 'F1v', 'F2', 'F3', 'F4', 'IN'}
         assert expected == set(result.keys())
 
 
@@ -132,7 +132,7 @@ class TestInstanceOverlap:
         """Verify instance_overlap_full contains expected metrics."""
         cm = ComplexityMetrics(dataset=moons_dataset)
         result = cm.instance_overlap_full()
-        expected = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM'}
+        expected = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM', 'Borderline'}
         assert expected == set(result.keys())
 
 
@@ -158,10 +158,10 @@ class TestStructuralOverlap:
         assert isinstance(result, dict)
 
     def test_structural_overlap_full_has_expected_metrics(self, moons_dataset):
-        """Verify structural_overlap_full contains N1, T1, Clust."""
+        """Verify structural_overlap_full contains all structural metrics."""
         cm = ComplexityMetrics(dataset=moons_dataset)
         result = cm.structural_overlap_full()
-        expected = {'N1', 'T1', 'Clust'}
+        expected = {'N1', 'T1', 'Clust', 'N2', 'ONB', 'LSCAvg', 'DBC', 'NSG', 'ICSV'}
         assert expected == set(result.keys())
 
 
@@ -175,10 +175,10 @@ class TestMultiresolutionOverlap:
         assert isinstance(result, dict)
 
     def test_multiresolution_overlap_full_has_expected_metrics(self, moons_dataset):
-        """Verify multiresolution_overlap_full contains MRCA, C1, Purity."""
+        """Verify multiresolution_overlap_full contains all multiresolution metrics."""
         cm = ComplexityMetrics(dataset=moons_dataset)
         result = cm.multiresolution_overlap_full()
-        expected = {'MRCA', 'C1', 'Purity'}
+        expected = {'MRCA', 'C1', 'Purity', 'C2', 'NeighbourhoodSeparability'}
         assert expected == set(result.keys())
 
 
@@ -367,11 +367,12 @@ class TestGetAllMetricsWithClassical:
         result = cm.get_all_metrics_full()
 
         # Check for at least one metric from each category
-        feature_metrics = {'F1', 'F1v', 'F2', 'F3', 'F4'}
-        instance_metrics = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM'}
-        structural_metrics = {'N1', 'T1', 'Clust'}
-        multiresolution_metrics = {'MRCA', 'C1', 'Purity'}
+        feature_metrics = {'F1', 'F1v', 'F2', 'F3', 'F4', 'IN'}
+        instance_metrics = {'Raug', 'deg_overlap', 'N3', 'SI', 'N4', 'kDN', 'D3', 'CM', 'Borderline'}
+        structural_metrics = {'N1', 'T1', 'Clust', 'N2', 'ONB', 'LSCAvg', 'DBC', 'NSG', 'ICSV'}
+        multiresolution_metrics = {'MRCA', 'C1', 'Purity', 'C2', 'NeighbourhoodSeparability'}
         classical_metrics = {'IR'}
+        distributional_metrics = {'Silhouette', 'Bhattacharyya', 'Wasserstein', 'SVM_SVR', 'TwoNN_ID'}
 
         result_keys = set(result.keys())
         assert feature_metrics <= result_keys, "Missing feature overlap metrics"
@@ -379,3 +380,4 @@ class TestGetAllMetricsWithClassical:
         assert structural_metrics <= result_keys, "Missing structural overlap metrics"
         assert multiresolution_metrics <= result_keys, "Missing multiresolution metrics"
         assert classical_metrics <= result_keys, "Missing classical measures"
+        assert distributional_metrics <= result_keys, "Missing distributional measures"

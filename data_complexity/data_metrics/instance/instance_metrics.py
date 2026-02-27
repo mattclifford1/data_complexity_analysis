@@ -93,7 +93,18 @@ class CMMetric(PyColAbstractMetric):
         return complexity.CM()
 
 
+class BorderlineMetric(PyColAbstractMetric):
+    """Fraction of borderline examples."""
+
+    @property
+    def metric_name(self) -> str:
+        return 'Borderline'
+
+    def compute_from_complexity(self, complexity):
+        return complexity.borderline()
+
+
 INSTANCE_METRICS: list = [
     RaugMetric(), DegOverlapMetric(), N3Metric(), SIMetric(),
-    N4Metric(), KDNMetric(), D3Metric(), CMMetric()
+    N4Metric(), KDNMetric(), D3Metric(), CMMetric(), BorderlineMetric()
 ]

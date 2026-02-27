@@ -60,6 +60,17 @@ class F4Metric(PyColAbstractMetric):
         return complexity.F4()
 
 
+class INMetric(PyColAbstractMetric):
+    """Input Noise measure."""
+
+    @property
+    def metric_name(self) -> str:
+        return 'IN'
+
+    def compute_from_complexity(self, complexity):
+        return complexity.input_noise()
+
+
 FEATURE_METRICS: list = [
-    F1Metric(), F1vMetric(), F2Metric(), F3Metric(), F4Metric()
+    F1Metric(), F1vMetric(), F2Metric(), F3Metric(), F4Metric(), INMetric()
 ]

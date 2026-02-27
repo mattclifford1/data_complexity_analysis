@@ -38,6 +38,28 @@ class PurityMetric(PyColAbstractMetric):
         return complexity.purity()
 
 
+class C2Metric(PyColAbstractMetric):
+    """Multi-resolution class complexity (C2)."""
+
+    @property
+    def metric_name(self) -> str:
+        return 'C2'
+
+    def compute_from_complexity(self, complexity):
+        return complexity.C2()
+
+
+class NeighbourhoodSeparabilityMetric(PyColAbstractMetric):
+    """Neighbourhood Separability measure."""
+
+    @property
+    def metric_name(self) -> str:
+        return 'NeighbourhoodSeparability'
+
+    def compute_from_complexity(self, complexity):
+        return complexity.neighbourhood_separability()
+
+
 MULTIRESOLUTION_METRICS: list = [
-    MRCAMetric(), C1Metric(), PurityMetric()
+    MRCAMetric(), C1Metric(), PurityMetric(), C2Metric(), NeighbourhoodSeparabilityMetric()
 ]

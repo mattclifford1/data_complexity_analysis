@@ -7,11 +7,12 @@ from data_complexity.data_metrics.instance.instance_metrics import (
     KDNMetric,
     D3Metric,
     CMMetric,
+    BorderlineMetric,
     INSTANCE_METRICS,
 )
 
 __all__ = [
     'RaugMetric', 'DegOverlapMetric', 'N3Metric', 'SIMetric',
-    'N4Metric', 'KDNMetric', 'D3Metric', 'CMMetric',
+    'N4Metric', 'KDNMetric', 'D3Metric', 'CMMetric', 'BorderlineMetric',
     'INSTANCE_METRICS',
 ]

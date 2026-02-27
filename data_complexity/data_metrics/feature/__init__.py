@@ -4,10 +4,11 @@ from data_complexity.data_metrics.feature.feature_metrics import (
     F2Metric,
     F3Metric,
     F4Metric,
+    INMetric,
     FEATURE_METRICS,
 )
 
 __all__ = [
-    'F1Metric', 'F1vMetric', 'F2Metric', 'F3Metric', 'F4Metric',
+    'F1Metric', 'F1vMetric', 'F2Metric', 'F3Metric', 'F4Metric', 'INMetric',
     'FEATURE_METRICS',
 ]
