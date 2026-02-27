@@ -10,6 +10,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
 
+def get_num_columns(n_items: int, max_cols: int = 5) -> int:
+    """Determine number of columns for subplots based on number of items."""
+    return min(max_cols, n_items) if n_items > 0 else 1
 
 def plot_distances(
     correlations_df: pd.DataFrame,
@@ -194,7 +197,7 @@ def plot_summary(
     """
     top_metrics = correlations_df.head(top_n)["complexity_metric"].tolist()
 
-    cols = 3
+    cols = 5
     rows = (top_n + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(12, 4 * rows))
     axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
@@ -494,7 +497,7 @@ def plot_models_vs_parameter(
         ax.set_title("No per-model columns found")
         return fig
 
-    cols = min(3, n_models)
+    cols = get_num_columns(n_models)
     rows = (n_models + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
     flat_axes = axes.flatten()
@@ -586,7 +589,7 @@ def plot_complexity_metrics_vs_parameter(
         ax.set_title("No complexity metric columns found")
         return fig
 
-    cols = min(3, n_metrics)
+    cols = get_num_columns(n_metrics)
     rows = (n_metrics + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
     flat_axes = axes.flatten()
@@ -688,7 +691,7 @@ def plot_models_vs_parameter_combined(
         ax.set_title("No per-model columns found")
         return fig
 
-    cols = min(3, n_models)
+    cols = get_num_columns(n_models)
     rows = (n_models + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
     flat_axes = axes.flatten()
@@ -798,7 +801,7 @@ def plot_complexity_metrics_vs_parameter_combined(
         ax.set_title("No complexity metric columns found")
         return fig
 
-    cols = min(3, n_metrics)
+    cols = get_num_columns(n_metrics)
     rows = (n_metrics + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 4 * rows), squeeze=False)
     flat_axes = axes.flatten()
