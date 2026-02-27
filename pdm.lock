@@ -5,10 +5,21 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:6da57867e3de7d62e88a09bbb6c91adfa8356ea74d0115fe8157157e866e38c0"
+content_hash = "sha256:69268196ee8df4cf3683c7372f6f789526be227c317c93c7f2c3a22a86129f34"
 
 [[metadata.targets]]
 requires_python = "==3.13.*"
+
+[[package]]
+name = "array-api-compat"
+version = "1.14.0"
+requires_python = ">=3.10"
+summary = "A wrapper around NumPy and other array libraries to make them compatible with the Array API standard"
+groups = ["default"]
+files = [
+    {file = "array_api_compat-1.14.0-py3-none-any.whl", hash = "sha256:ed5af1f9b6595a199c942505f281ec994892556b6efc24679a0501e87a7d6279"},
+    {file = "array_api_compat-1.14.0.tar.gz", hash = "sha256:c819ba707f5c507800cb545f7e6348ff1ecc46538381d9ad9b371ffc9cd6d784"},
+]
 
 [[package]]
 name = "certifi"
@@ -117,12 +128,31 @@ path = "."
 summary = "Default template for PDM package"
 groups = ["dev"]
 dependencies = [
+    "imbalanced-learn>=0.14.1",
     "liac-arff>=2.5.0",
     "matplotlib>=3.10.7",
     "numpy>=2.3.5",
     "pandas>=2.3.3",
     "scikit-learn>=1.7.2",
     "scipy>=1.16.3",
+]
+
+[[package]]
+name = "dcor"
+version = "0.7"
+requires_python = ">=3.10"
+summary = "dcor: distance correlation and energy statistics in Python."
+groups = ["default"]
+dependencies = [
+    "array-api-compat",
+    "joblib",
+    "numba>=0.51",
+    "numpy",
+    "scipy",
+]
+files = [
+    {file = "dcor-0.7-py3-none-any.whl", hash = "sha256:2a5875467d2b554a9d7673e574a26f9ba06fc53f3229d49cd9a18c90d7d25042"},
+    {file = "dcor-0.7.tar.gz", hash = "sha256:386d408596d7ec39af28b52c89e9fc438c4f13d8ed3d673e2c3b21029f57cbce"},
 ]
 
 [[package]]
@@ -171,7 +201,7 @@ name = "imbalanced-learn"
 version = "0.14.1"
 requires_python = ">=3.10"
 summary = "Toolbox for imbalanced dataset in machine learning"
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "joblib<2,>=1.2.0",
     "numpy<3,>=1.25.2",
@@ -271,7 +301,7 @@ name = "llvmlite"
 version = "0.46.0"
 requires_python = ">=3.10"
 summary = "lightweight wrapper around basic LLVM functionality"
-groups = ["dev"]
+groups = ["default", "dev"]
 files = [
     {file = "llvmlite-0.46.0-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:30b60892d034bc560e0ec6654737aaa74e5ca327bd8114d82136aa071d611172"},
     {file = "llvmlite-0.46.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:6cc19b051753368a9c9f31dc041299059ee91aceec81bd57b0e385e5d5bf1a54"},
@@ -373,7 +403,7 @@ name = "numba"
 version = "0.63.1"
 requires_python = ">=3.10"
 summary = "compiling Python code using LLVM"
-groups = ["dev"]
+groups = ["default", "dev"]
 dependencies = [
     "llvmlite<0.47,>=0.46.0dev0",
     "numpy<2.4,>=1.22",
@@ -892,7 +922,7 @@ name = "sklearn-compat"
 version = "0.1.5"
 requires_python = ">=3.8"
 summary = "Ease support for compatible scikit-learn estimators across versions"
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "scikit-learn<1.9,>=1.2",
 ]
@@ -1000,6 +1030,7 @@ path = "../toy_datasets"
 summary = "Default template for PDM package"
 groups = ["dev"]
 dependencies = [
+    "imbalanced-learn>=0.14.1",
     "matplotlib>=3.10.7",
     "numpy>=2.3.5",
     "opentsne>=1.0.4",

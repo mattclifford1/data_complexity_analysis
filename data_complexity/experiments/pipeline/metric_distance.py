@@ -3,8 +3,9 @@ Distance measures between metrics for correlation analysis.
 
 Provides an abstract base class and concrete implementations for measuring
 the relationship between two 1D arrays of values. The default is Pearson
-correlation, but Spearman, Kendall tau, mutual information, and Euclidean
-distance are also available.
+correlation, but Spearman, Kendall tau, mutual information, Euclidean
+distance, distance correlation, cosine similarity, and Manhattan distance
+are also available.
 """
 from __future__ import annotations
 
@@ -129,3 +130,62 @@ class EuclideanDistance(DistanceBetweenMetrics):
     @property
     def display_name(self) -> str:
         return "Euclidean Distance"
+
+
+class DistanceCorrelation(DistanceBetweenMetrics):
+    """Distance correlation between two arrays (via the dcor package).
+
+    Unlike Pearson/Spearman, distance correlation captures non-linear
+    dependencies and equals zero if and only if the variables are
+    statistically independent.
+    """
+
+    def compute(self, x: np.ndarray, y: np.ndarray) -> tuple[float, float | None]:
+        import dcor
+
+        return float(dcor.distance_correlation(x, y)), None
+
+    @property
+    def display_name(self) -> str:
+        return "Distance Correlation"
+
+
+class CosineSimilarity(DistanceBetweenMetrics):
+    """Cosine similarity between two arrays.
+
+    Measures directional alignment of the vectors; 1 = identical direction,
+    -1 = opposite direction, 0 = orthogonal (no linear relationship).
+    """
+
+    def compute(self, x: np.ndarray, y: np.ndarray) -> tuple[float, float | None]:
+        from scipy.spatial.distance import cosine
+
+        return float(1.0 - cosine(x, y)), None
+
+    @property
+    def display_name(self) -> str:
+        return "Cosine Similarity"
+
+    @property
+    def signed(self) -> bool:
+        return True
+
+
+class ManhattanDistance(DistanceBetweenMetrics):
+    """Manhattan (L1) distance between z-score-normalised arrays.
+
+    Same normalisation as EuclideanDistance but uses the sum of absolute
+    differences rather than the Euclidean norm, making it less sensitive
+    to large individual deviations.
+    """
+
+    def compute(self, x: np.ndarray, y: np.ndarray) -> tuple[float, float | None]:
+        x_std = float(np.std(x))
+        y_std = float(np.std(y))
+        x_norm = (x - np.mean(x)) / x_std if x_std > 0 else x - np.mean(x)
+        y_norm = (y - np.mean(y)) / y_std if y_std > 0 else y - np.mean(y)
+        return float(np.sum(np.abs(x_norm - y_norm))), None
+
+    @property
+    def display_name(self) -> str:
+        return "Manhattan Distance"

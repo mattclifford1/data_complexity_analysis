@@ -14,6 +14,9 @@ from data_complexity.experiments.pipeline.metric_distance import (
     KendallTau,
     MutualInformation,
     EuclideanDistance,
+    DistanceCorrelation,
+    CosineSimilarity,
+    ManhattanDistance,
 )
 from data_complexity.experiments.pipeline.utils import (
     PlotType,
@@ -56,6 +59,9 @@ __all__ = [
     "KendallTau",
     "MutualInformation",
     "EuclideanDistance",
+    "DistanceCorrelation",
+    "CosineSimilarity",
+    "ManhattanDistance",
     # utils
     "PlotType",
     "RunMode",

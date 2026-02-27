@@ -238,13 +238,97 @@ exp.save()  # writes one PNG + one CSV per measure per source
 
 Available measures (importable from `data_complexity.experiments.pipeline`):
 
-| Class | `name` | Description |
-|---|---|---|
-| `PearsonCorrelation` | `pearson_r` | Pearson product-moment r |
-| `SpearmanCorrelation` | `spearman_rho` | Spearman rank ρ |
-| `KendallTau` | `kendall_tau` | Kendall τ |
-| `MutualInformation` | `mutual_information` | k-NN mutual information |
-| `EuclideanDistance` | `euclidean_distance` | Euclidean (z-score normalised) |
+| Class | `name` | Range | Signed | Description |
+|---|---|---|---|---|
+| `PearsonCorrelation` | `pearson_r` | [-1, 1] | yes | Pearson product-moment r |
+| `SpearmanCorrelation` | `spearman_rho` | [-1, 1] | yes | Spearman rank ρ |
+| `KendallTau` | `kendall_tau` | [-1, 1] | yes | Kendall τ |
+| `MutualInformation` | `mutual_information` | [0, ∞) | no | k-NN mutual information |
+| `EuclideanDistance` | `euclidean_distance` | [0, ∞) | no | Euclidean (z-score normalised) |
+| `DistanceCorrelation` | `distance_correlation` | [0, 1] | no | Distance correlation (dcor) |
+| `CosineSimilarity` | `cosine_similarity` | [-1, 1] | yes | Cosine similarity |
+| `ManhattanDistance` | `manhattan_distance` | [0, ∞) | no | Manhattan L1 (z-score normalised) |
+
+---
+
+## Distance measures reference
+
+Full reference for all 8 available association measures.
+
+| Class | `name` | Range | Signed | p-value |
+|---|---|---|---|---|
+| `PearsonCorrelation` | `pearson_r` | [-1, 1] | yes | yes |
+| `SpearmanCorrelation` | `spearman_rho` | [-1, 1] | yes | yes |
+| `KendallTau` | `kendall_tau` | [-1, 1] | yes | yes |
+| `MutualInformation` | `mutual_information` | [0, ∞) | no | no |
+| `EuclideanDistance` | `euclidean_distance` | [0, ∞) | no | no |
+| `DistanceCorrelation` | `distance_correlation` | [0, 1] | no | no |
+| `CosineSimilarity` | `cosine_similarity` | [-1, 1] | yes | no |
+| `ManhattanDistance` | `manhattan_distance` | [0, ∞) | no | no |
+
+### Pearson r
+
+$$r = \frac{\sum_i (x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_i (x_i - \bar{x})^2 \sum_i (y_i - \bar{y})^2}}$$
+
+Measures the strength and direction of the **linear** relationship between two variables. Values near ±1 indicate a strong linear relationship; 0 indicates no linear relationship. Sensitive to outliers. Reports a p-value for the null hypothesis that ρ = 0.
+
+**Range:** [-1, 1] &nbsp;|&nbsp; **Signed:** yes &nbsp;|&nbsp; **Use when:** you expect a linear relationship and the data are roughly normally distributed.
+
+### Spearman ρ
+
+$$\rho = 1 - \frac{6 \sum_i d_i^2}{n(n^2 - 1)}, \quad d_i = \text{rank}(x_i) - \text{rank}(y_i)$$
+
+Pearson correlation applied to the **ranks** of the data rather than the raw values. Captures monotonic (not just linear) relationships and is robust to outliers and non-normal distributions.
+
+**Range:** [-1, 1] &nbsp;|&nbsp; **Signed:** yes &nbsp;|&nbsp; **Use when:** the relationship may be monotonic but non-linear, or when data contain outliers.
+
+### Kendall τ
+
+$$\tau = \frac{N_c - N_d}{\frac{1}{2} n(n-1)}$$
+
+where $N_c$ is the number of concordant pairs and $N_d$ is the number of discordant pairs. Measures the proportion of concordant minus discordant pairs. More robust than Spearman for small samples or many ties.
+
+**Range:** [-1, 1] &nbsp;|&nbsp; **Signed:** yes &nbsp;|&nbsp; **Use when:** you need a robust rank-based measure with well-behaved statistics for small samples.
+
+### Mutual Information
+
+$$I(X; Y) = \sum_{x, y} p(x, y) \log \frac{p(x, y)}{p(x)\, p(y)}$$
+
+Measures how much knowing one variable reduces uncertainty about the other. Captures **any** statistical dependency (linear or non-linear). Estimated from continuous data via k-nearest-neighbour density estimation. Always non-negative; zero only if the variables are independent.
+
+**Range:** [0, ∞) &nbsp;|&nbsp; **Signed:** no &nbsp;|&nbsp; **Use when:** you want to detect any form of dependency, including complex non-linear relationships, without assuming a particular functional form.
+
+### Euclidean Distance
+
+$$d_E(x, y) = \left\| \tilde{x} - \tilde{y} \right\|_2 = \sqrt{\sum_i (\tilde{x}_i - \tilde{y}_i)^2}$$
+
+where $\tilde{x}$ and $\tilde{y}$ are z-score normalised ($\mu = 0$, $\sigma = 1$). Measures geometric proximity in normalised space. Small values mean the two metric trajectories have similar shape and scale; large values mean they diverge.
+
+**Range:** [0, ∞) &nbsp;|&nbsp; **Signed:** no &nbsp;|&nbsp; **Use when:** you want a simple geometric similarity that treats large deviations at any single point as important (L2 penalises outliers more than L1).
+
+### Distance Correlation
+
+$$\text{dCor}(X, Y) = \sqrt{\frac{\mathcal{V}^2(X, Y)}{\sqrt{\mathcal{V}^2(X, X)\, \mathcal{V}^2(Y, Y)}}}$$
+
+where $\mathcal{V}^2$ is the distance covariance computed from pairwise Euclidean distances in the sample. Unlike Pearson r, distance correlation equals **zero if and only if** $X$ and $Y$ are statistically independent. It detects both linear and non-linear associations without any distributional assumptions. Requires the `dcor` package.
+
+**Range:** [0, 1] &nbsp;|&nbsp; **Signed:** no &nbsp;|&nbsp; **Use when:** you want a dependence measure that is theoretically guaranteed to be zero only under independence, and you need to capture non-linear structure.
+
+### Cosine Similarity
+
+$$\cos(x, y) = \frac{x \cdot y}{\|x\|_2\, \|y\|_2} = \frac{\sum_i x_i y_i}{\sqrt{\sum_i x_i^2}\, \sqrt{\sum_i y_i^2}}$$
+
+Measures the **angle** between two vectors in the original (unnormalised) space, ignoring magnitude. Two metric trajectories with the same relative shape but different absolute scales receive a high cosine similarity. Sensitive to the mean level of each series — for mean-centred comparisons, Pearson r is equivalent.
+
+**Range:** [-1, 1] &nbsp;|&nbsp; **Signed:** yes &nbsp;|&nbsp; **Use when:** you care about the direction/shape of the trajectories rather than their absolute magnitude.
+
+### Manhattan Distance
+
+$$d_M(x, y) = \left\| \tilde{x} - \tilde{y} \right\|_1 = \sum_i |\tilde{x}_i - \tilde{y}_i|$$
+
+where $\tilde{x}$ and $\tilde{y}$ are z-score normalised. Like Euclidean distance but uses the L1 norm, which is **less sensitive to large individual deviations** because differences are not squared. Two trajectories that differ by a small constant amount at every point will accumulate a large L1 distance.
+
+**Range:** [0, ∞) &nbsp;|&nbsp; **Signed:** no &nbsp;|&nbsp; **Use when:** you want a geometric similarity measure that is more robust to individual outlier points than Euclidean distance.
 
 ---
 
