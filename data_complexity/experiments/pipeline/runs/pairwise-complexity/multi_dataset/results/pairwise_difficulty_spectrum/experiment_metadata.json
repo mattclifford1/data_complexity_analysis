@@ -193,6 +193,9 @@
     "Spearman \u03c1",
     "Kendall \u03c4",
     "Mutual Information",
-    "Euclidean Distance"
+    "Euclidean Distance",
+    "Distance Correlation",
+    "Cosine Similarity",
+    "Manhattan Distance"
   ]
 }

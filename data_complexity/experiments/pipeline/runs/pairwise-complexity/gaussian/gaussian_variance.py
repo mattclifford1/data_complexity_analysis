@@ -18,6 +18,9 @@ from data_complexity.experiments.pipeline import (
     KendallTau,
     MutualInformation,
     EuclideanDistance,
+    DistanceCorrelation,
+    CosineSimilarity,
+    ManhattanDistance,
     datasets_from_sweep,
 )
 
@@ -50,6 +53,9 @@ config = ExperimentConfig(
         KendallTau(),
         MutualInformation(),
         EuclideanDistance(),
+        DistanceCorrelation(),
+        CosineSimilarity(),
+        ManhattanDistance(),
     ],
 )
 

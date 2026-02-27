@@ -27,6 +27,9 @@ from data_complexity.experiments.pipeline import (
     KendallTau,
     MutualInformation,
     EuclideanDistance,
+    DistanceCorrelation,
+    CosineSimilarity,
+    ManhattanDistance,
 )
 
 COMMON = {"num_samples": 400, "train_size": 0.5, "equal_test": True}
@@ -84,6 +87,9 @@ config = ExperimentConfig(
         KendallTau(),
         MutualInformation(),
         EuclideanDistance(),
+        DistanceCorrelation(),
+        CosineSimilarity(),
+        ManhattanDistance(),
     ],
 )
 
