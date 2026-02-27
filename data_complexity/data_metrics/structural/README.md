@@ -20,9 +20,7 @@ These measures capture the topology of the class boundary and the geometric stru
 
 Constructs the Minimum Spanning Tree (MST) over all samples using the pairwise distance matrix. Edges connecting samples of different classes are counted:
 
-```
-N1 = count(MST edges linking different classes) / n
-```
+$$N1 = \frac{\text{count}(\text{MST edges linking different classes})}{n}$$
 
 N1 estimates the density of the decision boundary: if classes are well separated, the MST will contain few inter-class edges.
 
@@ -34,9 +32,7 @@ Reference: Ho & Basu (2002). *Complexity measures of supervised classification p
 
 Greedily constructs a set of hyperspheres to cover all training samples. Each sphere is centred on a sample and its radius is set to the distance to the nearest opposite-class sample (the "nearest enemy"). Covered samples are removed and the process repeats:
 
-```
-T1 = number_of_hyperspheres / n
-```
+$$T1 = \frac{\text{number of hyperspheres}}{n}$$
 
 Many small spheres are needed when the classes are interleaved, resulting in a high T1.
 
@@ -48,9 +44,7 @@ Reference: Lorena et al. (2019). *How Complex is your classification problem?* A
 
 For each sample, defines its *local set* as all same-class samples that are closer to it than its nearest enemy. Samples are then clustered by assigning each to the largest local set it belongs to:
 
-```
-Clust = number_of_clusters / n
-```
+$$\text{Clust} = \frac{\text{number of clusters}}{n}$$
 
 A highly fragmented class (many isolated same-class pockets) will have a large Clust value.
 
@@ -62,12 +56,9 @@ Reference: Leyva et al. (2014). *A set of complexity measures designed for apply
 
 For each sample, computes the distance to its nearest same-class neighbour (intra) and its nearest different-class neighbour (inter). The ratio is then normalised:
 
-```
-r = Σ_i d_intra(i) / Σ_i d_inter(i)
-N2 = r / (1 + r)
-```
+$$r = \frac{\sum_i d_{\text{intra}}(i)}{\sum_i d_{\text{inter}}(i)}, \qquad N2 = \frac{r}{1 + r}$$
 
-N2 → 0 when intra-class distances are much smaller than inter-class distances (well-separated); N2 → 1 when intra ≈ inter (overlapping).
+$N2 \to 0$ when intra-class distances are much smaller than inter-class distances (well-separated); $N2 \to 1$ when intra $\approx$ inter (overlapping).
 
 Reference: Ho & Basu (2002).
 
@@ -77,9 +68,7 @@ Reference: Ho & Basu (2002).
 
 Applies a greedy sphere-covering algorithm independently per class. Each sphere is centred on the uncovered sample furthest from the class boundary, with its radius equal to the distance to its nearest enemy. The ONB score is the mean fraction of instances per sphere that belong to a different class:
 
-```
-ONB = mean_sphere( n_other_class_in_sphere / n_total_in_sphere )
-```
+$$ONB = \text{mean}_{\text{sphere}} \frac{n_{\text{other class in sphere}}}{n_{\text{total in sphere}}}$$
 
 High values indicate spheres that are densely populated by both classes.
 
@@ -89,12 +78,11 @@ Reference: van der Walt & Barnard (2007). *Measures for the characterisation of 
 
 ### LSCAvg — Local Set Average Cardinality
 
-For each sample, the *local set* is all same-class samples closer than the nearest enemy. The Local Set Cardinality (LSC) is:
+For each sample, the *local set* is all same-class samples closer than the nearest enemy:
 
-```
-LSC(x_i) = |{x_j : label(x_j) = label(x_i),  d(x_i, x_j) < d(x_i, nearest_enemy)}|
-LSCAvg = 1 - (Σ_i LSC(x_i)) / n²
-```
+$$LSC(\mathbf{x}_i) = \bigl|\{\mathbf{x}_j : \text{label}(\mathbf{x}_j) = \text{label}(\mathbf{x}_i),\ d(\mathbf{x}_i, \mathbf{x}_j) < d(\mathbf{x}_i, \text{nearest enemy})\}\bigr|$$
+
+$$LSCAvg = 1 - \frac{\sum_i LSC(\mathbf{x}_i)}{n^2}$$
 
 The subtraction from 1 is a normalisation so that larger average local sets give lower (easier) values. Small local sets indicate isolated samples near the class boundary.
 
@@ -106,9 +94,7 @@ Reference: Leyva et al. (2014).
 
 Uses the sphere-cover (ONB or T1) to define a reduced graph: each sphere becomes a node. An MST is then built over the sphere centres. DBC is the fraction of inter-class edges in this sphere-level MST:
 
-```
-DBC = count(inter-class MST edges between spheres) / n_spheres
-```
+$$DBC = \frac{\text{count}(\text{inter-class MST edges between spheres})}{n_{\text{spheres}}}$$
 
 DBC captures the complexity of the boundary at the level of class regions rather than individual points.
 
@@ -120,9 +106,7 @@ Reference: van der Walt (2008). *Data measures that characterise classification 
 
 Uses the sphere cover to measure how tightly each class groups together. NSG is the average number of training instances per covering sphere:
 
-```
-NSG = n_instances / n_spheres
-```
+$$NSG = \frac{n_{\text{instances}}}{n_{\text{spheres}}}$$
 
 Large NSG means each sphere covers many points — the class is compact and few spheres are needed. Small NSG indicates fragmented class regions.
 
@@ -134,11 +118,9 @@ Reference: van der Walt & Barnard (2007).
 
 Extends the sphere cover by computing per-sphere densities and measuring how variable those densities are:
 
-```
-volume(sphere_i) = π^(d/2) / Γ(d/2 + 1) · r_i^d
-density(sphere_i) = n_instances(sphere_i) / volume(sphere_i)
-ICSV = std(density over all spheres)
-```
+$$\text{volume}(s_i) = \frac{\pi^{d/2}}{\Gamma(d/2 + 1)}\, r_i^d, \qquad \text{density}(s_i) = \frac{n_{\text{instances}}(s_i)}{\text{volume}(s_i)}$$
+
+$$ICSV = \text{std}\bigl(\text{density}(s_i)\bigr)$$
 
 High ICSV means sphere densities are highly non-uniform — some regions are dense and others sparse — indicating irregular, fragmented class structure.
 

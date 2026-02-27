@@ -18,14 +18,13 @@ These measures assess difficulty at the instance level — how many training poi
 
 ### Raug — Augmented R Value
 
-For each one-vs-one class pair, Raug measures how frequently samples from one class have a majority of k-NN from the other class, weighted by the imbalance ratio IR:
+For each one-vs-one class pair, Raug measures how frequently samples from one class have a majority of $k$-NN from the other class, weighted by the imbalance ratio $IR$:
 
-```
-R(c_i → c_j) = fraction of c_i samples with > θ·k neighbours from c_j
-Raug = (1 / (IR + 1)) · R(c_i→c_j) + (IR / (IR + 1)) · R(c_j→c_i)
-```
+$$R(c_i \to c_j) = \text{fraction of } c_i \text{ samples with} > \theta k \text{ neighbours from } c_j$$
 
-where `θ` is a threshold (default 0.5) and IR = n_majority / n_minority. This gives greater weight to minority-class overlap.
+$$\text{Raug} = \frac{1}{IR + 1} R(c_i \to c_j) + \frac{IR}{IR + 1} R(c_j \to c_i)$$
+
+where $\theta$ is a threshold (default 0.5) and $IR = n_{\text{majority}} / n_{\text{minority}}$. This gives greater weight to minority-class overlap.
 
 Reference: Borsos et al. (2018). *Dealing with overlap and imbalance: a new metric and approach.* Pattern Analysis and Applications 21(2):381–395.
 
@@ -33,11 +32,9 @@ Reference: Borsos et al. (2018). *Dealing with overlap and imbalance: a new metr
 
 ### deg_overlap — Degree of Overlap
 
-For each sample, find its k nearest neighbours and count how many have a different class label. The degree of overlap is:
+For each sample, find its $k$ nearest neighbours and count how many have a different class label. The degree of overlap is:
 
-```
-deg_overlap = count(samples with ≥1 different-class NN) / n
-```
+$$\text{deg\_overlap} = \frac{\text{count}(\text{samples with} \geq 1 \text{ different-class NN})}{n}$$
 
 A straightforward fraction of instances that have at least one "enemy" in their neighbourhood.
 
@@ -49,9 +46,7 @@ Reference: Mercier et al. (2018). *Analysing the footprint of classifiers in ove
 
 Leave-one-out 1-NN classification error on the training set:
 
-```
-N3 = count(samples misclassified by their nearest same-training-set neighbour) / n
-```
+$$N3 = \frac{\text{count}(\text{samples misclassified by nearest neighbour})}{n}$$
 
 N3 directly estimates the irreducible error of the simplest non-parametric classifier. High N3 indicates dense class overlap.
 
@@ -63,11 +58,9 @@ Reference: Ho & Basu (2002). *Complexity measures of supervised classification p
 
 The complement of N3: fraction of samples correctly classified by their nearest neighbour:
 
-```
-SI = count(samples whose nearest neighbour has the same label) / n
-```
+$$SI = \frac{\text{count}(\text{samples whose nearest neighbour has the same label})}{n}$$
 
-SI = 1 means every point is closer to a same-class point than to any opposite-class point; SI = 0 means every point's nearest neighbour is from a different class.
+$SI = 1$ means every point is closer to a same-class point than to any opposite-class point; $SI = 0$ means every point's nearest neighbour is from a different class.
 
 Reference: Thornton (1998). *Separability is a learner's best friend.* 4th Neural Computation and Psychology Workshop.
 
@@ -77,15 +70,11 @@ Reference: Thornton (1998). *Separability is a learner's best friend.* 4th Neura
 
 Creates an interpolated test set by generating synthetic points between randomly chosen pairs of same-class samples:
 
-```
-x_new = α·x_i + (1-α)·x_j,   α ~ Uniform(0,1),   label(x_i) = label(x_j)
-```
+$$\mathbf{x}_{\text{new}} = \alpha\, \mathbf{x}_i + (1 - \alpha)\, \mathbf{x}_j, \quad \alpha \sim \text{Uniform}(0,1), \quad \text{label}(\mathbf{x}_i) = \text{label}(\mathbf{x}_j)$$
 
 N4 is then the 1-NN error rate when these interpolated points are classified using the original training set as the reference:
 
-```
-N4 = 1-NN error on synthetic set
-```
+$$N4 = \text{1-NN error on synthetic interpolated set}$$
 
 This measures how non-linearly the decision boundary varies in regions between same-class samples.
 
@@ -95,12 +84,9 @@ Reference: Lorena et al. (2019). *How Complex is your classification problem?* A
 
 ### kDN — K-Disagreeing Neighbours
 
-For each sample, the kDN score is the fraction of its k nearest neighbours that have a different class label:
+For each sample, the kDN score is the fraction of its $k$ nearest neighbours that have a different class label:
 
-```
-kDN(x_i) = count(NN with different label) / k
-kDN = mean_i(kDN(x_i))
-```
+$$kDN(\mathbf{x}_i) = \frac{\text{count}(\text{NN with different label})}{k}, \qquad kDN = \frac{1}{n}\sum_i kDN(\mathbf{x}_i)$$
 
 This is a smooth generalisation of N3: rather than a binary misclassified/correct decision, it measures the degree of neighbourhood disagreement.
 
@@ -110,11 +96,9 @@ Reference: Smith et al. (2014). *An instance level analysis of data complexity.*
 
 ### D3 — Disjunct Size
 
-For each sample, counts how many of its k nearest neighbours belong to the same class. If the same-class count is less than k/2, the sample is considered part of a small disjunct (a minority group surrounded by the other class):
+For each sample, counts how many of its $k$ nearest neighbours belong to the same class. If the same-class count is less than $k/2$, the sample is considered part of a small disjunct (a minority group surrounded by the other class):
 
-```
-D3 = count(samples where same-class NN count < k/2) / n_per_class
-```
+$$D3 = \frac{\text{count}(\text{samples where same-class NN count} < k/2)}{n_{\text{per class}}}$$
 
 Reported per class. Large D3 values indicate a fragmented, non-contiguous class distribution.
 
@@ -124,13 +108,11 @@ Reference: Sotoca et al. (2006). *A meta-learning framework for pattern classifi
 
 ### CM — Class Complexity Measure
 
-A threshold-based simplification of kDN: a sample is "complex" if more than half of its k neighbours disagree with its label (i.e. kDN > 0.5):
+A threshold-based simplification of kDN: a sample is "complex" if more than half of its $k$ neighbours disagree with its label (i.e. $kDN > 0.5$):
 
-```
-CM = count(samples where kDN(x_i) > 0.5) / n
-```
+$$CM = \frac{\text{count}(\text{samples where } kDN(\mathbf{x}_i) > 0.5)}{n}$$
 
-CM specifically captures instances that would be misclassified by a majority-vote k-NN classifier.
+CM specifically captures instances that would be misclassified by a majority-vote $k$-NN classifier.
 
 Reference: Anwar et al. (2014). *Measurement of data complexity for classification problems with unbalanced data.* Statistical Analysis and Data Mining 7(3):194–211.
 
@@ -138,19 +120,17 @@ Reference: Anwar et al. (2014). *Measurement of data complexity for classificati
 
 ### Borderline — Borderline Examples
 
-Inspired by the BORDERLINE-SMOTE definition. For each sample, find its 5 nearest neighbours and count how many `m` come from the other class:
+Inspired by the BORDERLINE-SMOTE definition. For each sample, find its 5 nearest neighbours and count how many $m$ come from the other class:
 
-```
-safe:          m < 2   (well inside own class region)
-borderline:    2 ≤ m ≤ 3   (near the decision boundary)
-rare:          m = 4
-noise/outlier: m = 5
-```
+| $m$ | Category |
+|---|---|
+| $m < 2$ | safe (well inside own class region) |
+| $2 \leq m \leq 3$ | borderline (near the decision boundary) |
+| $m = 4$ | rare |
+| $m = 5$ | noise / outlier |
 
-The metric returns the fraction of samples classified as borderline (2 ≤ m ≤ 3):
+The metric returns the fraction of samples classified as borderline:
 
-```
-Borderline = count(borderline samples) / n
-```
+$$\text{Borderline} = \frac{\text{count}(2 \leq m \leq 3)}{n}$$
 
 Reference: Napierała et al. (2010). *Learning from imbalanced data in presence of noisy and borderline examples.* RSCTC 2010, pp. 158–167.
