@@ -34,7 +34,7 @@ Reference: Borsos et al. (2018). *Dealing with overlap and imbalance: a new metr
 
 For each sample, find its $k$ nearest neighbours and count how many have a different class label. The degree of overlap is:
 
-$$\text{deg\_overlap} = \frac{\text{count}(\text{samples with} \geq 1 \text{ different-class NN})}{n}$$
+$$\text{deg-overlap} = \frac{\text{count}(\text{samples with} \geq 1 \text{ different-class NN})}{n}$$
 
 A straightforward fraction of instances that have at least one "enemy" in their neighbourhood.
 
