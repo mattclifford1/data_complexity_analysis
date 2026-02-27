@@ -24,8 +24,9 @@ data_complexity/
 ├── abstract_metrics.py       # Base class for custom metrics
 ├── plotting/                 # Visualization utilities
 │   └── plot_multiple_datasets.py
+├── examples/                 # Standalone example scripts
+│   └── legacy_complexity_over_datasets.py  # ComplexityCollection
 └── experiments/
-    ├── __init__.py           # Exports ComplexityCollection, DatasetEntry
     ├── pipeline/             # Experiment framework
     │   ├── __init__.py       # Public API
     │   ├── experiment.py     # Experiment class
@@ -33,7 +34,6 @@ data_complexity/
     │   ├── plotting.py       # Plot generation
     │   ├── correlations.py   # Correlation computation
     │   ├── io.py             # Save/load logic
-    │   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
     │   ├── config.py         # Pre-defined configs
     │   ├── utils.py          # Data classes & results container
     │   └── README.md         # Detailed framework docs
@@ -302,14 +302,12 @@ Experiment scripts in `data_complexity/experiments/` study how dataset parameter
 
 ```
 experiments/
-├── __init__.py             # Exports ComplexityCollection, DatasetEntry
 ├── pipeline/               # Generic experiment framework
 │   ├── experiment.py       # Experiment class
 │   ├── runner.py           # Experiment loop & parallel worker
 │   ├── plotting.py         # Plot generation
 │   ├── correlations.py     # Correlation computation
 │   ├── io.py               # Save/load logic
-│   ├── legacy_complexity_over_datasets.py  # ComplexityCollection
 │   ├── config.py           # Pre-defined configs
 │   ├── utils.py            # Data classes & results container
 │   └── README.md           # Full framework docs
@@ -500,7 +498,7 @@ from data_complexity.experiments.pipeline import PlotType
 `ComplexityCollection` computes complexity metrics across multiple datasets without ML evaluation — useful for comparing real and synthetic datasets.
 
 ```python
-from data_complexity.experiments.pipeline import ComplexityCollection
+from data_complexity.examples.legacy_complexity_over_datasets import ComplexityCollection
 
 collection = ComplexityCollection(seeds=5, train_size=0.5)
 

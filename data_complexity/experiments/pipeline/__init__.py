@@ -32,10 +32,6 @@ from data_complexity.experiments.pipeline.experiment import Experiment
 from data_complexity.experiments.pipeline.runner import (
     _run_dataset_spec_worker,
 )
-from data_complexity.experiments.pipeline.legacy_complexity_over_datasets import (
-    ComplexityCollection,
-    DatasetEntry,
-)
 from data_complexity.experiments.pipeline.config import (
     EXPERIMENT_CONFIGS,
     datasets_from_sweep,
@@ -75,8 +71,6 @@ __all__ = [
     # run
     "Experiment",
     "_run_dataset_spec_worker",
-    "ComplexityCollection",
-    "DatasetEntry",
     # config
     "EXPERIMENT_CONFIGS",
     "datasets_from_sweep",

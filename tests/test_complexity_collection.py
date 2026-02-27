@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from data_complexity.experiments.pipeline.legacy_complexity_over_datasets import (
+from data_complexity.examples.legacy_complexity_over_datasets import (
     ComplexityCollection,
     DatasetEntry,
 )
@@ -37,7 +37,7 @@ def mock_metrics():
 def _patch_complexity(metrics_dict):
     """Return a context manager that patches ComplexityMetrics to return metrics_dict."""
     return patch(
-        "data_complexity.experiments.pipeline.legacy_complexity_over_datasets.ComplexityMetrics",
+        "data_complexity.examples.legacy_complexity_over_datasets.ComplexityMetrics",
         return_value=MagicMock(
             **{"get_all_metrics_scalar.return_value": metrics_dict}
         ),
@@ -196,7 +196,7 @@ class TestCompute:
             return mock
 
         with patch(
-            "data_complexity.experiments.pipeline.legacy_complexity_over_datasets.ComplexityMetrics",
+            "data_complexity.examples.legacy_complexity_over_datasets.ComplexityMetrics",
             side_effect=make_mock,
         ):
             df = coll.compute()
@@ -277,7 +277,7 @@ class TestComputeCorrelations:
             return m
 
         with patch(
-            "data_complexity.experiments.pipeline.legacy_complexity_over_datasets.ComplexityMetrics",
+            "data_complexity.examples.legacy_complexity_over_datasets.ComplexityMetrics",
             side_effect=make_mock,
         ):
             corr = coll.compute_correlations()
@@ -300,7 +300,7 @@ class TestComputeCorrelations:
             return m
 
         with patch(
-            "data_complexity.experiments.pipeline.legacy_complexity_over_datasets.ComplexityMetrics",
+            "data_complexity.examples.legacy_complexity_over_datasets.ComplexityMetrics",
             side_effect=make_mock,
         ):
             corr = coll.compute_correlations()
@@ -364,7 +364,7 @@ class TestPlotHeatmap:
             coll.add_dataset(f"ds{i}", simple_data)
 
         with _patch_complexity(mock_metrics), patch(
-            "data_complexity.experiments.pipeline.legacy_complexity_over_datasets"
+            "data_complexity.examples.legacy_complexity_over_datasets"
             ".plot_pairwise_heatmap"
         ) as mock_plot:
             mock_plot.return_value = MagicMock()
