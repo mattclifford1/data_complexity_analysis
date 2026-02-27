@@ -2131,7 +2131,7 @@ class Complexity:
                     props = []
 
                     #number of samples in this cell of the same class as this sample (minus itself)
-                    same_class_num = len(np.where(reverse_dic_labels[cell] == self.y[sample])[0])-1
+                    same_class_num = len(np.where(np.array(reverse_dic_labels[cell]) == self.y[sample])[0])-1
                     
                     #according to the original paper limiting the max num to 11 is good practice since for large datasets the process
                     #becomes too costly
