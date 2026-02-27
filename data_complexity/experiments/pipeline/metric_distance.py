@@ -109,7 +109,10 @@ class MutualInformation(DistanceBetweenMetrics):
     def compute(self, x: np.ndarray, y: np.ndarray) -> tuple[float, float | None]:
         from sklearn.feature_selection import mutual_info_regression
 
-        mi = mutual_info_regression(x.reshape(-1, 1), y, random_state=0)[0]
+        n_neighbors = min(3, len(x) - 1)
+        if n_neighbors < 1:
+            return float("nan"), None
+        mi = mutual_info_regression(x.reshape(-1, 1), y, random_state=0, n_neighbors=n_neighbors)[0]
         return float(mi), None
 
     @property

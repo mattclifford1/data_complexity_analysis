@@ -816,13 +816,14 @@ class Complexity:
         
 
 
+        if len(cluster) == 0:
+            return np.nan
+
         sum_val = 0
         for i in range(len(cluster)):
             profile = cluster[i]
             sum_val+= self.__MRI_p(profile)
-        
-        
-        
+
         mri_val=sum_val/len(cluster)
 
         return mri_val
@@ -2090,10 +2091,13 @@ class Complexity:
             w_purities.append(new_p)
         
         norm_resolutions = [x/(max_resolution-1) for x in list(range(max_resolution))]
-        norm_purities = [(x-min(w_purities))/(max(w_purities)-min(w_purities)) for x in w_purities]
-        
+        purity_range = max(w_purities) - min(w_purities)
+        if purity_range == 0:
+            return np.nan
+        norm_purities = [(x-min(w_purities))/purity_range for x in w_purities]
+
         auc=sklearn.metrics.auc(norm_resolutions,norm_purities)
-        
+
         pur= auc/0.702
         self.metrics['multi']['purity'] = pur
         return pur
