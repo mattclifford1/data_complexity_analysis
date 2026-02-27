@@ -109,7 +109,7 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
         ],
         "ml_metrics": experiment.config.ml_metrics,
         "cv_folds": experiment.config.cv_folds,
-        "correlation_target": experiment.config.correlation_target,
+        "distance_target": experiment.config.distance_target,
         "plots": [pt.name for pt in experiment.config.plots],
         "run_mode": experiment.config.run_mode.value,
         "pairwise_distance_measures": [m.display_name for m in experiment.config.pairwise_distance_measures],

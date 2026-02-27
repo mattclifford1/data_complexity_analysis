@@ -46,7 +46,7 @@ def plot(
     -------
     dict
         PlotType or str -> matplotlib Figure. String keys are used when a single
-        PlotType generates multiple figures (e.g. COMPLEXITY_CORRELATIONS produces
+        PlotType generates multiple figures (e.g. COMPLEXITY_DISTANCES produces
         'complexity_pairwise_distances_train' and 'complexity_pairwise_distances_test').
     """
     if experiment.results is None:
@@ -59,15 +59,15 @@ def plot(
     if run_mode == RunMode.BOTH and experiment.results.distances_df is None:
         experiment.compute_distances()
 
-    if PlotType.COMPLEXITY_CORRELATIONS in plot_types and not experiment.results.complexity_pairwise_distances:
+    if PlotType.COMPLEXITY_DISTANCES in plot_types and not experiment.results.complexity_pairwise_distances:
         experiment.compute_complexity_pairwise_distances()
 
-    if PlotType.ML_CORRELATIONS in plot_types and not experiment.results.ml_pairwise_distances:
+    if PlotType.ML_DISTANCES in plot_types and not experiment.results.ml_pairwise_distances:
         if experiment.config.run_mode != RunMode.COMPLEXITY_ONLY:
             experiment.compute_ml_pairwise_distances()
 
     for pt in plot_types:
-        if pt == PlotType.CORRELATIONS:
+        if pt == PlotType.DISTANCES:
             if run_mode != RunMode.BOTH:
                 warnings.warn(
                     f"Skipping {pt.name} plot: requires both complexity and ML results "
@@ -78,7 +78,7 @@ def plot(
             _default_distance = PearsonCorrelation()
             fig = plot_distances(
                 experiment.results.distances_df,
-                title=f"{experiment.config.name}: Complexity vs {experiment.config.correlation_target}",
+                title=f"{experiment.config.name}: Complexity vs {experiment.config.distance_target}",
                 distance_name=_default_distance.display_name,
                 signed=_default_distance.signed,
             )
@@ -95,7 +95,7 @@ def plot(
                 experiment.results.complexity_df,
                 experiment.results.ml_df,
                 experiment.results.distances_df,
-                ml_column=experiment.config.correlation_target,
+                ml_column=experiment.config.distance_target,
                 top_n=6,
             )
             figures[pt] = fig
@@ -206,7 +206,7 @@ def plot(
                 )
                 figures[pt] = fig
 
-        elif pt == PlotType.COMPLEXITY_CORRELATIONS:
+        elif pt == PlotType.COMPLEXITY_DISTANCES:
             if not experiment.results.complexity_pairwise_distances:
                 experiment.compute_complexity_pairwise_distances()
 
@@ -228,7 +228,7 @@ def plot(
                 )
                 figures[f"complexity-distances/{name}_test"] = fig
 
-        elif pt == PlotType.ML_CORRELATIONS:
+        elif pt == PlotType.ML_DISTANCES:
             if experiment.config.run_mode == RunMode.COMPLEXITY_ONLY:
                 warnings.warn(
                     f"Skipping {pt.name} plot: requires ML results "

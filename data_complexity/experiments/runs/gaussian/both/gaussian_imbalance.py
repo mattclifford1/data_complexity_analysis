@@ -54,8 +54,8 @@ config = ExperimentConfig(
         PlotType.LINE_PLOT_MODELS_COMBINED,
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.DATASETS_OVERVIEW,
-        PlotType.COMPLEXITY_CORRELATIONS,
-        PlotType.ML_CORRELATIONS,
+        PlotType.COMPLEXITY_DISTANCES,
+        PlotType.ML_DISTANCES,
     ],
     name="gaussian_imbalance_example",
 )

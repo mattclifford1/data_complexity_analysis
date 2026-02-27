@@ -66,7 +66,7 @@ config = ExperimentConfig(
     name="moons_noise_demo",
     cv_folds=5,                # random seeds for train/test averaging
     ml_metrics=["accuracy", "f1"],
-    correlation_target="best_accuracy",
+    distance_target="best_accuracy",
 )
 ```
 
@@ -79,7 +79,7 @@ Key parameters:
 | `cv_folds` | `int` | `5` | Random seeds for train/test splitting |
 | `ml_metrics` | `List[str]` | `["accuracy", "f1"]` | ML metrics to compute |
 | `models` | `List[AbstractMLModel]` | `None` | ML models (default: all 10) |
-| `correlation_target` | `str` | `"best_accuracy"` | Target for correlation summary |
+| `distance_target` | `str` | `"best_accuracy"` | Target ML metric for distance summary |
 | `run_mode` | `RunMode` | `BOTH` | `BOTH`, `COMPLEXITY_ONLY`, or `ML_ONLY` |
 | `plots` | `List[PlotType]` | all plots | Plot types to generate |
 | `pairwise_distance_measures` | `List[DistanceBetweenMetrics]` | `[PearsonCorrelation()]` | Measures for pairwise heatmaps |
@@ -360,9 +360,9 @@ Available plot types:
 | `LINE_PLOT_MODELS_COMBINED` | Train vs test per-model accuracy, side by side |
 | `LINE_PLOT_COMPLEXITY_COMBINED` | Train vs test complexity, side by side |
 | `DATASETS_OVERVIEW` | Grid of scatter plots for each dataset spec |
-| `CORRELATIONS` | Bar chart of top complexity–ML correlations |
-| `COMPLEXITY_CORRELATIONS` | One heatmap per pairwise measure per source (train/test), saved under `complexity-distances/` |
-| `ML_CORRELATIONS` | One heatmap per pairwise measure, saved under `ml-distances/` |
+| `DISTANCES` | Bar chart of top complexity–ML distances |
+| `COMPLEXITY_DISTANCES` | One heatmap per pairwise measure per source (train/test), saved under `complexity-distances/` |
+| `ML_DISTANCES` | One heatmap per pairwise measure, saved under `ml-distances/` |
 | `SUMMARY` | Combined summary panel |
 | `HEATMAP` | Per-model correlation heatmap |
 
@@ -429,7 +429,7 @@ config = ExperimentConfig(
     ],
     ml_metrics=["accuracy", "f1", "balanced_accuracy"],
     cv_folds=10,
-    correlation_target="best_balanced_accuracy",
+    distance_target="best_balanced_accuracy",
     name="moons_custom",
 )
 ```

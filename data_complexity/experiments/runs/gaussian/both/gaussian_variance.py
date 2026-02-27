@@ -44,7 +44,7 @@ config = ExperimentConfig(
     models=models,
     ml_metrics=["accuracy", "f1", "precision", "recall", "balanced_accuracy"],
     cv_folds=5,
-    correlation_target="best_accuracy",
+    distance_target="best_accuracy",
     name="gaussian_variance_example",
 )
 

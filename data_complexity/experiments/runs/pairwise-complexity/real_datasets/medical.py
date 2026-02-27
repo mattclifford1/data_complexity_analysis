@@ -37,7 +37,7 @@ config = ExperimentConfig(
     plots=[
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.DATASETS_OVERVIEW,
-        PlotType.COMPLEXITY_CORRELATIONS,
+        PlotType.COMPLEXITY_DISTANCES,
     ],
     pairwise_distance_measures=get_all_measures(),
 )

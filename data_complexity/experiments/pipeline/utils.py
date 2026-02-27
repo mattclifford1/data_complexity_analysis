@@ -27,7 +27,7 @@ from data_complexity.experiments.pipeline.metric_distance import (
 class PlotType(Enum):
     """Types of plots that can be generated."""
 
-    CORRELATIONS = auto()
+    DISTANCES = auto()
     METRIC_VS_ACCURACY = auto()
     SUMMARY = auto()
     HEATMAP = auto()
@@ -40,8 +40,8 @@ class PlotType(Enum):
     LINE_PLOT_MODELS_COMBINED = auto()
     LINE_PLOT_COMPLEXITY_COMBINED = auto()
     DATASETS_OVERVIEW = auto()
-    COMPLEXITY_CORRELATIONS = auto()
-    ML_CORRELATIONS = auto()
+    COMPLEXITY_DISTANCES = auto()
+    ML_DISTANCES = auto()
 
 
 class RunMode(Enum):
@@ -134,8 +134,8 @@ class ExperimentConfig:
         Directory to save results. Default: results/{name}/
     plots : list of PlotType
         Plot types to generate.
-    correlation_target : str
-        ML metric to correlate against. Default: 'best_accuracy'
+    distance_target : str
+        ML metric to compute distances against. Default: 'best_accuracy'
     equal_test : bool
         If True, ensures the test set is class-balanced (useful for imbalance experiments
         where training data is imbalanced but evaluation should be fair). Default: False
@@ -163,11 +163,11 @@ class ExperimentConfig:
             PlotType.LINE_PLOT_MODELS_COMBINED,
             PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
             PlotType.DATASETS_OVERVIEW,
-            PlotType.COMPLEXITY_CORRELATIONS,
-            PlotType.ML_CORRELATIONS,
+            PlotType.COMPLEXITY_DISTANCES,
+            PlotType.ML_DISTANCES,
         ]
     )
-    correlation_target: str = "best_accuracy"
+    distance_target: str = "best_accuracy"
     equal_test: bool = False  # If True, ensures test set is balanced for imbalance experiments
     run_mode: RunMode = RunMode.BOTH
     pairwise_distance_measures: List[DistanceBetweenMetrics] = field(

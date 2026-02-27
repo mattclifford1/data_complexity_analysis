@@ -164,7 +164,7 @@ class TestExperimentConfig:
         )
         assert config.cv_folds == 5
         assert config.ml_metrics == ["accuracy", "f1"]
-        assert config.correlation_target == "best_accuracy"
+        assert config.distance_target == "best_accuracy"
         assert config.x_label == "Dataset"
         assert PlotType.LINE_PLOT_TRAIN in config.plots
         assert PlotType.LINE_PLOT_TEST in config.plots

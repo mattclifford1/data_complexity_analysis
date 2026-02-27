@@ -63,7 +63,7 @@ config = ExperimentConfig(
         "balanced_accuracy",
     ],
     cv_folds=5,
-    # correlation_target="best_accuracy",
+    # distance_target="best_accuracy",
     name="gaussian_imbalance_vary_oversampling",
 )
 

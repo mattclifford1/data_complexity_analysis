@@ -103,7 +103,7 @@ class Experiment:
         Parameters
         ----------
         ml_column : str, optional
-            ML metric column to measure against. Default: config.correlation_target
+            ML metric column to measure against. Default: config.distance_target
         complexity_source : str
             Which complexity to use: 'train' or 'test'. Default: 'train'
         ml_source : str
@@ -250,7 +250,7 @@ class Experiment:
         -------
         dict
             PlotType or str -> matplotlib Figure. String keys are used when a single
-            PlotType generates multiple figures (e.g. COMPLEXITY_CORRELATIONS produces
+            PlotType generates multiple figures (e.g. COMPLEXITY_DISTANCES produces
             'complexity_pairwise_distances_train' and 'complexity_pairwise_distances_test').
         """
         return _plotting.plot(self, plot_types=plot_types)
@@ -284,12 +284,12 @@ class Experiment:
 
     def print_summary(self, top_n: int = 10) -> None:
         """
-        Print top correlations summary.
+        Print top distances summary.
 
         Parameters
         ----------
         top_n : int
-            Number of top correlations to print. Default: 10
+            Number of top distances to print. Default: 10
         """
         if self.results is None:
             raise RuntimeError("Must run experiment before printing summary.")
@@ -297,7 +297,7 @@ class Experiment:
         if self.results.distances_df is None:
             self.compute_distances()
 
-        print(f"\nTop {top_n} distances with {self.config.correlation_target}:")
+        print(f"\nTop {top_n} distances with {self.config.distance_target}:")
         print("-" * 55)
 
         for _, row in self.results.distances_df.head(top_n).iterrows():

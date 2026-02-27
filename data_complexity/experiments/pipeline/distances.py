@@ -38,7 +38,7 @@ def compute_distances(
     experiment : Experiment
         The experiment instance holding config and results.
     ml_column : str, optional
-        ML metric column to measure against. Default: config.correlation_target
+        ML metric column to measure against. Default: config.distance_target
     complexity_source : str
         Which complexity to use: 'train' or 'test'. Default: 'train'
     ml_source : str
@@ -66,7 +66,7 @@ def compute_distances(
             "Cannot compute distances with run_mode=ML_ONLY (no complexity results)."
         )
 
-    ml_column = ml_column or experiment.config.correlation_target
+    ml_column = ml_column or experiment.config.distance_target
     complexity_df = experiment.results._get_complexity_df(complexity_source)
     ml_df = experiment.results._get_ml_df(ml_source)
 

@@ -385,8 +385,8 @@ config = ExperimentConfig(
     x_label="class_separation",
     cv_folds=5,           # Number of random seeds for train/test splitting
     ml_metrics=["accuracy", "f1"],
-    correlation_target="best_accuracy",
-    plots=[PlotType.CORRELATIONS, PlotType.SUMMARY, PlotType.LINE_PLOT_TRAIN, PlotType.LINE_PLOT_TEST,
+    distance_target="best_accuracy",
+    plots=[PlotType.DISTANCES, PlotType.SUMMARY, PlotType.LINE_PLOT_TRAIN, PlotType.LINE_PLOT_TEST,
            PlotType.LINE_PLOT_MODELS_TRAIN, PlotType.LINE_PLOT_MODELS_TEST],
     pairwise_distance_measures=[PearsonCorrelation(), SpearmanCorrelation(), KendallTau()],
     name="my_custom_experiment",
@@ -487,9 +487,9 @@ from data_complexity.experiments.pipeline import PlotType
 | `LINE_PLOT_MODELS_COMBINED` | Train vs test per-model accuracy, side by side |
 | `LINE_PLOT_COMPLEXITY_COMBINED` | Train vs test complexity, side by side |
 | `DATASETS_OVERVIEW` | Grid of scatter plots for each dataset spec |
-| `CORRELATIONS` | Bar chart of top complexity–ML correlations |
-| `COMPLEXITY_CORRELATIONS` | One heatmap per pairwise measure per source, saved under `complexity-distances/` |
-| `ML_CORRELATIONS` | One heatmap per pairwise measure, saved under `ml-distances/` |
+| `DISTANCES` | Bar chart of top complexity–ML distances |
+| `COMPLEXITY_DISTANCES` | One heatmap per pairwise measure per source, saved under `complexity-distances/` |
+| `ML_DISTANCES` | One heatmap per pairwise measure, saved under `ml-distances/` |
 | `SUMMARY` | Combined summary panel |
 | `HEATMAP` | Per-model correlation heatmap |
 
