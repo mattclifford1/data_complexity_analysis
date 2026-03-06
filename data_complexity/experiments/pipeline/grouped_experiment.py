@@ -9,6 +9,7 @@ datasets to get a robust, dataset-agnostic result.
 from __future__ import annotations
 
 import logging
+import shutil
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -590,6 +591,15 @@ class GroupedExperiment:
             group_save_dir = save_dir / "groups" / group_name
             if group_name in self._freshly_run_groups or not group_save_dir.exists():
                 exp.save(save_dir=group_save_dir)
+
+        # Copy datasets_overview plots to top-level organized directory.
+        overview_root = save_dir / "datasets_overview"
+        overview_root.mkdir(parents=True, exist_ok=True)
+        for group_name, exp in self.experiments.items():
+            group_plots_dir = save_dir / "groups" / group_name / f"plots-{exp.config.name}"
+            src = group_plots_dir / "datasets_overview.png"
+            if src.exists():
+                shutil.copy2(src, overview_root / f"{group_name}.png")
 
         print(f"Saved grouped results to: {save_dir}")
         print(f"  - Averaged CSVs: data/")

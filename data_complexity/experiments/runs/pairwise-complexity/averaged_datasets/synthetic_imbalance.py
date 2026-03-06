@@ -36,6 +36,7 @@ base_config = ExperimentConfig(
     plots=[
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.COMPLEXITY_DISTANCES,
+        PlotType.DATASETS_OVERVIEW,
     ],
     pairwise_distance_measures=[
         PearsonCorrelation(),
@@ -64,7 +65,7 @@ grouped_config = GroupedExperimentConfig(
     base_config=base_config,
     name="grouped_separation_sweep",
     save_dir=SAVE_DIR,
-    rerun_all_experiments=False,
+    # rerun_all_experiments=False,
 )
 
 

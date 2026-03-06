@@ -154,7 +154,8 @@
   "distance_target": "best_accuracy",
   "plots": [
     "LINE_PLOT_COMPLEXITY_COMBINED",
-    "COMPLEXITY_DISTANCES"
+    "COMPLEXITY_DISTANCES",
+    "DATASETS_OVERVIEW"
   ],
   "run_mode": "complexity",
   "pairwise_distance_measures": [
