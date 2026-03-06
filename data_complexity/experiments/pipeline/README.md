@@ -602,8 +602,10 @@ grouped.save()
 
 1. **`run(verbose, n_jobs)`** — clones `base_config` once per group (overriding `datasets`, `name`, and `save_dir`), creates one `Experiment`, and runs it. Each group's experiment is stored in `grouped.experiments[group_name]`.
 2. **`compute_averaged_pairwise_distances(source="train")`** — calls `exp.compute_complexity_pairwise_distances()` on each group, collects the per-group N×N matrices, then applies `aggregation_fn(list_of_matrices)` per measure. Result is stored in `grouped.averaged_pairwise_distances`.
-3. **`plot()`** — generates one heatmap per averaged matrix using the shared `plot_pairwise_heatmap` function. Returns `dict[measure_name, Figure]`.
-4. **`save(save_dir)`** — writes averaged CSVs and heatmap PNGs to the root directory, then calls `exp.save()` for each group.
+3. **`compute_averaged_complexity_dfs()`** — collects each group's train/test complexity DataFrames and averages them row-by-row using `mean_dataframes`. Each input DataFrame already contains the mean-across-seeds value for that group, so the resulting `{metric}_std` columns represent the **std of the group means** — i.e. how much the metric varies across dataset groups at each parameter value, not within-group seed noise. Results stored as `grouped.averaged_train_complexity_df` and `grouped.averaged_test_complexity_df`.
+4. **`plot()`** — generates one heatmap per averaged pairwise matrix. Returns `dict[measure_name, Figure]`.
+5. **`plot_averaged_line_plots()`** — generates line plots of averaged complexity metrics vs the sweep parameter. Error bands show cross-group std: wide bands mean groups disagree on the trend; narrow bands mean the trend is consistent across all groups. Returns dict with keys `"averaged_line_plot_train"`, `"averaged_line_plot_test"`, and `"averaged_line_plot_combined"` (when both train and test are available).
+6. **`save(save_dir)`** — writes all averaged CSVs, heatmap PNGs, and line plot PNGs to the root directory, then calls `exp.save()` for each group. Calls `compute_averaged_complexity_dfs()` automatically if not already done.
 
 ### `GroupedExperimentConfig` parameters
 
@@ -620,9 +622,14 @@ grouped.save()
 ```
 results/grouped_name/
 ├── data/
-│   └── averaged_pairwise_distances_{measure}.csv   ← one per measure
+│   ├── averaged_pairwise_distances_{measure}.csv   ← one per measure
+│   ├── averaged_train_complexity.csv               ← averaged complexity (train)
+│   └── averaged_test_complexity.csv                ← averaged complexity (test)
 ├── plots/
-│   └── averaged_pairwise_distances_{measure}.png   ← one per measure
+│   ├── averaged_pairwise_distances_{measure}.png   ← heatmap per measure
+│   ├── averaged_line_plot_train.png                ← complexity vs parameter (train)
+│   ├── averaged_line_plot_test.png                 ← complexity vs parameter (test)
+│   └── averaged_line_plot_combined.png             ← train vs test overlay
 └── groups/
     ├── {group_name}/                               ← per-group Experiment outputs
     │   ├── experiment_metadata.json
@@ -637,8 +644,12 @@ results/grouped_name/
 # Per-group N×N matrices (populated after compute_averaged_pairwise_distances)
 grouped.per_group_pairwise_distances["moons"]["pearson_r"]   # N×N DataFrame
 
-# Aggregated matrices
+# Aggregated pairwise matrices
 grouped.averaged_pairwise_distances["pearson_r"]             # N×N DataFrame
+
+# Averaged complexity DataFrames (populated after compute_averaged_complexity_dfs)
+grouped.averaged_train_complexity_df   # rows = sweep positions, cols = metrics + _std
+grouped.averaged_test_complexity_df
 
 # The underlying child Experiments
 grouped.experiments["moons"]   # full Experiment with .results, .config, etc.

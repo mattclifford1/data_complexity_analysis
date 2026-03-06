@@ -15,11 +15,16 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from data_complexity.experiments.pipeline.experiment import Experiment
 from data_complexity.experiments.pipeline.utils import DatasetSpec, ExperimentConfig
-from data_complexity.experiments.plotting import plot_pairwise_heatmap
+from data_complexity.experiments.plotting import (
+    plot_complexity_metrics_vs_parameter,
+    plot_complexity_metrics_vs_parameter_combined,
+    plot_pairwise_heatmap,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,88 @@ def mean_matrices(matrices: List[pd.DataFrame]) -> pd.DataFrame:
     shared_sorted = sorted(shared)
     aligned = [m.loc[shared_sorted, shared_sorted] for m in matrices]
     return pd.concat(aligned).groupby(level=0).mean()
+
+
+def mean_dataframes(dfs: List[pd.DataFrame]) -> pd.DataFrame:
+    """
+    Average metric columns across DataFrames aligned by row position.
+
+    Rows are assumed to correspond to the same x-axis positions across groups
+    (same sweep structure, same param_value sequence). The first DataFrame's
+    param_value/param_label columns are kept for x-axis display. Metric means
+    become the value columns; cross-group std is written to ``{metric}_std``
+    columns (overwriting any existing per-seed std).
+
+    Parameters
+    ----------
+    dfs : list of pd.DataFrame
+        Each DataFrame has columns: param_value, param_label, metric cols,
+        and optional {metric}_std cols. All must have the same number of rows
+        and the same param_value sequence.
+
+    Returns
+    -------
+    pd.DataFrame
+        Averaged DataFrame with the same row count. Metric columns contain
+        cross-group means; ``{metric}_std`` columns contain cross-group stds.
+
+    Raises
+    ------
+    ValueError
+        If the list is empty, row counts differ across groups, or param_value
+        sequences differ between any two groups.
+    """
+    if not dfs:
+        raise ValueError("Cannot average an empty list of DataFrames.")
+
+    n_rows = len(dfs[0])
+    for i, df in enumerate(dfs[1:], 1):
+        if len(df) != n_rows:
+            raise ValueError(
+                f"mean_dataframes: group {i} has {len(df)} rows but group 0 has {n_rows} rows."
+            )
+
+    if "param_value" in dfs[0].columns:
+        ref_params = dfs[0]["param_value"].tolist()
+        for i, df in enumerate(dfs[1:], 1):
+            if "param_value" in df.columns and df["param_value"].tolist() != ref_params:
+                raise ValueError(
+                    f"mean_dataframes: group {i} has different param_value values than group 0."
+                )
+
+    non_metric = {"param_value", "param_label"}
+    ref_metric_cols = [
+        c for c in dfs[0].columns
+        if c not in non_metric and not c.endswith("_std")
+    ]
+
+    # Keep only metrics present in all DataFrames
+    shared = ref_metric_cols
+    for df in dfs[1:]:
+        df_metric_cols = {
+            c for c in df.columns
+            if c not in non_metric and not c.endswith("_std")
+        }
+        shared = [c for c in shared if c in df_metric_cols]
+
+    excluded = set(ref_metric_cols) - set(shared)
+    if excluded:
+        warnings.warn(
+            f"mean_dataframes: metrics {excluded} are missing in some groups and will be excluded.",
+            stacklevel=2,
+        )
+
+    result: Dict[str, object] = {}
+    for col in ["param_value", "param_label"]:
+        if col in dfs[0].columns:
+            result[col] = dfs[0][col].tolist()
+
+    for metric in shared:
+        values = np.array([df[metric].values.astype(float) for df in dfs])
+        result[metric] = values.mean(axis=0)
+        result[f"{metric}_std"] = values.std(axis=0)
+
+    return pd.DataFrame(result)
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +221,8 @@ class GroupedExperiment:
         self.experiments: Dict[str, Experiment] = {}
         self.per_group_pairwise_distances: Dict[str, Dict[str, pd.DataFrame]] = {}
         self.averaged_pairwise_distances: Dict[str, pd.DataFrame] = {}
+        self.averaged_train_complexity_df: Optional[pd.DataFrame] = None
+        self.averaged_test_complexity_df: Optional[pd.DataFrame] = None
 
     # ------------------------------------------------------------------
     # Run
@@ -230,6 +319,106 @@ class GroupedExperiment:
 
         return self.averaged_pairwise_distances
 
+    def compute_averaged_complexity_dfs(self) -> Dict[str, pd.DataFrame]:
+        """
+        Average per-group train and test complexity DataFrames by row position.
+
+        Each group's experiment must have been run first. Calls
+        ``mean_dataframes`` on the train and test complexity DataFrames
+        collected from all groups. Groups with a None train/test DataFrame
+        (e.g. when RunMode skips complexity) are silently excluded from that
+        split's average.
+
+        Returns
+        -------
+        dict
+            Keys "train" and/or "test" mapping to the averaged DataFrame.
+            Results are also stored as ``self.averaged_train_complexity_df``
+            and ``self.averaged_test_complexity_df``.
+
+        Raises
+        ------
+        RuntimeError
+            If :meth:`run` has not been called.
+        """
+        if not self.experiments:
+            raise RuntimeError("Must call run() before compute_averaged_complexity_dfs().")
+
+        train_dfs = [
+            exp.results.train_complexity_df
+            for exp in self.experiments.values()
+            if exp.results.train_complexity_df is not None
+        ]
+        test_dfs = [
+            exp.results.test_complexity_df
+            for exp in self.experiments.values()
+            if exp.results.test_complexity_df is not None
+        ]
+
+        result: Dict[str, pd.DataFrame] = {}
+        if train_dfs:
+            self.averaged_train_complexity_df = mean_dataframes(train_dfs)
+            result["train"] = self.averaged_train_complexity_df
+        if test_dfs:
+            self.averaged_test_complexity_df = mean_dataframes(test_dfs)
+            result["test"] = self.averaged_test_complexity_df
+
+        return result
+
+    def plot_averaged_line_plots(self) -> Dict[str, plt.Figure]:
+        """
+        Generate line plots of averaged complexity metrics.
+
+        Calls :meth:`compute_averaged_complexity_dfs` if not already done.
+        Uses ``plot_complexity_metrics_vs_parameter`` for train and test
+        individually, and ``plot_complexity_metrics_vs_parameter_combined``
+        for the overlaid train-vs-test view. Only generates plots for sources
+        that are available (some RunModes skip complexity computation).
+
+        Returns
+        -------
+        dict
+            Keys: "averaged_line_plot_train", "averaged_line_plot_test",
+            "averaged_line_plot_combined" — only present when the corresponding
+            data is available.
+        """
+        if self.averaged_train_complexity_df is None and self.averaged_test_complexity_df is None:
+            self.compute_averaged_complexity_dfs()
+
+        figures: Dict[str, plt.Figure] = {}
+        x_label = self.config.base_config.x_label
+        name = self.config.name
+
+        if self.averaged_train_complexity_df is not None:
+            figures["averaged_line_plot_train"] = plot_complexity_metrics_vs_parameter(
+                self.averaged_train_complexity_df,
+                param_label_col="param_label",
+                x_label=x_label,
+                title=f"{name}: Averaged Complexity (Train) vs {x_label}",
+            )
+
+        if self.averaged_test_complexity_df is not None:
+            figures["averaged_line_plot_test"] = plot_complexity_metrics_vs_parameter(
+                self.averaged_test_complexity_df,
+                param_label_col="param_label",
+                x_label=x_label,
+                title=f"{name}: Averaged Complexity (Test) vs {x_label}",
+            )
+
+        if (
+            self.averaged_train_complexity_df is not None
+            and self.averaged_test_complexity_df is not None
+        ):
+            figures["averaged_line_plot_combined"] = plot_complexity_metrics_vs_parameter_combined(
+                self.averaged_train_complexity_df,
+                self.averaged_test_complexity_df,
+                param_label_col="param_label",
+                x_label=x_label,
+                title=f"{name}: Averaged Complexity (Train vs Test) vs {x_label}",
+            )
+
+        return figures
+
     # ------------------------------------------------------------------
     # Plot
     # ------------------------------------------------------------------
@@ -294,7 +483,7 @@ class GroupedExperiment:
         data_dir.mkdir(parents=True, exist_ok=True)
         plots_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save averaged matrices
+        # Save averaged pairwise distance matrices
         for measure_name, matrix in self.averaged_pairwise_distances.items():
             csv_path = data_dir / f"averaged_pairwise_distances_{measure_name}.csv"
             matrix.to_csv(csv_path)
@@ -306,6 +495,24 @@ class GroupedExperiment:
             fig.savefig(png_path, dpi=150, bbox_inches="tight")
             plt.close(fig)
 
+        # Compute and save averaged complexity DataFrames and line plots
+        if self.averaged_train_complexity_df is None and self.averaged_test_complexity_df is None:
+            self.compute_averaged_complexity_dfs()
+
+        if self.averaged_train_complexity_df is not None:
+            self.averaged_train_complexity_df.to_csv(
+                data_dir / "averaged_train_complexity.csv", index=False
+            )
+        if self.averaged_test_complexity_df is not None:
+            self.averaged_test_complexity_df.to_csv(
+                data_dir / "averaged_test_complexity.csv", index=False
+            )
+
+        line_plot_figures = self.plot_averaged_line_plots()
+        for key, fig in line_plot_figures.items():
+            fig.savefig(plots_dir / f"{key}.png", dpi=150, bbox_inches="tight")
+            plt.close(fig)
+
         # Save each group's experiment results
         for group_name, exp in self.experiments.items():
             group_save_dir = save_dir / "groups" / group_name
@@ -313,7 +520,7 @@ class GroupedExperiment:
 
         print(f"Saved grouped results to: {save_dir}")
         print(f"  - Averaged CSVs: data/")
-        print(f"  - Heatmaps: plots/")
+        print(f"  - Heatmaps + line plots: plots/")
         print(f"  - Per-group: groups/{{group_name}}/")
 
 

@@ -37,6 +37,7 @@ from data_complexity.experiments.pipeline.grouped_experiment import (
     GroupedExperiment,
     GroupedExperimentConfig,
     mean_matrices,
+    mean_dataframes,
 )
 from data_complexity.experiments.pipeline.runner import (
     _run_dataset_spec_worker,
@@ -88,6 +89,7 @@ __all__ = [
     "GroupedExperiment",
     "GroupedExperimentConfig",
     "mean_matrices",
+    "mean_dataframes",
     # config
     "EXPERIMENT_CONFIGS",
     "datasets_from_sweep",

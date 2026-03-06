@@ -20,6 +20,7 @@ from data_complexity.experiments.pipeline.grouped_experiment import (
     GroupedExperiment,
     GroupedExperimentConfig,
     _clone_config,
+    mean_dataframes,
     mean_matrices,
 )
 
@@ -108,6 +109,98 @@ class TestMeanMatrices:
         r1 = mean_matrices([m1, m2])
         r2 = mean_matrices([m2, m1])
         pd.testing.assert_frame_equal(r1, r2)
+
+
+# ---------------------------------------------------------------------------
+# mean_dataframes
+# ---------------------------------------------------------------------------
+
+def _make_complexity_df(
+    param_values: list,
+    metrics: dict[str, list[float]],
+) -> pd.DataFrame:
+    """Build a minimal complexity DataFrame matching the experiment format."""
+    data = {
+        "param_value": param_values,
+        "param_label": [str(v) for v in param_values],
+    }
+    data.update(metrics)
+    return pd.DataFrame(data)
+
+
+class TestMeanDataframes:
+
+    def test_basic_mean_and_std(self):
+        df1 = _make_complexity_df([1, 2], {"F1": [0.2, 0.4], "N3": [0.6, 0.8]})
+        df2 = _make_complexity_df([1, 2], {"F1": [0.4, 0.6], "N3": [0.8, 1.0]})
+        result = mean_dataframes([df1, df2])
+
+        assert np.isclose(result["F1"].iloc[0], 0.3)
+        assert np.isclose(result["F1"].iloc[1], 0.5)
+        assert "F1_std" in result.columns
+        assert np.isclose(result["F1_std"].iloc[0], np.std([0.2, 0.4]))
+
+    def test_param_columns_preserved_from_first(self):
+        df1 = _make_complexity_df([10, 20], {"F1": [0.1, 0.2]})
+        df2 = _make_complexity_df([10, 20], {"F1": [0.3, 0.4]})
+        result = mean_dataframes([df1, df2])
+
+        assert list(result["param_value"]) == [10, 20]
+        assert list(result["param_label"]) == ["10", "20"]
+
+    def test_single_df_std_is_zero(self):
+        df = _make_complexity_df([1, 2], {"F1": [0.5, 0.7]})
+        result = mean_dataframes([df])
+
+        assert np.allclose(result["F1"].values, [0.5, 0.7])
+        assert np.allclose(result["F1_std"].values, [0.0, 0.0])
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            mean_dataframes([])
+
+    def test_mismatched_row_count_raises(self):
+        df1 = _make_complexity_df([1, 2], {"F1": [0.1, 0.2]})
+        df2 = _make_complexity_df([1, 2, 3], {"F1": [0.1, 0.2, 0.3]})
+        with pytest.raises(ValueError, match="rows"):
+            mean_dataframes([df1, df2])
+
+    def test_mismatched_param_values_raises(self):
+        df1 = _make_complexity_df([1, 2], {"F1": [0.1, 0.2]})
+        df2 = _make_complexity_df([1, 3], {"F1": [0.1, 0.3]})  # different param value
+        with pytest.raises(ValueError, match="param_value"):
+            mean_dataframes([df1, df2])
+
+    def test_missing_metric_warns_and_excludes(self):
+        df1 = _make_complexity_df([1, 2], {"F1": [0.1, 0.2], "N3": [0.3, 0.4]})
+        df2 = _make_complexity_df([1, 2], {"F1": [0.5, 0.6]})  # N3 missing
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = mean_dataframes([df1, df2])
+
+        assert any("N3" in str(w.message) for w in caught)
+        assert "F1" in result.columns
+        assert "N3" not in result.columns
+
+    def test_existing_std_columns_overwritten(self):
+        """Per-seed _std columns in input are overwritten with cross-group std."""
+        df1 = _make_complexity_df([1, 2], {"F1": [0.2, 0.4]})
+        df1["F1_std"] = [0.01, 0.02]  # per-seed std — should be overwritten
+        df2 = _make_complexity_df([1, 2], {"F1": [0.4, 0.6]})
+        result = mean_dataframes([df1, df2])
+
+        # Cross-group std of [0.2, 0.4] and [0.4, 0.6]
+        expected_std_row0 = np.std([0.2, 0.4])
+        assert np.isclose(result["F1_std"].iloc[0], expected_std_row0)
+
+    def test_three_groups(self):
+        dfs = [
+            _make_complexity_df([1, 2], {"F1": [v, v + 0.2]})
+            for v in [0.1, 0.3, 0.5]
+        ]
+        result = mean_dataframes(dfs)
+        assert np.isclose(result["F1"].iloc[0], 0.3)
 
 
 # ---------------------------------------------------------------------------
@@ -425,6 +518,8 @@ class TestGroupedExperimentSave:
         for name in ["g1", "g2"]:
             mock_exp = MagicMock()
             mock_exp.save = MagicMock()
+            mock_exp.results.train_complexity_df = None
+            mock_exp.results.test_complexity_df = None
             grouped.experiments[name] = mock_exp
 
         return grouped
@@ -547,6 +642,65 @@ class TestGroupedExperimentIntegration:
         assert mat.shape[0] == mat.shape[1]
         assert np.allclose(np.diag(mat.values), 1.0, atol=1e-6)
 
+    def test_compute_averaged_complexity_dfs(self, fast_base_config, tmp_path):
+        grouped = GroupedExperiment(
+            GroupedExperimentConfig(
+                dataset_groups={
+                    "moons": datasets_from_sweep(
+                        DatasetSpec("Moons", {"num_samples": 80}),
+                        ParameterSpec("moons_noise", [0.05, 0.3], label_format="{value}"),
+                    ),
+                    "circles": datasets_from_sweep(
+                        DatasetSpec("Circles", {"num_samples": 80}),
+                        ParameterSpec("circles_noise", [0.05, 0.3], label_format="{value}"),
+                    ),
+                },
+                base_config=fast_base_config,
+                name="avg_complexity_test",
+                save_dir=tmp_path,
+            )
+        )
+        grouped.run(verbose=False)
+        result = grouped.compute_averaged_complexity_dfs()
+
+        assert "train" in result
+        train_df = result["train"]
+        assert len(train_df) == 2  # 2 parameter values
+        assert "param_value" in train_df.columns
+        # At least one metric column should have a _std sibling
+        metric_cols = [c for c in train_df.columns if not c.endswith("_std") and c not in ("param_value", "param_label")]
+        assert len(metric_cols) > 0
+        for m in metric_cols:
+            assert f"{m}_std" in train_df.columns
+
+    def test_plot_averaged_line_plots(self, fast_base_config, tmp_path):
+        import matplotlib.pyplot as plt
+
+        grouped = GroupedExperiment(
+            GroupedExperimentConfig(
+                dataset_groups={
+                    "moons": datasets_from_sweep(
+                        DatasetSpec("Moons", {"num_samples": 80}),
+                        ParameterSpec("moons_noise", [0.05, 0.3], label_format="{value}"),
+                    ),
+                    "circles": datasets_from_sweep(
+                        DatasetSpec("Circles", {"num_samples": 80}),
+                        ParameterSpec("circles_noise", [0.05, 0.3], label_format="{value}"),
+                    ),
+                },
+                base_config=fast_base_config,
+                name="line_plot_test",
+                save_dir=tmp_path,
+            )
+        )
+        grouped.run(verbose=False)
+        figures = grouped.plot_averaged_line_plots()
+
+        assert "averaged_line_plot_train" in figures
+        for fig in figures.values():
+            assert isinstance(fig, plt.Figure)
+            plt.close(fig)
+
     def test_save_produces_files(self, fast_base_config, tmp_path):
         grouped = GroupedExperiment(
             GroupedExperimentConfig(
@@ -554,6 +708,10 @@ class TestGroupedExperimentIntegration:
                     "g1": datasets_from_sweep(
                         DatasetSpec("Moons", {"num_samples": 60}),
                         ParameterSpec("moons_noise", [0.1, 0.3], label_format="{value}"),
+                    ),
+                    "g2": datasets_from_sweep(
+                        DatasetSpec("Circles", {"num_samples": 60}),
+                        ParameterSpec("circles_noise", [0.1, 0.3], label_format="{value}"),
                     ),
                 },
                 base_config=fast_base_config,
@@ -568,4 +726,6 @@ class TestGroupedExperimentIntegration:
 
         assert (tmp_path / "data" / "averaged_pairwise_distances_pearson_r.csv").exists()
         assert (tmp_path / "plots" / "averaged_pairwise_distances_pearson_r.png").exists()
+        assert (tmp_path / "data" / "averaged_train_complexity.csv").exists()
+        assert (tmp_path / "plots" / "averaged_line_plot_train.png").exists()
         assert (tmp_path / "groups" / "g1").is_dir()
