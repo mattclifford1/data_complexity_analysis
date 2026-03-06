@@ -166,11 +166,11 @@
     "f1"
   ],
   "cv_folds": 5,
-  "correlation_target": "best_accuracy",
+  "distance_target": "best_accuracy",
   "plots": [
     "LINE_PLOT_COMPLEXITY_COMBINED",
     "DATASETS_OVERVIEW",
-    "COMPLEXITY_CORRELATIONS"
+    "COMPLEXITY_DISTANCES"
   ],
   "run_mode": "complexity",
   "pairwise_distance_measures": [
