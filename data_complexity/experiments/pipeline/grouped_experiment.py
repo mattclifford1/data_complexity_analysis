@@ -172,6 +172,10 @@ class GroupedExperimentConfig:
         per-group pairwise distance matrices. Default: element-wise mean.
     name : str
         Name for this grouped experiment. Default: "grouped_experiment".
+    rerun_all_experiments : bool
+        If True (default), always re-run every group experiment. If False,
+        skip re-running groups whose save directory already exists and load
+        their results from disk instead.
     save_dir : Path, optional
         Root directory to save results. Defaults to ``results/{name}/``
         relative to the current working directory.
@@ -183,6 +187,7 @@ class GroupedExperimentConfig:
         default=mean_matrices
     )
     name: str = "grouped_experiment"
+    rerun_all_experiments: bool = True
     save_dir: Optional[Path] = None
 
     def __post_init__(self) -> None:
@@ -223,6 +228,7 @@ class GroupedExperiment:
         self.averaged_pairwise_distances: Dict[str, pd.DataFrame] = {}
         self.averaged_train_complexity_df: Optional[pd.DataFrame] = None
         self.averaged_test_complexity_df: Optional[pd.DataFrame] = None
+        self._freshly_run_groups: set[str] = set()
 
     # ------------------------------------------------------------------
     # Run
@@ -231,6 +237,12 @@ class GroupedExperiment:
     def run(self, verbose: bool = True, n_jobs: int = 1) -> None:
         """
         Run one Experiment per dataset group.
+
+        When ``config.rerun_all_experiments`` is True (default), every group
+        experiment is re-run from scratch. When False, any group whose save
+        directory already exists has its results loaded from disk and the
+        experiment is skipped — useful when only the averaging/plotting step
+        needs to be redone after a previous full run.
 
         Parameters
         ----------
@@ -253,12 +265,41 @@ class GroupedExperiment:
                 save_dir=group_save_dir,
             )
             exp = Experiment(group_config)
-            exp.run(verbose=verbose, n_jobs=n_jobs)
+
+            if not self.config.rerun_all_experiments and group_save_dir.exists():
+                if verbose:
+                    print(f"  Skipping run — loading existing results from: {group_save_dir}")
+                exp.load_results(save_dir=group_save_dir)
+            else:
+                exp.run(verbose=verbose, n_jobs=n_jobs)
+                self._freshly_run_groups.add(group_name)
+
             self.experiments[group_name] = exp
 
     # ------------------------------------------------------------------
     # Aggregate
     # ------------------------------------------------------------------
+
+    def _load_averaged_pairwise_distances_from_disk(self) -> Dict[str, pd.DataFrame]:
+        """Load averaged pairwise distance matrices from disk if they exist."""
+        data_dir = self.config.save_dir / "data"
+        if not data_dir.exists():
+            return {}
+        result = {}
+        for csv_path in sorted(data_dir.glob("averaged_pairwise_distances_*.csv")):
+            measure_name = csv_path.stem.removeprefix("averaged_pairwise_distances_")
+            result[measure_name] = pd.read_csv(csv_path, index_col=0)
+        return result
+
+    def _load_averaged_complexity_from_disk(self) -> None:
+        """Load averaged train/test complexity DataFrames from disk if they exist."""
+        data_dir = self.config.save_dir / "data"
+        train_path = data_dir / "averaged_train_complexity.csv"
+        test_path = data_dir / "averaged_test_complexity.csv"
+        if train_path.exists():
+            self.averaged_train_complexity_df = pd.read_csv(train_path)
+        if test_path.exists():
+            self.averaged_test_complexity_df = pd.read_csv(test_path)
 
     def compute_averaged_pairwise_distances(
         self, source: str = "train"
@@ -283,10 +324,27 @@ class GroupedExperiment:
         if not self.experiments:
             raise RuntimeError("Must call run() before compute_averaged_pairwise_distances().")
 
+        # When no groups were freshly run, load previously saved averaged results directly.
+        # This guarantees bit-for-bit identity with the prior rerun=True baseline.
+        if not self._freshly_run_groups:
+            loaded = self._load_averaged_pairwise_distances_from_disk()
+            if loaded:
+                self.averaged_pairwise_distances = loaded
+                return self.averaged_pairwise_distances
+
         self.per_group_pairwise_distances = {}
 
         for group_name, exp in self.experiments.items():
-            group_matrices = exp.compute_complexity_pairwise_distances(source=source)
+            if group_name in self._freshly_run_groups:
+                group_matrices = exp.compute_complexity_pairwise_distances(source=source)
+            else:
+                # Use distances already loaded from disk — avoids floating-point divergence
+                # from recomputing scipy stats on CSV-loaded values.
+                group_matrices = (
+                    exp.results.complexity_pairwise_distances
+                    if source == "train"
+                    else exp.results.complexity_pairwise_distances_test
+                )
             self.per_group_pairwise_distances[group_name] = group_matrices
 
         # Collect all measure names across groups
@@ -483,10 +541,15 @@ class GroupedExperiment:
         data_dir.mkdir(parents=True, exist_ok=True)
         plots_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save averaged pairwise distance matrices
-        for measure_name, matrix in self.averaged_pairwise_distances.items():
-            csv_path = data_dir / f"averaged_pairwise_distances_{measure_name}.csv"
-            matrix.to_csv(csv_path)
+        # Save averaged pairwise distance matrices.
+        # Skip writing when no groups were freshly run: the files on disk are already
+        # correct, and re-saving through pandas read_csv→to_csv introduces 1-ULP float
+        # differences due to pandas' float parser not being bit-for-bit identical to
+        # Python's built-in float().
+        if self._freshly_run_groups:
+            for measure_name, matrix in self.averaged_pairwise_distances.items():
+                csv_path = data_dir / f"averaged_pairwise_distances_{measure_name}.csv"
+                matrix.to_csv(csv_path, float_format='%.17g')
 
         # Save heatmaps
         figures = self.plot()
@@ -495,28 +558,38 @@ class GroupedExperiment:
             fig.savefig(png_path, dpi=150, bbox_inches="tight")
             plt.close(fig)
 
-        # Compute and save averaged complexity DataFrames and line plots
+        # Compute averaged complexity DataFrames for line plots and (optionally) saving.
         if self.averaged_train_complexity_df is None and self.averaged_test_complexity_df is None:
-            self.compute_averaged_complexity_dfs()
+            if not self._freshly_run_groups:
+                # Load previously saved averaged results for use in plots below.
+                self._load_averaged_complexity_from_disk()
+            if self.averaged_train_complexity_df is None and self.averaged_test_complexity_df is None:
+                # First run or some groups freshly run: compute from group data.
+                self.compute_averaged_complexity_dfs()
 
-        if self.averaged_train_complexity_df is not None:
-            self.averaged_train_complexity_df.to_csv(
-                data_dir / "averaged_train_complexity.csv", index=False
-            )
-        if self.averaged_test_complexity_df is not None:
-            self.averaged_test_complexity_df.to_csv(
-                data_dir / "averaged_test_complexity.csv", index=False
-            )
+        # Only write complexity CSVs when data actually changed (same reason as above).
+        if self._freshly_run_groups:
+            if self.averaged_train_complexity_df is not None:
+                self.averaged_train_complexity_df.to_csv(
+                    data_dir / "averaged_train_complexity.csv", index=False, float_format='%.17g'
+                )
+            if self.averaged_test_complexity_df is not None:
+                self.averaged_test_complexity_df.to_csv(
+                    data_dir / "averaged_test_complexity.csv", index=False, float_format='%.17g'
+                )
 
         line_plot_figures = self.plot_averaged_line_plots()
         for key, fig in line_plot_figures.items():
             fig.savefig(plots_dir / f"{key}.png", dpi=150, bbox_inches="tight")
             plt.close(fig)
 
-        # Save each group's experiment results
+        # Save each group's experiment results — only for freshly-run groups.
+        # Loaded groups are already correctly persisted on disk; re-saving them
+        # would re-compute pairwise distances and risk floating-point differences.
         for group_name, exp in self.experiments.items():
             group_save_dir = save_dir / "groups" / group_name
-            exp.save(save_dir=group_save_dir)
+            if group_name in self._freshly_run_groups or not group_save_dir.exists():
+                exp.save(save_dir=group_save_dir)
 
         print(f"Saved grouped results to: {save_dir}")
         print(f"  - Averaged CSVs: data/")

@@ -163,6 +163,8 @@ class CosineSimilarity(DistanceBetweenMetrics):
     def compute(self, x: np.ndarray, y: np.ndarray) -> tuple[float, float | None]:
         from scipy.spatial.distance import cosine
 
+        if np.linalg.norm(x) == 0 or np.linalg.norm(y) == 0:
+            return float("nan"), None
         return float(1.0 - cosine(x, y)), None
 
     @property

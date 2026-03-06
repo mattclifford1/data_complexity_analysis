@@ -120,43 +120,43 @@ def save(experiment: "Experiment", save_dir: Optional[Path] = None) -> None:
 
     # Save backward-compat CSVs (train complexity + test ML)
     if experiment.results.complexity_df is not None:
-        experiment.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False)
+        experiment.results.complexity_df.to_csv(data_dir / "complexity_metrics.csv", index=False, float_format='%.17g')
     if experiment.results.ml_df is not None:
-        experiment.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False)
+        experiment.results.ml_df.to_csv(data_dir / "ml_performance.csv", index=False, float_format='%.17g')
 
     # Save train/test split CSVs if available
     if experiment.results.train_complexity_df is not None:
         experiment.results.train_complexity_df.to_csv(
-            data_dir / "train_complexity_metrics.csv", index=False
+            data_dir / "train_complexity_metrics.csv", index=False, float_format='%.17g'
         )
     if experiment.results.test_complexity_df is not None:
         experiment.results.test_complexity_df.to_csv(
-            data_dir / "test_complexity_metrics.csv", index=False
+            data_dir / "test_complexity_metrics.csv", index=False, float_format='%.17g'
         )
     if experiment.results.train_ml_df is not None:
         experiment.results.train_ml_df.to_csv(
-            data_dir / "train_ml_performance.csv", index=False
+            data_dir / "train_ml_performance.csv", index=False, float_format='%.17g'
         )
     if experiment.results.test_ml_df is not None:
         experiment.results.test_ml_df.to_csv(
-            data_dir / "test_ml_performance.csv", index=False
+            data_dir / "test_ml_performance.csv", index=False, float_format='%.17g'
         )
 
     if experiment.results.distances_df is not None:
-        experiment.results.distances_df.to_csv(data_dir / "distances.csv", index=False)
+        experiment.results.distances_df.to_csv(data_dir / "distances.csv", index=False, float_format='%.17g')
 
     for name, matrix in experiment.results.complexity_pairwise_distances.items():
-        matrix.to_csv(data_dir / f"complexity_pairwise_distances_{name}.csv")
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_{name}.csv", float_format='%.17g')
 
     for name, matrix in experiment.results.complexity_pairwise_distances_test.items():
-        matrix.to_csv(data_dir / f"complexity_pairwise_distances_test_{name}.csv")
+        matrix.to_csv(data_dir / f"complexity_pairwise_distances_test_{name}.csv", float_format='%.17g')
 
     for name, matrix in experiment.results.ml_pairwise_distances.items():
-        matrix.to_csv(data_dir / f"ml_pairwise_distances_{name}.csv")
+        matrix.to_csv(data_dir / f"ml_pairwise_distances_{name}.csv", float_format='%.17g')
 
     if experiment.results.per_classifier_distances_df is not None:
         experiment.results.per_classifier_distances_df.to_csv(
-            data_dir / "per_classifier_distances.csv", index=False
+            data_dir / "per_classifier_distances.csv", index=False, float_format='%.17g'
         )
 
     # Save plots to plots/ subfolder (sub-keyed figures may include path separators)
@@ -233,8 +233,10 @@ def load_results(
     corr_path = _resolve_path(save_dir, "distances.csv", "data")
 
     experiment.results = ExperimentResultsContainer(experiment.config)
-    experiment.results._complexity_df = pd.read_csv(complexity_path)
-    experiment.results._ml_df = pd.read_csv(ml_path)
+    if complexity_path.exists():
+        experiment.results._complexity_df = pd.read_csv(complexity_path)
+    if ml_path.exists():
+        experiment.results._ml_df = pd.read_csv(ml_path)
 
     if corr_path.exists():
         experiment.results._distances_df = pd.read_csv(corr_path)
@@ -269,6 +271,21 @@ def load_results(
     )
     if per_classifier_dist_path.exists():
         experiment.results._per_classifier_distances_df = pd.read_csv(per_classifier_dist_path)
+
+    # Load pre-computed pairwise distances if available
+    data_dir_path = save_dir / "data"
+    if data_dir_path.exists():
+        for csv_path in sorted(data_dir_path.glob("complexity_pairwise_distances_*.csv")):
+            remainder = csv_path.stem.removeprefix("complexity_pairwise_distances_")
+            if remainder.startswith("test_"):
+                measure_name = remainder.removeprefix("test_")
+                experiment.results._complexity_pairwise_distances_test[measure_name] = (
+                    pd.read_csv(csv_path, index_col=0)
+                )
+            else:
+                experiment.results._complexity_pairwise_distances[remainder] = (
+                    pd.read_csv(csv_path, index_col=0)
+                )
 
     experiment.datasets = {}  # Clear since we don't have loaders for loaded results
 
