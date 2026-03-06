@@ -915,8 +915,7 @@ def plot_datasets_overview(
         try:
             dataset.plot_dataset(ax=row_axes[0])
             dataset.plot_train_test_split(ax=(row_axes[1], row_axes[2]))
-        except (ValueError, AttributeError):
-            dataset.plot_dataset(ax=row_axes[0])
+        except Exception:
             for blank_ax in row_axes[1:]:
                 blank_ax.axis("off")
                 blank_ax.text(

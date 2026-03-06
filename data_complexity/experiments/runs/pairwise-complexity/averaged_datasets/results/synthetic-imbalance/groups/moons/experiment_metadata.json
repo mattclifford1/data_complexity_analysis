@@ -1,5 +1,5 @@
 {
-  "experiment_name": "grouped_separation_sweep__moons",
+  "experiment_name": "synthetic-imbalance__moons",
   "datasets": [
     {
       "label": "imbalance=1x",

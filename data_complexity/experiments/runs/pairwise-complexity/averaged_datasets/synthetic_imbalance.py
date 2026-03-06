@@ -26,7 +26,8 @@ from data_complexity.experiments.pipeline.grouped_experiment import (
     GroupedExperimentConfig,
 )
 
-SAVE_DIR = Path(__file__).parent / "results" / "synthetic-imbalance"
+NAME = "synthetic-imbalance"
+SAVE_DIR = Path(__file__).parent / "results" / NAME
 
 base_config = ExperimentConfig(
     datasets=[],
@@ -63,7 +64,7 @@ grouped_config = GroupedExperimentConfig(
         ),
     },
     base_config=base_config,
-    name="grouped_separation_sweep",
+    name=NAME,
     save_dir=SAVE_DIR,
     # rerun_all_experiments=False,
 )

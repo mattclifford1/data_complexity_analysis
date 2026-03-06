@@ -230,6 +230,7 @@ class GroupedExperiment:
         self.averaged_train_complexity_df: Optional[pd.DataFrame] = None
         self.averaged_test_complexity_df: Optional[pd.DataFrame] = None
         self._freshly_run_groups: set[str] = set()
+        self._averaged_pairwise_source: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Run
@@ -281,14 +282,15 @@ class GroupedExperiment:
     # Aggregate
     # ------------------------------------------------------------------
 
-    def _load_averaged_pairwise_distances_from_disk(self) -> Dict[str, pd.DataFrame]:
+    def _load_averaged_pairwise_distances_from_disk(self, source: str = "train") -> Dict[str, pd.DataFrame]:
         """Load averaged pairwise distance matrices from disk if they exist."""
         data_dir = self.config.save_dir / "data"
         if not data_dir.exists():
             return {}
         result = {}
-        for csv_path in sorted(data_dir.glob("averaged_pairwise_distances_*.csv")):
-            measure_name = csv_path.stem.removeprefix("averaged_pairwise_distances_")
+        prefix = f"averaged_pairwise_distances_{source}_"
+        for csv_path in sorted(data_dir.glob(f"averaged_pairwise_distances_{source}_*.csv")):
+            measure_name = csv_path.stem.removeprefix(prefix)
             result[measure_name] = pd.read_csv(csv_path, index_col=0)
         return result
 
@@ -328,9 +330,10 @@ class GroupedExperiment:
         # When no groups were freshly run, load previously saved averaged results directly.
         # This guarantees bit-for-bit identity with the prior rerun=True baseline.
         if not self._freshly_run_groups:
-            loaded = self._load_averaged_pairwise_distances_from_disk()
+            loaded = self._load_averaged_pairwise_distances_from_disk(source=source)
             if loaded:
                 self.averaged_pairwise_distances = loaded
+                self._averaged_pairwise_source = source
                 return self.averaged_pairwise_distances
 
         self.per_group_pairwise_distances = {}
@@ -376,6 +379,7 @@ class GroupedExperiment:
                 self.config.aggregation_fn(matrices)
             )
 
+        self._averaged_pairwise_source = source
         return self.averaged_pairwise_distances
 
     def compute_averaged_complexity_dfs(self) -> Dict[str, pd.DataFrame]:
@@ -501,12 +505,13 @@ class GroupedExperiment:
             for m in self.config.base_config.pairwise_distance_measures
         }
 
+        source_label = (self._averaged_pairwise_source or "train").capitalize()
         figures: Dict[str, plt.Figure] = {}
         for measure_name, matrix in self.averaged_pairwise_distances.items():
             display = measure_display.get(measure_name, measure_name)
             fig = plot_pairwise_heatmap(
                 matrix,
-                title=f"{self.config.name}: Averaged Complexity Pairwise ({display})",
+                title=f"{self.config.name}: Averaged Complexity Pairwise ({display}) — {source_label}",
             )
             figures[measure_name] = fig
 
@@ -547,15 +552,16 @@ class GroupedExperiment:
         # correct, and re-saving through pandas read_csv→to_csv introduces 1-ULP float
         # differences due to pandas' float parser not being bit-for-bit identical to
         # Python's built-in float().
+        source_label = self._averaged_pairwise_source or "train"
         if self._freshly_run_groups:
             for measure_name, matrix in self.averaged_pairwise_distances.items():
-                csv_path = data_dir / f"averaged_pairwise_distances_{measure_name}.csv"
+                csv_path = data_dir / f"averaged_pairwise_distances_{source_label}_{measure_name}.csv"
                 matrix.to_csv(csv_path, float_format='%.17g')
 
         # Save heatmaps
         figures = self.plot()
         for measure_name, fig in figures.items():
-            png_path = plots_dir / f"averaged_pairwise_distances_{measure_name}.png"
+            png_path = plots_dir / f"averaged_pairwise_distances_{source_label}_{measure_name}.png"
             fig.savefig(png_path, dpi=150, bbox_inches="tight")
             plt.close(fig)
 

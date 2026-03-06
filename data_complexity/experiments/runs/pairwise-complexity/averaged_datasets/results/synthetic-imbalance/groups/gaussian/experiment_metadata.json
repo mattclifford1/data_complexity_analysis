@@ -1,5 +1,5 @@
 {
-  "experiment_name": "grouped_separation_sweep__gaussian",
+  "experiment_name": "synthetic-imbalance__gaussian",
   "datasets": [
     {
       "label": "imbalance=1x",

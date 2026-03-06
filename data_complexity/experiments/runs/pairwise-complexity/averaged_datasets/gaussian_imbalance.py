@@ -26,7 +26,8 @@ from data_complexity.experiments.pipeline.grouped_experiment import (
     GroupedExperimentConfig,
 )
 
-SAVE_DIR = Path(__file__).parent / "results" / "synthetic-imbalance"
+NAME = "gaussian-imbalance"
+SAVE_DIR = Path(__file__).parent / "results" / NAME
 
 base_config = ExperimentConfig(
     datasets=[],
@@ -36,6 +37,7 @@ base_config = ExperimentConfig(
     plots=[
         PlotType.LINE_PLOT_COMPLEXITY_COMBINED,
         PlotType.COMPLEXITY_DISTANCES,
+        PlotType.DATASETS_OVERVIEW,
     ],
     pairwise_distance_measures=[
         PearsonCorrelation(),
@@ -46,25 +48,21 @@ base_config = ExperimentConfig(
     # ml_metrics=["accuracy"],
 )
 
+dataset_groups = {}
+for sep in [5.0, 2.0, 1.0, 0.5, 0.1]:
+    dataset_groups[f"gaussian_sep_{sep}"] = datasets_from_sweep(
+        DatasetSpec(
+            "Gaussian",
+            {"num_samples": 400, "train_size": 0.5, "class_separation": sep},
+        ),
+        ParameterSpec("minority_reduce_scaler", [1, 2, 4, 8, 16], "imbalance={value}x"),
+    )
+
 grouped_config = GroupedExperimentConfig(
-    dataset_groups={
-        "moons": datasets_from_sweep(
-            DatasetSpec("Moons", {"num_samples": 400, "train_size": 0.5}),
-            ParameterSpec("minority_reduce_scaler", [1, 2, 4, 8, 16], "imbalance={value}x"),
-        ),
-        "circles": datasets_from_sweep(
-            DatasetSpec("Circles", {"num_samples": 400, "train_size": 0.5}),
-            ParameterSpec("minority_reduce_scaler", [1, 2, 4, 8, 16], "imbalance={value}x"),
-        ),
-        "gaussian": datasets_from_sweep(
-            DatasetSpec("Gaussian", {"num_samples": 400, "train_size": 0.5}),
-            ParameterSpec("minority_reduce_scaler", [1, 2, 4, 8, 16], "imbalance={value}x"),
-        ),
-    },
+    dataset_groups=dataset_groups,
     base_config=base_config,
-    name="grouped_separation_sweep",
+    name=NAME,
     save_dir=SAVE_DIR,
-    rerun_all_experiments=False,
 )
 
 

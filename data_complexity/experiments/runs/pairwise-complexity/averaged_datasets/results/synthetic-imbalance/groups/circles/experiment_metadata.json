@@ -1,5 +1,5 @@
 {
-  "experiment_name": "grouped_separation_sweep__circles",
+  "experiment_name": "synthetic-imbalance__circles",
   "datasets": [
     {
       "label": "imbalance=1x",

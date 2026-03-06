@@ -200,11 +200,14 @@ def plot(
 
         elif pt == PlotType.DATASETS_OVERVIEW:
             if experiment.datasets:
-                fig = plot_datasets_overview(
-                    datasets=experiment.datasets,
-                    format_label=lambda label: label,
-                )
-                figures[pt] = fig
+                try:
+                    fig = plot_datasets_overview(
+                        datasets=experiment.datasets,
+                        format_label=lambda label: label,
+                    )
+                    figures[pt] = fig
+                except Exception as e:
+                    warnings.warn(f"Failed to generate DATASETS_OVERVIEW plot: {e}")
 
         elif pt == PlotType.COMPLEXITY_DISTANCES:
             if not experiment.results.complexity_pairwise_distances:
