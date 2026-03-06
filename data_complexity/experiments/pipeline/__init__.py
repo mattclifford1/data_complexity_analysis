@@ -33,6 +33,11 @@ from data_complexity.experiments.pipeline.utils import (
     make_json_safe_list,
 )
 from data_complexity.experiments.pipeline.experiment import Experiment
+from data_complexity.experiments.pipeline.grouped_experiment import (
+    GroupedExperiment,
+    GroupedExperimentConfig,
+    mean_matrices,
+)
 from data_complexity.experiments.pipeline.runner import (
     _run_dataset_spec_worker,
 )
@@ -79,6 +84,10 @@ __all__ = [
     # run
     "Experiment",
     "_run_dataset_spec_worker",
+    # grouped_experiment
+    "GroupedExperiment",
+    "GroupedExperimentConfig",
+    "mean_matrices",
     # config
     "EXPERIMENT_CONFIGS",
     "datasets_from_sweep",

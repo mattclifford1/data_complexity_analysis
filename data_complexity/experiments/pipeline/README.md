@@ -553,6 +553,121 @@ config = ExperimentConfig(
 
 ---
 
+## Grouped experiments — averaging pairwise distances across datasets
+
+`GroupedExperiment` runs the same sweep on multiple dataset groups, then averages the resulting pairwise distance matrices across groups. This answers questions like: "Which complexity metrics co-vary as dataset parameter changes, e.g. class imbalance, regardless of the specific dataset geometry?"
+
+### Quick start
+
+```python
+from data_complexity.experiments.pipeline import (
+    ExperimentConfig, DatasetSpec, ParameterSpec,
+    RunMode, PlotType, PearsonCorrelation, SpearmanCorrelation,
+    datasets_from_sweep, get_all_measures,
+)
+from data_complexity.experiments.pipeline.grouped_experiment import (
+    GroupedExperiment, GroupedExperimentConfig,
+)
+
+base_config = ExperimentConfig(
+    datasets=[],   # filled per group — this field is ignored
+    x_label="noise",
+    cv_folds=5,
+    run_mode=RunMode.COMPLEXITY_ONLY,
+    plots=[PlotType.COMPLEXITY_DISTANCES],
+    pairwise_distance_measures=get_all_measures(),
+)
+
+grouped = GroupedExperiment(GroupedExperimentConfig(
+    dataset_groups={
+        "moons": datasets_from_sweep(
+            DatasetSpec("Moons", {}),
+            ParameterSpec("moons_noise", [0.05, 0.1, 0.2, 0.3, 0.5], label_format="{value}"),
+        ),
+        "circles": datasets_from_sweep(
+            DatasetSpec("Circles", {}),
+            ParameterSpec("circles_noise", [0.05, 0.1, 0.2, 0.3, 0.5], label_format="{value}"),
+        ),
+    },
+    base_config=base_config,
+    name="grouped_noise",
+))
+
+grouped.run(n_jobs=-1)
+averaged = grouped.compute_averaged_pairwise_distances()  # dict: measure_name -> N×N DataFrame
+grouped.save()
+```
+
+### How it works
+
+1. **`run(verbose, n_jobs)`** — clones `base_config` once per group (overriding `datasets`, `name`, and `save_dir`), creates one `Experiment`, and runs it. Each group's experiment is stored in `grouped.experiments[group_name]`.
+2. **`compute_averaged_pairwise_distances(source="train")`** — calls `exp.compute_complexity_pairwise_distances()` on each group, collects the per-group N×N matrices, then applies `aggregation_fn(list_of_matrices)` per measure. Result is stored in `grouped.averaged_pairwise_distances`.
+3. **`plot()`** — generates one heatmap per averaged matrix using the shared `plot_pairwise_heatmap` function. Returns `dict[measure_name, Figure]`.
+4. **`save(save_dir)`** — writes averaged CSVs and heatmap PNGs to the root directory, then calls `exp.save()` for each group.
+
+### `GroupedExperimentConfig` parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `dataset_groups` | `Dict[str, List[DatasetSpec]]` | required | Group name → list of dataset specs (the sweep) |
+| `base_config` | `ExperimentConfig` | required | Template config; `datasets`, `name`, `save_dir` are overridden per group |
+| `aggregation_fn` | `Callable[[List[DataFrame]], DataFrame]` | `mean_matrices` | How to aggregate per-group matrices |
+| `name` | `str` | `"grouped_experiment"` | Name of the grouped experiment |
+| `save_dir` | `Path` | `results/{name}/` | Root directory for all outputs |
+
+### Saved output structure
+
+```
+results/grouped_name/
+├── data/
+│   └── averaged_pairwise_distances_{measure}.csv   ← one per measure
+├── plots/
+│   └── averaged_pairwise_distances_{measure}.png   ← one per measure
+└── groups/
+    ├── {group_name}/                               ← per-group Experiment outputs
+    │   ├── experiment_metadata.json
+    │   ├── data/
+    │   └── plots-{name}/
+    └── ...
+```
+
+### Accessing results programmatically
+
+```python
+# Per-group N×N matrices (populated after compute_averaged_pairwise_distances)
+grouped.per_group_pairwise_distances["moons"]["pearson_r"]   # N×N DataFrame
+
+# Aggregated matrices
+grouped.averaged_pairwise_distances["pearson_r"]             # N×N DataFrame
+
+# The underlying child Experiments
+grouped.experiments["moons"]   # full Experiment with .results, .config, etc.
+```
+
+### Custom aggregation
+
+Pass any `Callable[[List[pd.DataFrame]], pd.DataFrame]` as `aggregation_fn`:
+
+```python
+import numpy as np
+
+def median_matrices(matrices):
+    """Element-wise median — robust to outlier groups."""
+    shared = sorted(set.intersection(*[set(m.index) for m in matrices]))
+    aligned = [m.loc[shared, shared] for m in matrices]
+    stacked = np.stack([m.values for m in aligned])
+    return pd.DataFrame(
+        np.median(stacked, axis=0),
+        index=shared, columns=shared,
+    )
+
+GroupedExperimentConfig(..., aggregation_fn=median_matrices)
+```
+
+The default `mean_matrices` is importable from `data_complexity.experiments.pipeline.grouped_experiment`.
+
+---
+
 ## Run modes
 
 ```python
